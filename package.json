@@ -1,0 +1,23 @@
+{
+  "name": "taply-digital-vcard",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Premium digital vCard SaaS interface and Laravel frontend assets.",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "aos": "^2.3.4",
+    "gsap": "^3.13.0",
+    "lucide": "^0.468.0",
+    "qrcode": "^1.5.4",
+    "tailwindcss": "^4.1.14"
+  },
+  "devDependencies": {
+    "vite": "^7.1.0"
+  }
+}
