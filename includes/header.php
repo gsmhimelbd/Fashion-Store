@@ -5,6 +5,7 @@ trackCustomerVisit();
 $s = getAllSettings();
 $storeName = $s['store_name'] ?? 'OnlineBdMart';
 $storeLogo = $s['store_logo'] ?? 'images/logo.png';
+$storeFavicon = $s['store_favicon'] ?? ($s['store_logo'] ?? 'images/logo.png');
 $whatsapp = $s['whatsapp_number'] ?? '01775153740';
 $phone = $s['contact_phone'] ?? '01775153740';
 $tangailFee = $s['delivery_charge_tangail'] ?? '50';
@@ -46,6 +47,11 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? ($storeName . ' - Online Shopping Bangladesh')) ?></title>
     
+    <!-- Dynamic Favicon / Website Tab Icon -->
+    <link rel="icon" href="/<?= ltrim($storeFavicon, '/') ?>">
+    <link rel="shortcut icon" href="/<?= ltrim($storeFavicon, '/') ?>">
+    <link rel="apple-touch-icon" href="/<?= ltrim($storeFavicon, '/') ?>">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">

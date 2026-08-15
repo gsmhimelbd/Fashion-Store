@@ -429,6 +429,7 @@ INSERT INTO `settings` (`key`, `setting_key`, `value`, `setting_value`) VALUES
 ('store_name', 'store_name', 'OnlineBdMart', 'OnlineBdMart'),
 ('store_tagline', 'store_tagline', 'Online Shopping BD - Wholesale & Retail', 'Online Shopping BD - Wholesale & Retail'),
 ('store_logo', 'store_logo', 'images/logo.png', 'images/logo.png'),
+('store_favicon', 'store_favicon', 'images/logo.png', 'images/logo.png'),
 ('store_email', 'store_email', 'support@onlinebdmart.com', 'support@onlinebdmart.com'),
 ('store_phone', 'store_phone', '01775153740', '01775153740'),
 ('store_address', 'store_address', 'Tangail, Dhaka Division, Bangladesh', 'Tangail, Dhaka Division, Bangladesh'),

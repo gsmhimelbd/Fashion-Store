@@ -28,12 +28,14 @@ try {
     $adminAvatar = !empty($currAdmin['profile_photo']) ? $currAdmin['profile_photo'] : 'images/products/watch-1.jpg';
     $adminRole = $currAdmin['role'] ?? ($_SESSION['admin_role'] ?? 'superadmin');
     $storeLogo = getSetting('store_logo', 'images/logo.png');
+    $storeFavicon = getSetting('store_favicon', $storeLogo);
 } catch (Exception $e) {
     $pendingOrdersCount = 0;
     $unreadMessagesCount = 0;
     $adminAvatar = 'images/products/watch-1.jpg';
     $adminRole = 'superadmin';
     $storeLogo = 'images/logo.png';
+    $storeFavicon = 'images/logo.png';
 }
 ?>
 <!DOCTYPE html>
@@ -42,6 +44,8 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($adminTitle ?? 'Admin Portal') ?> - OnlineBdMart</title>
+    <link rel="icon" href="/<?= ltrim($storeFavicon, '/') ?>">
+    <link rel="apple-touch-icon" href="/<?= ltrim($storeFavicon, '/') ?>">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>

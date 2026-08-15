@@ -2656,14 +2656,45 @@ const server = http.createServer(async (req, res) => {
 
         if (pathname === '/admin-panel/settings' && isGet) {
             const s = getSettings();
+            const logo = s.store_logo || 'images/logo.png';
+            const favicon = s.store_favicon || 'images/logo.png';
             const content = `
-                <div class="bg-white p-6 rounded-3xl border shadow-sm max-w-xl space-y-4 text-xs">
-                    <h3 class="font-bold text-sm uppercase">Site Settings</h3>
-                    <form method="POST" action="/admin-panel/settings" class="space-y-3">
-                        <div><label class="block font-bold">Store Name</label><input type="text" name="store_name" value="${s.store_name || ''}" class="w-full border rounded-xl px-3 py-2"></div>
-                        <div><label class="block font-bold">Hotline Phone</label><input type="text" name="contact_phone" value="${s.contact_phone || ''}" class="w-full border rounded-xl px-3 py-2"></div>
-                        <div><label class="block font-bold">WhatsApp Number</label><input type="text" name="whatsapp_number" value="${s.whatsapp_number || ''}" class="w-full border rounded-xl px-3 py-2"></div>
-                        <button type="submit" class="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl shadow">Save Settings</button>
+                <div class="bg-white p-6 sm:p-8 rounded-3xl border shadow-sm max-w-4xl space-y-6 text-xs">
+                    <div class="border-b pb-4">
+                        <h3 class="font-extrabold text-base text-slate-900">General Store, Logo & Favicon Settings</h3>
+                        <p class="text-slate-500">Manage brand identity, header logo, browser favicon icon, and contact details.</p>
+                    </div>
+                    <form method="POST" action="/admin-panel/settings" class="space-y-6">
+                        <!-- Logo & Favicon Side by Side Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-slate-50 border rounded-2xl">
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <label class="font-bold text-slate-800 flex items-center gap-1.5"><i class="fas fa-image text-indigo-600"></i> Main Brand Logo</label>
+                                    <img src="/${logo.replace(/^\/+/, '')}" class="h-8 max-w-[100px] object-contain border p-1 rounded bg-white">
+                                </div>
+                                <input type="text" name="store_logo" value="${logo}" placeholder="images/logo.png" class="w-full border rounded-xl px-3.5 py-2.5 bg-white outline-none">
+                                <p class="text-[10px] text-slate-400">Header & invoice horizontal brand logo.</p>
+                            </div>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <label class="font-bold text-slate-800 flex items-center gap-1.5"><i class="fas fa-globe text-cyan-600"></i> Website Icon (Favicon)</label>
+                                    <img src="/${favicon.replace(/^\/+/, '')}" class="w-7 h-7 object-contain border p-1 rounded bg-white">
+                                </div>
+                                <input type="text" name="store_favicon" value="${favicon}" placeholder="images/favicon.png" class="w-full border rounded-xl px-3.5 py-2.5 bg-white outline-none">
+                                <p class="text-[10px] text-slate-400">Browser tab square favicon icon.</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div><label class="block font-bold text-slate-700 mb-1">Store Name</label><input type="text" name="store_name" value="${s.store_name || ''}" class="w-full border rounded-xl px-3.5 py-2.5 outline-none"></div>
+                            <div><label class="block font-bold text-slate-700 mb-1">Tagline</label><input type="text" name="store_tagline" value="${s.store_tagline || ''}" class="w-full border rounded-xl px-3.5 py-2.5 outline-none"></div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div><label class="block font-bold text-slate-700 mb-1">Hotline Phone</label><input type="text" name="contact_phone" value="${s.contact_phone || ''}" class="w-full border rounded-xl px-3.5 py-2.5 outline-none"></div>
+                            <div><label class="block font-bold text-slate-700 mb-1">WhatsApp Number</label><input type="text" name="whatsapp_number" value="${s.whatsapp_number || ''}" class="w-full border rounded-xl px-3.5 py-2.5 outline-none"></div>
+                        </div>
+                        <div><label class="block font-bold text-slate-700 mb-1">Announcement Bar</label><input type="text" name="announcement_bar" value="${s.announcement_bar || ''}" class="w-full border rounded-xl px-3.5 py-2.5 outline-none"></div>
+                        <button type="submit" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl shadow">Save Store Settings & Logo</button>
                     </form>
                 </div>
             `;
