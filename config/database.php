@@ -772,14 +772,39 @@ function getCartSubtotal() {
     return array_sum(array_map(fn($i) => ($i['price'] ?? 0) * ($i['quantity'] ?? 1), $items));
 }
 
-// 5. Admin Auth Helper
-function isAdminLoggedIn() {
-    return !empty($_SESSION['admin_id']) || !empty($_SESSION['admin_logged_in']);
-}
-
-function requireAdminLogin() {
-    if (!isAdminLoggedIn()) {
-        header('Location: login.php');
-        exit;
+// 6. Universal Customer Behavior & Visit Tracker
+function trackCustomerVisit() {
+    // Only track public frontend views, not static assets or admin ajax
+    $uri = $_SERVER['REQUEST_URI'] ?? '/';
+    if (str_contains($uri, '/admin-panel/') || str_ends_with($uri, '.js') || str_ends_with($uri, '.css') || str_ends_with($uri, '.png') || str_ends_with($uri, '.jpg')) {
+        return;
     }
+
+    try {
+        $db = getDB();
+        $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        if (str_contains($ip, ',')) {
+            $ip = trim(explode(',', $ip)[0]);
+        }
+        $sessId = session_id() ?: 'guest_' . md5($ip);
+        $page = $uri;
+        $ref = $_SERVER['HTTP_REFERER'] ?? 'Direct Visit / Bookmark';
+        $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'Mobile';
+        
+        $dev = 'Desktop';
+        if (preg_match('/(android|iphone|ipad|mobile|touch)/i', $ua)) {
+            $dev = (preg_match('/(ipad|tablet)/i', $ua)) ? 'Tablet' : 'Mobile';
+        }
+
+        // District / Location determination
+        $district = 'Bangladesh';
+        if (str_contains(strtolower($page), 'tangail')) $district = 'Tangail';
+        elseif (str_contains(strtolower($page), 'dhaka')) $district = 'Dhaka';
+        elseif (str_contains(strtolower($page), 'chittagong')) $district = 'Chittagong';
+        elseif (str_contains(strtolower($page), 'sylhet')) $district = 'Sylhet';
+
+        $now = date('Y-m-d H:i:s');
+        $stmt = $db->prepare("INSERT INTO customer_visits (ip_address, session_id, district, referrer, page_url, user_agent, device_type, visited_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$ip, $sessId, $district, $ref, $page, $ua, $dev, $now]);
+    } catch (Exception $e) {}
 }

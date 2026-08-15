@@ -1,7 +1,10 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+trackCustomerVisit();
+
 $s = getAllSettings();
 $storeName = $s['store_name'] ?? 'OnlineBdMart';
+$storeLogo = $s['store_logo'] ?? 'images/logo.png';
 $whatsapp = $s['whatsapp_number'] ?? '01775153740';
 $phone = $s['contact_phone'] ?? '01775153740';
 $tangailFee = $s['delivery_charge_tangail'] ?? '50';

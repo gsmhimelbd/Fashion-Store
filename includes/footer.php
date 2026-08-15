@@ -33,7 +33,11 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-slate-800">
                 <div class="space-y-4">
-                    <h3 class="text-xl font-extrabold"><?= htmlspecialchars($storeName) ?></h3>
+                    <?php if (!empty($s['store_logo']) && file_exists(__DIR__ . '/../' . ltrim($s['store_logo'], '/'))): ?>
+                        <img src="/<?= ltrim($s['store_logo'], '/') ?>" alt="<?= htmlspecialchars($storeName) ?>" class="h-10 max-w-[170px] object-contain mb-2">
+                    <?php else: ?>
+                        <h3 class="text-xl font-extrabold"><?= htmlspecialchars($storeName) ?></h3>
+                    <?php endif; ?>
                     <p class="text-slate-400 text-xs sm:text-sm leading-relaxed"><?= htmlspecialchars($s['footer_about_text'] ?? ($s['store_tagline'] ?? 'Premium Wholesale & Retail in Bangladesh.')) ?></p>
                     <p class="text-xs text-slate-500"><i class="fas fa-location-dot text-rose-500 mr-1"></i> <?= htmlspecialchars($s['store_address'] ?? 'Tangail, Bangladesh') ?></p>
                     <p class="text-xs text-slate-400"><i class="fas fa-phone text-emerald-400 mr-1"></i> <?= htmlspecialchars($s['store_phone'] ?? '01775153740') ?></p>

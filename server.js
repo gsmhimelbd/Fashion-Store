@@ -29,6 +29,25 @@ function getSettings() {
     return map;
 }
 
+// Helper to track customer visit
+function trackVisitorSession(req, pathname) {
+    if (pathname.startsWith('/admin-panel') || pathname.startsWith('/uploads') || pathname.startsWith('/images') || pathname.startsWith('/css') || pathname.startsWith('/js') || pathname.includes('.')) {
+        return;
+    }
+    try {
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+        const ua = req.headers['user-agent'] || 'Mobile';
+        const ref = req.headers['referer'] || 'Direct Visit';
+        const isMobile = /mobile|iphone|android/i.test(ua);
+        const dev = isMobile ? 'Mobile' : 'Desktop';
+        const sessId = parseCookies(req)['fashion_session'] || 'guest';
+        
+        db.prepare('INSERT INTO customer_visits (ip_address, session_id, district, referrer, page_url, user_agent, device_type) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+            ip, sessId, 'Bangladesh', ref, pathname, ua, dev
+        );
+    } catch (e) {}
+}
+
 const sessions = new Map();
 
 function parseCookies(req) {
@@ -434,9 +453,10 @@ function renderLayout(title, content, sessionData, activeNav = '') {
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-slate-800">
                 <div class="space-y-4">
-                    <h3 class="text-xl font-extrabold">${s.store_name || 'OnlineBdMart'}</h3>
-                    <p class="text-slate-400 text-xs sm:text-sm leading-relaxed">${s.store_tagline || 'Premium Wholesale & Retail in Bangladesh.'}</p>
-                    <p class="text-xs text-slate-500">${s.store_address || 'Tangail, Bangladesh'}</p>
+                    ${s.store_logo ? `<img src="/${s.store_logo.replace(/^\/+/, '')}" alt="${s.store_name || 'OnlineBdMart'}" class="h-10 max-w-[170px] object-contain mb-2">` : `<h3 class="text-xl font-extrabold">${s.store_name || 'OnlineBdMart'}</h3>`}
+                    <p class="text-slate-400 text-xs sm:text-sm leading-relaxed">${s.footer_about_text || s.store_tagline || 'Premium Wholesale & Retail in Bangladesh.'}</p>
+                    <p class="text-xs text-slate-500"><i class="fas fa-location-dot text-rose-500 mr-1"></i> ${s.store_address || 'Tangail, Bangladesh'}</p>
+                    <p class="text-xs text-slate-400"><i class="fas fa-phone text-emerald-400 mr-1"></i> ${s.store_phone || s.contact_phone || '01775153740'}</p>
                 </div>
                 <div>
                     <h4 class="font-bold text-xs uppercase tracking-wider text-slate-200 mb-4">Quick Navigation</h4>
@@ -1038,6 +1058,10 @@ const server = http.createServer(async (req, res) => {
     const method = req.method.toUpperCase();
     const isGet = method === 'GET' || method === 'HEAD';
     const sessionData = getSession(req, res);
+
+    if (isGet) {
+        trackVisitorSession(req, pathname);
+    }
 
     if (pathname.startsWith('/uploads/') || pathname.startsWith('/images/') || pathname.startsWith('/css/') || pathname.startsWith('/js/')) {
         if (serveStatic(req, res, pathname)) return;
@@ -1754,12 +1778,14 @@ const server = http.createServer(async (req, res) => {
                         <div class="text-3xl font-black text-indigo-600">৳${(p.sale_price || p.price).toFixed(2)}</div>
                         <p class="text-xs sm:text-sm text-slate-600">${p.description || p.short_description || ''}</p>
                         <div class="flex items-center gap-3">
-                            <div class="flex items-center border rounded-xl bg-white p-1">
-                                <button type="button" onclick="let input=document.getElementById('detailQty'); if(parseInt(input.value)>1) input.value=parseInt(input.value)-1;" class="w-8 h-8 font-bold">-</button>
-                                <input type="number" id="detailQty" value="1" class="w-10 text-center font-bold outline-none border-none">
-                                <button type="button" onclick="let input=document.getElementById('detailQty'); input.value=parseInt(input.value)+1;" class="w-8 h-8 font-bold">+</button>
+                            <div class="h-12 flex items-center border rounded-2xl bg-white px-1">
+                                <button type="button" onclick="let input=document.getElementById('detailQty'); if(parseInt(input.value)>1) input.value=parseInt(input.value)-1;" class="w-9 h-9 font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition">-</button>
+                                <input type="number" id="detailQty" value="1" class="w-10 text-center font-black outline-none border-none">
+                                <button type="button" onclick="let input=document.getElementById('detailQty'); input.value=parseInt(input.value)+1;" class="w-9 h-9 font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition">+</button>
                             </div>
-                            <button type="button" onclick="addToCart(${p.id}, parseInt(document.getElementById('detailQty').value))" class="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow">Add to Shopping Bag</button>
+                            <button type="button" onclick="addToCart(${p.id}, parseInt(document.getElementById('detailQty').value))" class="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-black rounded-2xl text-xs sm:text-sm shadow-lg shadow-indigo-600/25 transition flex items-center justify-center gap-2">
+                                <i class="fas fa-bag-shopping text-sm"></i> <span>Add to Bag</span>
+                            </button>
                         </div>
                     </div>
                 </div>

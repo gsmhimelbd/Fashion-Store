@@ -141,20 +141,20 @@ if (!empty($product['gallery_images'])) {
                 </div>
 
                 <!-- Add to Cart & Buy Buttons -->
-                <div class="pt-6 border-t border-slate-200 space-y-4">
+                <div class="pt-6 border-t border-slate-200 space-y-3">
                     <div class="flex items-center gap-3">
-                        <div class="flex items-center border border-slate-200 rounded-2xl bg-slate-50 p-1">
-                            <button type="button" onclick="const q = document.getElementById('productQty'); if (q.value > 1) q.value--;" class="w-9 h-9 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200 rounded-xl">-</button>
-                            <input type="number" id="productQty" value="1" min="1" class="w-12 text-center bg-transparent font-black text-sm outline-none">
-                            <button type="button" onclick="const q = document.getElementById('productQty'); q.value++;" class="w-9 h-9 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200 rounded-xl">+</button>
+                        <div class="h-12 flex items-center border border-slate-200 rounded-2xl bg-slate-50 px-1 shrink-0">
+                            <button type="button" onclick="const q = document.getElementById('productQty'); if (q.value > 1) q.value--;" class="w-9 h-9 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200 rounded-xl transition text-base">-</button>
+                            <input type="number" id="productQty" value="1" min="1" class="w-10 sm:w-12 text-center bg-transparent font-black text-sm outline-none">
+                            <button type="button" onclick="const q = document.getElementById('productQty'); q.value++;" class="w-9 h-9 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200 rounded-xl transition text-base">+</button>
                         </div>
-                        <button type="button" onclick="addToCart(<?= $product['id'] ?>, parseInt(document.getElementById('productQty').value))" class="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs sm:text-sm rounded-2xl shadow-xl shadow-indigo-600/25 transition flex items-center justify-center gap-2">
-                            <i class="fas fa-bag-shopping"></i> Add to Shopping Bag
+                        <button type="button" onclick="addToCart(<?= $product['id'] ?>, parseInt(document.getElementById('productQty').value))" class="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 transition flex items-center justify-center gap-2">
+                            <i class="fas fa-bag-shopping text-sm"></i> <span>Add to Bag</span>
                         </button>
                     </div>
 
-                    <a href="https://wa.me/88<?= htmlspecialchars($whatsapp) ?>?text=<?= urlencode('Hello OnlineBdMart! I want to order product: ' . $product['name'] . ' (৳' . $price . ')') ?>" target="_blank" class="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg transition flex items-center justify-center gap-2">
-                        <i class="fab fa-whatsapp text-lg"></i> 1-Click Order on WhatsApp
+                    <a href="https://wa.me/88<?= htmlspecialchars($whatsapp) ?>?text=<?= urlencode('Hello OnlineBdMart! I want to order product: ' . $product['name'] . ' (৳' . $price . ')') ?>" target="_blank" class="w-full h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md transition flex items-center justify-center gap-2">
+                        <i class="fab fa-whatsapp text-lg"></i> <span>1-Click Order on WhatsApp</span>
                     </a>
                 </div>
             </div>
