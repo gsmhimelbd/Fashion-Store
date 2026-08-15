@@ -23,22 +23,36 @@ try {
     $custUpazila = '';
     $custPostOffice = '';
     $custAddress = '';
-    $isLoggedIn = !empty($_SESSION['user_id']) || !empty($_SESSION['user_logged_in']);
+    $isLoggedIn = !empty($_SESSION['user_id']) || !empty($_SESSION['user_logged_in']) || !empty($_SESSION['customer_id']);
 
     if ($isLoggedIn) {
-        $uId = $_SESSION['user_id'] ?? 0;
+        $uId = $_SESSION['user_id'] ?? ($_SESSION['customer_id'] ?? 0);
         $uEmail = $_SESSION['user_email'] ?? '';
-        $uStmt = $db->prepare("SELECT * FROM users WHERE id = ? OR email = ? LIMIT 1");
-        $uStmt->execute([$uId, $uEmail]);
+        $uPhone = $_SESSION['user_phone'] ?? '';
+
+        $uStmt = $db->prepare("SELECT * FROM users WHERE id = ? OR (email != '' AND email = ?) OR (phone != '' AND phone = ?) LIMIT 1");
+        $uStmt->execute([$uId, $uEmail, $uPhone]);
         $loggedUser = $uStmt->fetch();
+
+        // Fallback to recent order history if profile fields are empty
+        if (!$loggedUser && $uPhone) {
+            $lastOrd = $db->prepare("SELECT customer_name as name, COALESCE(customer_phone, phone) as phone, customer_email as email, COALESCE(district_name, district) as district, upazila, post_office, COALESCE(delivery_address, address) as address FROM orders WHERE customer_phone = ? OR phone = ? ORDER BY id DESC LIMIT 1");
+            $lastOrd->execute([$uPhone, $uPhone]);
+            $loggedUser = $lastOrd->fetch();
+        }
+
         if ($loggedUser) {
-            $custName = $loggedUser['name'] ?? '';
-            $custPhone = $loggedUser['phone'] ?? '';
-            $custEmail = $loggedUser['email'] ?? '';
+            $custName = $loggedUser['name'] ?? ($_SESSION['user_name'] ?? '');
+            $custPhone = $loggedUser['phone'] ?? ($_SESSION['user_phone'] ?? '');
+            $custEmail = $loggedUser['email'] ?? ($_SESSION['user_email'] ?? '');
             $custDistrict = !empty($loggedUser['district']) ? $loggedUser['district'] : 'Dhaka';
             $custUpazila = $loggedUser['upazila'] ?? '';
             $custPostOffice = $loggedUser['post_office'] ?? '';
             $custAddress = $loggedUser['address'] ?? '';
+        } else {
+            $custName = $_SESSION['user_name'] ?? '';
+            $custEmail = $_SESSION['user_email'] ?? '';
+            $custPhone = $_SESSION['user_phone'] ?? '';
         }
     }
 
@@ -207,13 +221,13 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
                 <!-- 2 Options for Logged in Customers vs Sign in Banner for Guests -->
                 <?php if ($isLoggedIn): ?>
                 <div class="p-4 bg-indigo-50/70 border border-indigo-100 rounded-2xl space-y-3 text-xs">
-                    <span class="font-extrabold text-indigo-950 uppercase tracking-wider text-[10px] block">Choose Delivery Address:</span>
+                    <span class="font-extrabold text-indigo-950 uppercase tracking-wider text-[10px] block">Choose Delivery Address Option:</span>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        <label class="flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-indigo-600 shadow-sm" id="optSavedLabel">
+                        <label class="flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-indigo-600 shadow-sm ring-1 ring-indigo-600/20" id="optSavedLabel">
                             <input type="radio" name="address_choice" value="saved" checked onchange="toggleAddressChoice('saved')" class="text-indigo-600">
                             <div>
-                                <span class="font-bold text-slate-900 block">Use Saved Profile Address</span>
-                                <span class="text-[11px] text-slate-500"><?= htmlspecialchars($custDistrict) ?> • <?= htmlspecialchars($custPhone) ?></span>
+                                <span class="font-bold text-slate-900 block">✓ Use Saved Account Profile</span>
+                                <span class="text-[11px] text-slate-500"><?= htmlspecialchars($custDistrict) ?> • <?= htmlspecialchars($custPhone ?: 'Auto-filled') ?></span>
                             </div>
                         </label>
                         <label class="flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-slate-200 hover:border-indigo-400" id="optNewLabel">
@@ -410,13 +424,13 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
 <script>
     const subtotal = <?= $subtotal ?>;
     const savedData = {
-        name: "<?= addslashes($custName) ?>",
-        phone: "<?= addslashes($custPhone) ?>",
-        email: "<?= addslashes($custEmail) ?>",
-        district: "<?= addslashes($custDistrict) ?>",
-        upazila: "<?= addslashes($custUpazila) ?>",
-        post_office: "<?= addslashes($custPostOffice) ?>",
-        address: "<?= addslashes($custAddress) ?>"
+        name: <?= json_encode($custName) ?>,
+        phone: <?= json_encode($custPhone) ?>,
+        email: <?= json_encode($custEmail) ?>,
+        district: <?= json_encode($custDistrict) ?>,
+        upazila: <?= json_encode($custUpazila) ?>,
+        post_office: <?= json_encode($custPostOffice) ?>,
+        address: <?= json_encode($custAddress) ?>
     };
 
     function toggleAddressChoice(choice) {
@@ -427,21 +441,29 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
         const inPost = document.getElementById('inCustomerPostOffice');
         const inAddr = document.getElementById('inCustomerAddress');
         const selDist = document.getElementById('districtSelect');
+        const optSaved = document.getElementById('optSavedLabel');
+        const optNew = document.getElementById('optNewLabel');
 
         if (choice === 'saved') {
-            inName.value = savedData.name;
-            inPhone.value = savedData.phone;
-            inEmail.value = savedData.email;
-            inUpazila.value = savedData.upazila;
-            inPost.value = savedData.post_office;
-            inAddr.value = savedData.address;
-            selDist.value = savedData.district || 'Dhaka';
+            if (inName) inName.value = savedData.name || '';
+            if (inPhone) inPhone.value = savedData.phone || '';
+            if (inEmail) inEmail.value = savedData.email || '';
+            if (inUpazila) inUpazila.value = savedData.upazila || '';
+            if (inPost) inPost.value = savedData.post_office || '';
+            if (inAddr) inAddr.value = savedData.address || '';
+            if (selDist && savedData.district) selDist.value = savedData.district;
+            
+            if (optSaved) { optSaved.className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-indigo-600 shadow-sm ring-1 ring-indigo-600/20'; }
+            if (optNew) { optNew.className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-slate-200 hover:border-indigo-400'; }
         } else {
-            inName.value = '';
-            inPhone.value = '';
-            inUpazila.value = '';
-            inPost.value = '';
-            inAddr.value = '';
+            if (inName) inName.value = '';
+            if (inPhone) inPhone.value = '';
+            if (inUpazila) inUpazila.value = '';
+            if (inPost) inPost.value = '';
+            if (inAddr) inAddr.value = '';
+
+            if (optSaved) { optSaved.className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-slate-200 hover:border-indigo-400'; }
+            if (optNew) { optNew.className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-indigo-600 shadow-sm ring-1 ring-indigo-600/20'; }
         }
         updateDeliveryFee();
     }

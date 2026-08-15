@@ -11,6 +11,9 @@ $tangailFee = $s['delivery_charge_tangail'] ?? '50';
 $otherFee = $s['delivery_charge_other'] ?? '150';
 $announcement = $s['announcement_bar'] ?? ('Free Delivery Tangail ৳' . $tangailFee . ' | Others ৳' . $otherFee . ' • Free Shipping above ৳2000');
 
+$isCustomerLoggedIn = !empty($_SESSION['user_logged_in']) || !empty($_SESSION['user_id']) || !empty($_SESSION['customer_id']);
+$customerName = $_SESSION['user_name'] ?? ($_SESSION['customer_name'] ?? 'Account');
+
 try {
     $db = getDB();
     $categories = $db->query("SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id) as products_count FROM categories c")->fetchAll();
@@ -84,9 +87,9 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
                     <i class="fas fa-phone text-emerald-400"></i> <?= htmlspecialchars($phone) ?>
                 </a>
                 <span class="text-slate-700">|</span>
-                <?php if (!empty($_SESSION['customer_id'])): ?>
+                <?php if ($isCustomerLoggedIn): ?>
                     <a href="account.php" class="hover:text-indigo-300 transition flex items-center gap-1 text-indigo-400 font-bold">
-                        <i class="fas fa-user-check"></i> <?= htmlspecialchars($_SESSION['customer_name'] ?? 'Account') ?>
+                        <i class="fas fa-user-check text-emerald-400"></i> <?= htmlspecialchars($customerName) ?>
                     </a>
                 <?php else: ?>
                     <div class="flex items-center gap-1.5">
@@ -159,8 +162,8 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
                 <!-- Right Action Buttons: Account, Wishlist & Cart -->
                 <div class="flex items-center gap-2 sm:gap-3 shrink-0">
                     <!-- Account Icon (Desktop & Mobile) -->
-                    <a href="<?= !empty($_SESSION['user_logged_in']) ? 'account.php' : 'login.php' ?>" class="relative p-2 sm:p-2.5 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 transition shrink-0" title="My Account">
-                        <i class="far fa-user text-base sm:text-lg"></i>
+                    <a href="<?= $isCustomerLoggedIn ? 'account.php' : 'login.php' ?>" class="relative p-2 sm:p-2.5 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 transition shrink-0" title="<?= $isCustomerLoggedIn ? htmlspecialchars($customerName) : 'My Account' ?>">
+                        <i class="<?= $isCustomerLoggedIn ? 'fas fa-user-circle text-indigo-600' : 'far fa-user' ?> text-base sm:text-lg"></i>
                     </a>
 
                     <!-- Wishlist Icon -->
