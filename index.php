@@ -1,6 +1,320 @@
 <?php
-/**
- * OnlineBdMart - Root cPanel Proxy Dispatcher
- */
+$pageTitle = 'Home - OnlineBdMart • Online Shopping Bangladesh';
+require_once 'includes/header.php';
 
-require_once __DIR__ . '/public/index.php';
+try {
+    $db = getDB();
+    $banners = $db->query("SELECT * FROM banners WHERE is_active = 1 ORDER BY display_order ASC")->fetchAll();
+    $featuredProducts = $db->query("SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1 AND p.is_featured = 1 ORDER BY p.id DESC LIMIT 8")->fetchAll();
+} catch (Exception $e) {
+    $banners = [];
+    $featuredProducts = [];
+}
+?>
+
+<!-- 1. Animated Hero Carousel Slider (Auto-slides every 5 seconds) -->
+<section class="relative bg-slate-950 text-white overflow-hidden rounded-3xl mb-12 shadow-2xl" id="heroSliderSection">
+    <?php if (!empty($banners)): ?>
+        <?php foreach ($banners as $index => $banner): ?>
+        <div class="hero-slide relative min-h-[480px] lg:min-h-[560px] flex items-center transition-all duration-700 <?= $index === 0 ? '' : 'hidden' ?>" data-slide="<?= $index ?>">
+            <img src="/<?= ltrim($banner['image_path'], '/') ?>" alt="<?= htmlspecialchars($banner['title'] ?? '') ?>" class="absolute inset-0 w-full h-full object-cover opacity-60">
+            <div class="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent"></div>
+
+            <div class="relative max-w-7xl mx-auto px-6 sm:px-12 py-16 w-full">
+                <div class="max-w-2xl space-y-6">
+                    <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-black tracking-widest uppercase animate-pulse">
+                        <?= htmlspecialchars($banner['badge_text'] ?: '✨ NEW ARRIVALS 2026') ?>
+                    </span>
+
+                    <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight font-serif">
+                        <?= htmlspecialchars($banner['title'] ?? '') ?>
+                    </h1>
+
+                    <p class="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
+                        <?= htmlspecialchars($banner['subtitle'] ?? '') ?>
+                    </p>
+
+                    <div class="pt-2 flex flex-wrap items-center gap-4">
+                        <a href="<?= htmlspecialchars($banner['button_url'] ?: 'shop.php') ?>" class="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl shadow-xl transition flex items-center gap-2">
+                            <?= htmlspecialchars($banner['button_text'] ?: 'Shop Now') ?> &rarr;
+                        </a>
+                        <a href="wholesale.php" class="px-6 py-3.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow transition">
+                            Wholesale B2B &rarr;
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+
+    <button type="button" onclick="prevHeroSlide()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/40 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-sm transition z-20">
+        <i class="fas fa-chevron-left text-sm"></i>
+    </button>
+    <button type="button" onclick="nextHeroSlide()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/40 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-sm transition z-20">
+        <i class="fas fa-chevron-right text-sm"></i>
+    </button>
+
+    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20">
+        <?php foreach ($banners as $index => $b): ?>
+        <button type="button" onclick="goToHeroSlide(<?= $index ?>)" class="hero-dot h-2 rounded-full transition-all duration-300 <?= $index === 0 ? 'w-8 bg-indigo-500' : 'w-2 bg-white/40' ?>" data-dot="<?= $index ?>"></button>
+        <?php endforeach; ?>
+    </div>
+</section>
+
+<!-- 2. Value Proposition Badges -->
+<section class="border-b border-slate-200 bg-white py-8 mb-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+            <div class="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0"><i class="fas fa-truck-fast"></i></div>
+                <div><h4 class="text-xs font-extrabold text-slate-900">Free Shipping</h4><p class="text-[11px] text-slate-500 mt-0.5">On orders over ৳2000</p></div>
+            </div>
+            <div class="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0"><i class="fas fa-shield-halved"></i></div>
+                <div><h4 class="text-xs font-extrabold text-slate-900">Secure Payment</h4><p class="text-[11px] text-slate-500 mt-0.5">100% safe & COD verified</p></div>
+            </div>
+            <div class="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0"><i class="fas fa-rotate-left"></i></div>
+                <div><h4 class="text-xs font-extrabold text-slate-900">Easy Returns</h4><p class="text-[11px] text-slate-500 mt-0.5">7-day hassle-free policy</p></div>
+            </div>
+            <div class="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0"><i class="fas fa-headset"></i></div>
+                <div><h4 class="text-xs font-extrabold text-slate-900">24/7 Support</h4><p class="text-[11px] text-slate-500 mt-0.5">We're always here to help</p></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 3. WHOLESALE / B2B SHOWCASE CARD -->
+<section class="py-8 bg-slate-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 rounded-3xl p-8 sm:p-10 text-white shadow-xl border border-slate-800 flex flex-col lg:flex-row items-center justify-between gap-8 mb-14">
+            <div class="space-y-3 max-w-xl text-center lg:text-left">
+                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-wider">
+                    <i class="fas fa-boxes-stacked"></i> Wholesale / B2B Portal
+                </span>
+                <h3 class="text-2xl sm:text-3xl font-extrabold font-serif">Bulk Prices for Retailers & Resellers</h3>
+                <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">
+                    OnlineBdMart wholesale — factory rates with low 5 pcs minimum quantity. Controlled directly from Admin. Add to cart in bulk or order via WhatsApp!
+                </p>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-center gap-4">
+                <a href="wholesale.php" class="px-8 py-3.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow-lg transition flex items-center gap-2">
+                    <span>Open Wholesale Catalog</span> <i class="fas fa-arrow-right text-xs"></i>
+                </a>
+                <a href="https://wa.me/88<?= htmlspecialchars($whatsapp) ?>?text=<?= urlencode('Hello, I am interested in wholesale / B2B bulk purchases at OnlineBdMart.') ?>" target="_blank" class="px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs sm:text-sm rounded-xl shadow transition flex items-center gap-2">
+                    <i class="fab fa-whatsapp text-base"></i> WhatsApp B2B Agent
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 4. Shop By Category Grid -->
+<section class="py-12 bg-slate-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
+            <div>
+                <span class="text-[11px] font-extrabold uppercase tracking-widest text-indigo-600">Shop By Category</span>
+                <h2 class="text-2xl sm:text-3xl font-extrabold font-serif text-slate-900 mt-1">Browse Top Categories</h2>
+            </div>
+            <a href="categories.php" class="text-xs font-bold text-indigo-600 hover:underline">View All &rarr;</a>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <?php foreach ($categories as $cat): ?>
+            <a href="shop.php?category=<?= htmlspecialchars($cat['slug']) ?>" class="group bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-500 hover:shadow-xl transition flex flex-col items-center text-center">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-50 to-indigo-100 group-hover:from-indigo-600 group-hover:to-cyan-500 text-indigo-600 group-hover:text-white flex items-center justify-center text-2xl transition mb-3">
+                    <i class="fas <?= htmlspecialchars($cat['icon'] ?: 'fa-tag') ?>"></i>
+                </div>
+                <h3 class="text-xs font-extrabold text-slate-900 group-hover:text-indigo-600"><?= htmlspecialchars($cat['name']) ?></h3>
+                <span class="text-[10px] text-slate-400 font-semibold mt-0.5"><?= $cat['products_count'] ?> Items</span>
+            </a>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+
+<!-- 5. Flash Deals with Live Countdown -->
+<section class="py-12 bg-slate-950 text-white relative overflow-hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+        <div class="space-y-4 max-w-xl">
+            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold uppercase tracking-widest">% Limited Time Offer</span>
+            <h2 class="text-3xl sm:text-4xl font-extrabold font-serif leading-tight">Big Deals on Top Fashion Gadgets</h2>
+            <p class="text-slate-300 text-xs sm:text-sm">Grab luxury chronograph watches and leather wallets at unbeatable discount prices.</p>
+            <div class="pt-2">
+                <a href="deals.php" class="px-7 py-3 bg-white text-slate-950 font-black text-xs rounded-xl inline-block shadow">Shop Deals &rarr;</a>
+            </div>
+        </div>
+
+        <div class="bg-white/5 border border-white/10 rounded-3xl p-6 flex items-center justify-center gap-4 text-center">
+            <div><div id="liveHours" class="w-16 sm:w-20 py-3 bg-slate-900 rounded-2xl text-2xl sm:text-3xl font-black text-indigo-400 font-mono">12</div><span class="text-[10px] text-slate-400 uppercase font-bold">Hours</span></div>
+            <span class="text-2xl font-bold text-slate-600">:</span>
+            <div><div id="liveMins" class="w-16 sm:w-20 py-3 bg-slate-900 rounded-2xl text-2xl sm:text-3xl font-black text-emerald-400 font-mono">48</div><span class="text-[10px] text-slate-400 uppercase font-bold">Mins</span></div>
+            <span class="text-2xl font-bold text-slate-600">:</span>
+            <div><div id="liveSecs" class="w-16 sm:w-20 py-3 bg-slate-900 rounded-2xl text-2xl sm:text-3xl font-black text-amber-400 font-mono">26</div><span class="text-[10px] text-slate-400 uppercase font-bold">Secs</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- 6. Best Sellers & Top Picks -->
+<section class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <span class="text-[11px] font-extrabold uppercase text-indigo-600">Best Sellers</span>
+                <h2 class="text-2xl sm:text-3xl font-extrabold font-serif text-slate-900 mt-1">Top Picks for You</h2>
+            </div>
+            <a href="shop.php" class="text-xs font-bold text-indigo-600 hover:underline">View All &rarr;</a>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+            <?php foreach ($featuredProducts as $product): 
+                $price = ($product['sale_price'] && $product['sale_price'] > 0 && $product['sale_price'] < $product['price']) ? $product['sale_price'] : $product['price'];
+            ?>
+            <div class="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl transition flex flex-col justify-between overflow-hidden relative">
+                <?php if ($product['sale_price'] && $product['sale_price'] < $product['price']): ?>
+                <span class="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white">Sale</span>
+                <?php endif; ?>
+
+                <div class="absolute top-3 right-3 z-10">
+                    <button type="button" onclick="toggleWishlist({ id: <?= $product['id'] ?>, name: '<?= addslashes($product['name']) ?>', price: <?= $price ?>, image: '/<?= ltrim($product['image_path'], '/') ?>' })" class="w-8 h-8 rounded-full bg-white/90 shadow text-slate-400 hover:text-rose-500 flex items-center justify-center">
+                        <i class="fas fa-heart text-xs"></i>
+                    </button>
+                </div>
+
+                <a href="product.php?slug=<?= htmlspecialchars($product['slug']) ?>" class="relative block aspect-square bg-slate-100 overflow-hidden">
+                    <img src="/<?= ltrim($product['image_path'], '/') ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                </a>
+
+                <div class="p-4 flex flex-col justify-between flex-1">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase text-slate-400"><?= htmlspecialchars($product['category_name'] ?? 'Accessories') ?></span>
+                        <a href="product.php?slug=<?= htmlspecialchars($product['slug']) ?>" class="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition line-clamp-2 block mt-1"><?= htmlspecialchars($product['name']) ?></a>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100">
+                        <div class="flex items-baseline gap-2 mb-3">
+                            <span class="text-sm sm:text-base font-black text-slate-900">৳<?= number_format($price, 2) ?></span>
+                            <?php if ($product['sale_price']): ?>
+                            <span class="text-[11px] text-slate-400 line-through">৳<?= number_format($product['price'], 2) ?></span>
+                            <?php endif; ?>
+                        </div>
+                        <button type="button" onclick="addToCart(<?= $product['id'] ?>)" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow"><i class="fas fa-bag-shopping mr-1"></i> Add to Cart</button>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+
+<!-- 7. BLOG & BUYING GUIDES SECTION -->
+<section class="py-16 bg-slate-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <span class="text-[11px] font-extrabold uppercase text-indigo-600">Our Blog & Buying Guides</span>
+                <h2 class="text-2xl sm:text-3xl font-extrabold font-serif text-slate-900 mt-1">Latest Tech & Fashion Guides</h2>
+            </div>
+            <a href="blog.php" class="text-xs font-bold text-indigo-600 hover:underline">View All &rarr;</a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white rounded-3xl border shadow-sm p-6 space-y-3 flex flex-col justify-between">
+                <div>
+                    <span class="text-[10px] font-bold uppercase text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full">Buying Guide</span>
+                    <h3 class="text-base font-bold text-slate-900 mt-2"><a href="blog.php" class="hover:text-indigo-600">Top 5 Luxury Watches & Accessories Under ৳5000 in 2026</a></h3>
+                    <p class="text-xs text-slate-500 mt-2 leading-relaxed">We tested 15+ premium Japanese quartz watches and full-grain cowhide leather wallets in Bangladesh.</p>
+                </div>
+                <a href="blog.php" class="text-xs font-bold text-indigo-600 hover:underline pt-3 border-t">Read Article &rarr;</a>
+            </div>
+            <div class="bg-white rounded-3xl border shadow-sm p-6 space-y-3 flex flex-col justify-between">
+                <div>
+                    <span class="text-[10px] font-bold uppercase text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full">Tips & Tricks</span>
+                    <h3 class="text-base font-bold text-slate-900 mt-2"><a href="blog.php" class="hover:text-indigo-600">How to Spot Original vs Copy Accessories Before Paying</a></h3>
+                    <p class="text-xs text-slate-500 mt-2 leading-relaxed">Avoid cheap replicas with these 5 quick verification checks before making payment to courier riders.</p>
+                </div>
+                <a href="blog.php" class="text-xs font-bold text-indigo-600 hover:underline pt-3 border-t">Read Article &rarr;</a>
+            </div>
+            <div class="bg-white rounded-3xl border shadow-sm p-6 space-y-3 flex flex-col justify-between">
+                <div>
+                    <span class="text-[10px] font-bold uppercase text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">B2B & Wholesale</span>
+                    <h3 class="text-base font-bold text-slate-900 mt-2"><a href="blog.php" class="hover:text-indigo-600">Wholesale & Reselling Guide for Beginners in Bangladesh</a></h3>
+                    <p class="text-xs text-slate-500 mt-2 leading-relaxed">How to start your online accessory business with low MOQ and direct factory pricing.</p>
+                </div>
+                <a href="blog.php" class="text-xs font-bold text-indigo-600 hover:underline pt-3 border-t">Read Article &rarr;</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 8. CUSTOMER LOVE / VERIFIED REVIEWS SECTION -->
+<section class="py-16 bg-white border-t border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-xl mx-auto mb-8 space-y-2">
+            <span class="text-xs font-bold uppercase text-indigo-600">Customer Love</span>
+            <h2 class="text-2xl sm:text-3xl font-extrabold font-serif">What Our Buyers Say</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
+            <div class="p-6 bg-slate-50 rounded-2xl border space-y-2">
+                <div class="flex text-amber-400"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+                <p class="text-slate-600 italic">"Luxury watch quality outstanding! Heavy steel weight and sapphire glass looks premium. Delivery was completed in 2 days."</p>
+                <h4 class="font-bold pt-2 border-t">Arif Hossain <span class="text-emerald-600 text-[10px]">✓ Verified</span></h4>
+            </div>
+            <div class="p-6 bg-slate-50 rounded-2xl border space-y-2">
+                <div class="flex text-amber-400"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+                <p class="text-slate-600 italic">"Got genuine leather handbag and pearl necklace. Best price in BD and cash on delivery was smooth."</p>
+                <h4 class="font-bold pt-2 border-t">Nusrat Jahan <span class="text-emerald-600 text-[10px]">✓ Verified</span></h4>
+            </div>
+            <div class="p-6 bg-slate-50 rounded-2xl border space-y-2">
+                <div class="flex text-amber-400"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+                <p class="text-slate-600 italic">"Polarized sunglasses and leather wallet are authentic. Real-time order tracking updated every step."</p>
+                <h4 class="font-bold pt-2 border-t">Tanvir Ahmed <span class="text-emerald-600 text-[10px]">✓ Verified</span></h4>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    let currentHeroIdx = 0;
+    const totalHeroSlides = <?= count($banners) ?>;
+    function showHeroSlide(idx) {
+        currentHeroIdx = (idx + totalHeroSlides) % totalHeroSlides;
+        document.querySelectorAll('.hero-slide').forEach(s => s.classList.add('hidden'));
+        const active = document.querySelector('.hero-slide[data-slide="' + currentHeroIdx + '"]');
+        if (active) active.classList.remove('hidden');
+
+        document.querySelectorAll('.hero-dot').forEach(d => {
+            const dotIdx = parseInt(d.getAttribute('data-dot'), 10);
+            if (dotIdx === currentHeroIdx) {
+                d.className = 'hero-dot h-2 rounded-full transition-all duration-300 w-8 bg-indigo-500';
+            } else {
+                d.className = 'hero-dot h-2 rounded-full transition-all duration-300 w-2 bg-white/40';
+            }
+        });
+    }
+    function nextHeroSlide() { showHeroSlide(currentHeroIdx + 1); }
+    function prevHeroSlide() { showHeroSlide(currentHeroIdx - 1); }
+    function goToHeroSlide(idx) { showHeroSlide(idx); }
+    setInterval(nextHeroSlide, 5000);
+
+    let h = 12, m = 48, sec = 26;
+    setInterval(() => {
+        if (sec > 0) sec--;
+        else {
+            sec = 59;
+            if (m > 0) m--;
+            else { m = 59; if (h > 0) h--; }
+        }
+        const elH = document.getElementById('liveHours');
+        const elM = document.getElementById('liveMins');
+        const elS = document.getElementById('liveSecs');
+        if (elH) elH.textContent = String(h).padStart(2, '0');
+        if (elM) elM.textContent = String(m).padStart(2, '0');
+        if (elS) elS.textContent = String(sec).padStart(2, '0');
+    }, 1000);
+</script>
+
+<?php require_once 'includes/footer.php'; ?>

@@ -1,70 +1,74 @@
-# 🚀 cPanel 1-Click Deployment Guide for OnlineBdMart
+# 🚀 OnlineBdMart cPanel 1-Click Deployment Guide
 
-এই জিপ ফাইলটি বিশেষভাবে **cPanel, DirectAdmin, Apache, Nginx এবং LiteSpeed সার্ভারে সরাসরি আপলোড ও ১-ক্লিকে রান করার জন্য প্রস্তুত (cPanel Ready)** করে তৈরি করা হয়েছে।
-
----
-
-## ⚡ পদ্ধতি ১: সরাসরি `public_html` এ আপলোড (সবচেয়ে সহজ ১-ক্লিক পদ্ধতি)
-
-প্রজেক্টের রুটে স্বয়ংক্রিয় `.htaccess` কনফিগার করা আছে যা রিকোয়েস্টগুলোকে স্বয়ংক্রিয়ভাবে `public/index.php` এ রিডাইরেক্ট করে।
-
-1. **cPanel এ লগইন করুন**: আপনার হোস্টিং cPanel এ প্রবেশ করে **File Manager** ওপেন করুন।
-2. **`public_html` এ যান**: `public_html` ফোল্ডারে প্রবেশ করুন।
-3. **Upload & Extract**: 
-   - `OnlineBdMart-cPanel-Ready.zip` ফাইলটি আপলোড করুন।
-   - রাইট ক্লিক করে **Extract** করুন।
-4. **ডাটাবেস তৈরি ও ইম্পোর্ট (MySQL Setup)**:
-   - cPanel থেকে **MySQL Database Wizard** এ গিয়ে একটি ডাটাবেস এবং ইউজার তৈরি করুন (সবগুলো Permissions দিন)।
-   - **phpMyAdmin** ওপেন করে আপনার ডাটাবেস সিলেক্ট করুন এবং **Import** ট্যাবে গিয়ে প্রজেক্টের `database/onlinebdmart.sql` ফাইলটি সিলেক্ট করে **Import** বাটনে ক্লিক করুন।
-5. **`.env` ফাইল এডিট করুন**:
-   - `public_html` ফোল্ডারের ভেতরে `.env` ফাইলটি এডিট করুন:
-   ```env
-   APP_NAME="OnlineBdMart"
-   APP_ENV=production
-   APP_DEBUG=false
-   APP_URL=https://yourdomain.com
-
-   DB_CONNECTION=mysql
-   DB_HOST=127.0.0.1
-   DB_PORT=3306
-   DB_DATABASE=আপনার_ডাটাবেসের_নাম
-   DB_USERNAME=আপনার_ডাটাবেসের_ইউজার
-   DB_PASSWORD=আপনার_ডাটাবেসের_পাসওয়ার্ড
-   ```
-6. **ব্যস!** আপনার ওয়েবসাইট এবং সিকিউর অ্যাডমিন প্যানেল সাথে সাথে লাইভ হয়ে যাবে!
-   - গ্রাহক ওয়েবসাইট: `https://yourdomain.com`
-   - সিকিউর অ্যাডমিন লগইন: `https://yourdomain.com/admin-panel/login`
-   - ডিফল্ট লগইন: `admin` / `password`
+এই জিপ ফাইলটি (`OnlineBdMart-cPanel-Ready.zip`) বিশেষভাবে **cPanel, DirectAdmin, Apache, LiteSpeed এবং Nginx** শেয়ার্ড বা ভিপিএস হোস্টিংয়ে সরাসরি ১-ক্লিকে রান করার জন্য প্রস্তুত করা হয়েছে। এটি পিউর পিএইচপি (Pure PHP PDO) এবং লারাভেল (Laravel 11) উভয় মোডেই সম্পূর্ণ স্বয়ংক্রিয়ভাবে চলে।
 
 ---
 
-## 🔒 পদ্ধতি ২: Standard Laravel 2-Folder Setup (সর্বোচ্চ নিরাপত্তা পদ্ধতি)
+## 📂 ডাটাবেস SQL ফাইলের অবস্থান (Database Files)
 
-1. cPanel এর রুট ডিরেক্টরিতে (যেমন `/home/yourusername/`) `laravel_app` নামে একটি ফোল্ডার তৈরি করুন।
-2. জিপ ফাইলের সমস্ত ফাইল `laravel_app` এ এক্সট্রাক্ট করুন।
-3. `laravel_app/public/` ফোল্ডারের ভেতরের সমস্ত ফাইল ও ফোল্ডার (`index.php`, `.htaccess`, `css`, `js`, `images`, `uploads`) কাট (Move) করে আপনার `public_html/` ফোল্ডারে পেস্ট করুন।
-4. `public_html/index.php` ফাইলটি ওপেন করে দুটি পাথ আপডেট করুন:
-   ```php
-   require __DIR__.'/../laravel_app/vendor/autoload.php';
-   $app = require_once __DIR__.'/../laravel_app/bootstrap/app.php';
-   ```
-5. `phpMyAdmin` এ গিয়ে `database/onlinebdmart.sql` ইম্পোর্ট করুন এবং `.env` এ ডাটাবেস তথ্য দিন।
+ডাটাবেস ফাইলটি সহজে পাওয়ার জন্য প্যাকেজের বিভিন্ন জায়গায় রাখা হয়েছে:
+1. **রুট ফোল্ডারে**: `database.sql`
+2. **রুট ফোল্ডারে (বিকল্প নাম)**: `onlinebdmart.sql`
+3. **ডাটাবেস ফোল্ডারে**: `database/onlinebdmart.sql` এবং `database/database.sql`
 
 ---
 
-## 🔑 অ্যাডমিন পোর্টাল ও ডিফল্ট লগইন
+## ⚡ ৩ মিনিটে cPanel এ লাইভ করার সহজ নিয়ম
 
-* **Admin Portal URL**: `https://yourdomain.com/admin-panel/login`
-* **Default Username**: `admin`
-* **Default Password**: `password`
-* **Customer Sign In**: `https://yourdomain.com/login`
-* **Live Order Tracking**: `https://yourdomain.com/track-order`
-* **Wholesale Catalog**: `https://yourdomain.com/wholesale`
+### ধাপ ১: cPanel এ ফাইল আপলোড ও আনজিপ
+1. cPanel এ লগইন করে **File Manager** এ যান।
+2. আপনার ডোমেইনের ফোল্ডার (যেমন `public_html/`) ওপেন করুন।
+3. `OnlineBdMart-cPanel-Ready.zip` ফাইলটি আপলোড করুন এবং রাইট-ক্লিক করে **Extract (আনজিপ)** করুন।
+
+### ধাপ ২: MySQL ডাটাবেস তৈরি ও SQL ফাইল ইম্পোর্ট
+1. cPanel থেকে **MySQL Database Wizard** ওপেন করে একটি নতুন ডাটাবেস ও ডাটাবেস ইউজার তৈরি করুন (All Privileges দিন)।
+2. cPanel এর **phpMyAdmin** ওপেন করে আপনার ডাটাবেসটিতে ক্লিক করুন।
+3. উপরের মেনু থেকে **Import** ট্যাবে ক্লিক করুন।
+4. **Choose File** এ ক্লিক করে রুট ফোল্ডার থেকে `database.sql` (অথবা `database/onlinebdmart.sql`) সিলেক্ট করে নিচে **Import / Go** বাটনে ক্লিক করুন। (সম্পূর্ণ ৬৪ জেলা, ক্যাটাগরি, প্রোডাক্ট, ব্যানার ও অ্যাডমিন অ্যাকাউন্ট অটো তৈরি হয়ে যাবে)।
+
+### ধাপ ৩: ডাটাবেস তথ্য কনফিগারেশন (`config/database.php` অথবা `.env`)
+`config/database.php` অথবা `.env` ফাইলে আপনার ডাটাবেসের নাম, ইউজার ও পাসওয়ার্ড দিয়ে সেভ করুন:
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=আপনার_ডাটাবেস_নাম
+DB_USERNAME=আপনার_ডাটাবেস_ইউজার
+DB_PASSWORD=আপনার_ডাটাবেস_পাসওয়ার্ড
+```
+
+🎉 **অভিনন্দন! আপনার ওয়েবসাইট ও অ্যাডমিন প্যানেল সাথে সাথে লাইভ হয়ে গেছে!**
 
 ---
 
-## 📱 টেলিগ্রাম অর্ডার কন্ট্রোল সিস্টেম চালু করার নিয়ম
+## 🔑 অ্যাডমিন পোর্টাল ও একাউন্ট এক্সেস
 
-1. টেলিগ্রামে `@BotFather` এ গিয়ে `/newbot` লিখে একটি টেলিগ্রাম বট তৈরি করুন এবং Bot Token কপি করুন।
-2. আপনার অ্যাডমিন প্যানেল **`https://yourdomain.com/admin-panel/telegram`** এ প্রবেশ করে টোকেন ও আপনার চ্যাট আইডি পেস্ট করে সেভ করুন।
-3. নতুন অর্ডার আসার সাথে সাথে আপনার টেলিগ্রামে ইনলাইন বাটন সহ চলে আসবে এবং টেলিগ্রাম থেকেই অর্ডার কনফার্ম, প্রসেসিং, শিপিং ও ক্যানসেল করা যাবে!
+* **অ্যাডমিন লগইন লিঙ্ক**: `https://yourdomain.com/admin-panel/login` (অথবা `https://yourdomain.com/admin-panel/login.php`)
+* **ডিফল্ট ইউজারনেম**: `admin`
+* **ডিফল্ট পাসওয়ার্ড**: `password`
+* **গ্রাহক স্টোরফ্রন্ট**: `https://yourdomain.com`
+* **লাইভ পার্সেল ট্র্যাকিং**: `https://yourdomain.com/track-order`
+* **হোলসেল বি২বি পোর্টাল**: `https://yourdomain.com/wholesale`
+
+---
+
+## 🚚 ৬৪ জেলা ডেলিভারি ম্যানেজমেন্ট (64 Districts Delivery Management)
+অ্যাডমিন প্যানেলের **`🚚 64 Districts Delivery`** মেনু থেকে:
+- বাংলাদেশের ৬৪ জেলার যেকোনো জেলার ডেলিভারি চার্জ (টাকা) এবং ডেলিভারি টাইম (যেমন ১-২ দিন, ২-৪ দিন) পরিবর্তন করতে পারবেন।
+- এক ক্লিকে পুরো বিভাগের (যেমন ঢাকা বিভাগ, চট্টগ্রাম বিভাগ) সব জেলার চার্জ একসাথে আপডেট করতে পারবেন।
+
+---
+
+## 📈 কাস্টমার অ্যানালিটিক্স ও ১-ক্লিক হোয়াটসঅ্যাপ রিকভারি (Cart Recovery)
+অ্যাডমিন প্যানেলের **`📈 Analytics & Funnel`** মেনু থেকে:
+- কোন জেলা ও বিভাগ থেকে কত টাকার সেলস হচ্ছে তা দেখতে পাবেন।
+- যেসকল কাস্টমার কার্টে প্রোডাক্ট যোগ করে বা চেকআউট শুরু করে অর্ডার সম্পন্ন করেনি (Abandoned Cart), তাদের নাম, ফোন ও কার্টের প্রোডাক্ট দেখতে পাবেন।
+- **1-Click WhatsApp Recovery** বাটনে ক্লিক করে সরাসরি কাস্টমারকে হোয়াটসঅ্যাপে বিশেষ ছাড় দিয়ে অর্ডার রিকভার করতে পারবেন!
+
+---
+
+## 📧 SMTP মেইলার কনফিগারেশন (Order Invoices & Tracking Emails)
+অ্যাডমিন প্যানেলের **`📧 SMTP Mailer`** মেনু থেকে:
+- আপনার cPanel Webmail (যেমন `orders@yourdomain.com`) এবং Port `465 (SSL)` কনফিগার করতে পারবেন।
+- কাস্টমার অর্ডার করার সাথে সাথে ট্যাক্স ইনভয়েস মেইল চলে যাবে এবং অ্যাডমিন নোটিফিকেশন অ্যালার্ট পাবেন।
+- টেস্ট ইমেইল ডিসপ্যাচার দিয়ে লাইভ মেইল কানেক্টিভিটি টেস্ট করতে পারবেন।
