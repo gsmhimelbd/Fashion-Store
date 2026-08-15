@@ -14,14 +14,13 @@ try {
             'sms_sender_id' => $_POST['sms_sender_id'] ?? 'OnlineBdMart',
         ];
 
-        $upsert = $db->prepare("INSERT INTO settings (`key`, `value`, `updated_at`) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`), `updated_at` = NOW()");
         foreach ($keys as $k => $v) {
-            $upsert->execute([$k, $v]);
+            saveSetting($k, $v);
         }
         $msg = 'OTP & SMS Gateway settings saved!';
     }
 
-    $settings = $db->query("SELECT `key`, `value` FROM settings")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $settings = getAllSettings();
 } catch (Exception $e) {
     $settings = [];
 }

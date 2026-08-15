@@ -26,22 +26,19 @@ try {
                 'notify_order_delivered' => isset($_POST['notify_order_delivered']) ? '1' : '0',
             ];
 
-            $upsert = $db->prepare("INSERT INTO settings (`key`, `value`, `updated_at`) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`), `updated_at` = NOW()");
             foreach ($keys as $k => $v) {
-                $upsert->execute([$k, $v]);
+                saveSetting($k, $v);
             }
             $msg = 'SMTP configuration saved successfully!';
         } elseif ($action === 'send_test_email') {
             $target = trim($_POST['test_recipient'] ?? '');
             if ($target) {
-                // Simulate & send test email format
                 $testResult = "✓ Test SMTP dispatch simulated successfully to {$target}!";
             }
         }
     }
 
-    $settingsStmt = $db->query("SELECT `key`, `value` FROM settings");
-    $settings = $settingsStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    $settings = getAllSettings();
 } catch (Exception $e) {
     $msg = 'Error: ' . $e->getMessage();
     $settings = [];

@@ -13,14 +13,13 @@ try {
             'theme_nav_bg' => $_POST['theme_nav_bg'] ?? '#020617',
         ];
 
-        $upsert = $db->prepare("INSERT INTO settings (`key`, `value`, `updated_at`) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`), `updated_at` = NOW()");
         foreach ($keys as $k => $v) {
-            $upsert->execute([$k, $v]);
+            saveSetting($k, $v);
         }
         $msg = 'Theme colors updated!';
     }
 
-    $settings = $db->query("SELECT `key`, `value` FROM settings")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $settings = getAllSettings();
 } catch (Exception $e) {
     $settings = [];
 }

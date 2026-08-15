@@ -47,15 +47,13 @@ try {
             'footer_copyright' => $_POST['footer_copyright'] ?? 'OnlineBdMart • Online Shopping Bangladesh. All rights reserved.',
         ];
 
-        $upsert = $db->prepare("INSERT INTO settings (`key`, `value`, `updated_at`) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`), `updated_at` = NOW()");
         foreach ($keys as $k => $v) {
-            $upsert->execute([$k, $v]);
+            saveSetting($k, $v);
         }
         $msg = 'Store settings and brand logo updated successfully!';
     }
 
-    $settingsStmt = $db->query("SELECT `key`, `value` FROM settings");
-    $settings = $settingsStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    $settings = getAllSettings();
 } catch (Exception $e) {
     $error = $e->getMessage();
     $settings = [];

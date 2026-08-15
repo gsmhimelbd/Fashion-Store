@@ -62,22 +62,22 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-600 selection:text-white">
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-600 selection:text-white overflow-x-hidden w-full max-w-full">
 
     <!-- 1. TOP UTILITY BAR (Track Order, Hotline, Sign In) -->
-    <div class="bg-slate-900 text-slate-300 text-xs py-2 px-4 border-b border-slate-800">
-        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-2 overflow-hidden text-xs">
-                <span class="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-black bg-indigo-600 text-white tracking-wider uppercase">Hot</span>
-                <p class="font-medium truncate"><?= htmlspecialchars($announcement) ?></p>
+    <div class="bg-slate-900 text-slate-300 text-xs py-2 px-3 sm:px-4 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+            <div class="flex items-center gap-2 overflow-hidden text-xs max-w-full sm:max-w-md">
+                <span class="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-black bg-indigo-600 text-white tracking-wider uppercase shrink-0">Hot</span>
+                <p class="font-medium truncate text-[11px] sm:text-xs"><?= htmlspecialchars($announcement) ?></p>
             </div>
 
-            <div class="flex items-center gap-4 text-xs font-semibold text-slate-300">
-                <a href="track-order.php" class="hover:text-indigo-400 transition flex items-center gap-1.5 text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full">
-                    <i class="fas fa-truck-fast"></i> <span>Track Order</span>
+            <div class="flex items-center gap-2 sm:gap-4 text-[11px] sm:text-xs font-semibold text-slate-300">
+                <a href="track-order.php" class="hover:text-indigo-400 transition flex items-center gap-1 text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full">
+                    <i class="fas fa-truck-fast text-[10px]"></i> <span>Track</span>
                 </a>
-                <span class="text-slate-700">|</span>
-                <a href="tel:<?= htmlspecialchars($phone) ?>" class="hover:text-white transition flex items-center gap-1">
+                <span class="text-slate-700 hidden sm:inline">|</span>
+                <a href="tel:<?= htmlspecialchars($phone) ?>" class="hover:text-white transition hidden sm:flex items-center gap-1">
                     <i class="fas fa-phone text-emerald-400"></i> <?= htmlspecialchars($phone) ?>
                 </a>
                 <span class="text-slate-700">|</span>
@@ -86,7 +86,7 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
                         <i class="fas fa-user-check"></i> <?= htmlspecialchars($_SESSION['customer_name'] ?? 'Account') ?>
                     </a>
                 <?php else: ?>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1.5">
                         <a href="login.php" class="hover:text-white transition"><i class="fas fa-arrow-right-to-bracket"></i> Sign In</a>
                         <span class="text-slate-700">/</span>
                         <a href="register.php" class="hover:text-indigo-400 transition text-indigo-300 font-bold">Sign Up</a>
@@ -98,24 +98,24 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
 
     <!-- 2. MAIN HEADER (Brand Logo, Realtime Category Search, Wishlist & Cart Drawers) -->
     <header class="sticky top-0 z-40 bg-white shadow-sm border-b border-slate-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between gap-4 py-4">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between gap-2 sm:gap-4 py-3 sm:py-4">
                 
                 <!-- Hamburger Button & Brand Logo -->
-                <div class="flex items-center gap-3">
-                    <button type="button" onclick="openMobileMenu()" class="lg:hidden p-2 text-slate-700 hover:bg-slate-100 rounded-xl focus:outline-none" title="Open Menu">
-                        <i class="fas fa-bars-staggered text-xl"></i>
+                <div class="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
+                    <button type="button" onclick="openMobileMenu()" class="lg:hidden p-2 text-slate-700 hover:bg-slate-100 rounded-xl focus:outline-none shrink-0" title="Open Menu">
+                        <i class="fas fa-bars-staggered text-lg sm:text-xl"></i>
                     </button>
-                    <a href="index.php" class="flex items-center gap-3 group">
+                    <a href="index.php" class="flex items-center gap-2 sm:gap-3 group min-w-0">
                         <?php if (!empty($s['store_logo']) && file_exists(__DIR__ . '/../' . ltrim($s['store_logo'], '/'))): ?>
-                            <img src="/<?= ltrim($s['store_logo'], '/') ?>" alt="<?= htmlspecialchars($storeName) ?>" class="h-10 max-w-[150px] object-contain group-hover:scale-105 transition-transform">
+                            <img src="/<?= ltrim($s['store_logo'], '/') ?>" alt="<?= htmlspecialchars($storeName) ?>" class="h-8 sm:h-10 max-w-[120px] sm:max-w-[160px] object-contain group-hover:scale-105 transition-transform shrink-0">
                         <?php else: ?>
-                            <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-cyan-500 flex items-center justify-center text-white text-xl shadow-md group-hover:scale-105 transition-transform">
+                            <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-cyan-500 flex items-center justify-center text-white text-base sm:text-xl shadow-md group-hover:scale-105 transition-transform shrink-0">
                                 <i class="fas fa-bag-shopping"></i>
                             </div>
-                            <div>
-                                <span class="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-none block"><?= strtoupper(htmlspecialchars($storeName)) ?></span>
-                                <span class="text-[10px] tracking-widest font-extrabold text-indigo-600 uppercase block mt-0.5">Online Shopping BD</span>
+                            <div class="min-w-0">
+                                <span class="text-base sm:text-2xl font-black tracking-tight text-slate-900 leading-none truncate max-w-[120px] sm:max-w-none block"><?= strtoupper(htmlspecialchars($storeName)) ?></span>
+                                <span class="text-[9px] sm:text-[10px] tracking-widest font-extrabold text-indigo-600 uppercase block mt-0.5 truncate">Online Shopping BD</span>
                             </div>
                         <?php endif; ?>
                     </a>
@@ -154,19 +154,19 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
                 </div>
 
                 <!-- Right Action Buttons: Wishlist & Cart -->
-                <div class="flex items-center gap-3 sm:gap-4">
-                    <button type="button" onclick="openWishlistDrawer()" class="relative p-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 transition" title="Wishlist">
-                        <i class="far fa-heart text-lg"></i>
-                        <span id="headerWishlistBadge" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-black rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">0</span>
+                <div class="flex items-center gap-2 sm:gap-4 shrink-0">
+                    <button type="button" onclick="openWishlistDrawer()" class="relative p-2 sm:p-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 transition shrink-0" title="Wishlist">
+                        <i class="far fa-heart text-base sm:text-lg"></i>
+                        <span id="headerWishlistBadge" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] sm:text-[10px] font-black rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">0</span>
                     </button>
 
-                    <button type="button" onclick="openCartDrawer()" class="relative p-2 sm:px-4 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center gap-2.5 shadow-md shadow-indigo-600/25" title="Cart">
-                        <i class="fas fa-bag-shopping text-lg"></i>
+                    <button type="button" onclick="openCartDrawer()" class="relative p-2 sm:px-4 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center gap-1.5 sm:gap-2.5 shadow-md shadow-indigo-600/25 shrink-0" title="Cart">
+                        <i class="fas fa-bag-shopping text-base sm:text-lg"></i>
                         <div class="hidden sm:block text-left text-xs leading-tight">
                             <span class="text-[10px] text-indigo-200 block">My Bag</span>
                             <span id="headerCartSubtotal" class="font-black">৳<?= number_format($subtotal, 2) ?></span>
                         </div>
-                        <span id="headerCartBadge" class="bg-white/20 text-white text-[11px] font-extrabold rounded-full px-2 py-0.5 flex items-center justify-center"><?= $cartCount ?></span>
+                        <span id="headerCartBadge" class="bg-white/20 text-white text-[10px] sm:text-[11px] font-extrabold rounded-full px-1.5 sm:px-2 py-0.5 flex items-center justify-center"><?= $cartCount ?></span>
                     </button>
                 </div>
             </div>

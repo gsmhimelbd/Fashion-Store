@@ -8,20 +8,20 @@ try {
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $keys = [
-            'whatsapp_phone' => $_POST['whatsapp_phone'] ?? '01712345678',
+            'whatsapp_phone' => $_POST['whatsapp_phone'] ?? '01775153740',
+            'whatsapp_number' => $_POST['whatsapp_phone'] ?? '01775153740',
             'whatsapp_floating_enabled' => isset($_POST['whatsapp_floating_enabled']) ? '1' : '0',
             'whatsapp_default_message' => $_POST['whatsapp_default_message'] ?? 'Hello OnlineBdMart, I need help with an order.',
-            'whatsapp_b2b_phone' => $_POST['whatsapp_b2b_phone'] ?? '01712345678',
+            'whatsapp_b2b_phone' => $_POST['whatsapp_b2b_phone'] ?? '01775153740',
         ];
 
-        $upsert = $db->prepare("INSERT INTO settings (`key`, `value`, `updated_at`) VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`), `updated_at` = NOW()");
         foreach ($keys as $k => $v) {
-            $upsert->execute([$k, $v]);
+            saveSetting($k, $v);
         }
         $msg = 'WhatsApp settings saved!';
     }
 
-    $settings = $db->query("SELECT `key`, `value` FROM settings")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $settings = getAllSettings();
 } catch (Exception $e) {
     $settings = [];
 }

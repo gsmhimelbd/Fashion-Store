@@ -49,11 +49,11 @@ try {
         }
     }
 
-    $users = $db->query("SELECT u.*, (SELECT COUNT(*) FROM orders WHERE customer_phone = u.phone OR customer_email = u.email) as total_orders, (SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE customer_phone = u.phone OR customer_email = u.email) as total_spent FROM users u ORDER BY u.id DESC")->fetchAll();
+    $users = $db->query("SELECT u.*, (SELECT COUNT(*) FROM orders WHERE customer_phone = u.phone OR phone = u.phone OR customer_email = u.email) as total_orders, (SELECT COALESCE(SUM(COALESCE(total_amount, grand_total, 0)), 0) FROM orders WHERE customer_phone = u.phone OR phone = u.phone OR customer_email = u.email) as total_spent FROM users u ORDER BY u.id DESC")->fetchAll();
     
     // Fallback if users table is empty: populate from orders
     if (empty($users)) {
-        $fromOrders = $db->query("SELECT customer_name as name, customer_phone as phone, customer_email as email, district_name as district, delivery_address as address, COUNT(*) as total_orders, SUM(total_amount) as total_spent, MAX(created_at) as created_at FROM orders GROUP BY customer_phone ORDER BY total_spent DESC")->fetchAll();
+        $fromOrders = $db->query("SELECT customer_name as name, COALESCE(customer_phone, phone) as phone, customer_email as email, COALESCE(district_name, district, 'Dhaka') as district, COALESCE(delivery_address, address, '') as address, COUNT(*) as total_orders, SUM(COALESCE(total_amount, grand_total, 0)) as total_spent, MAX(created_at) as created_at FROM orders GROUP BY COALESCE(customer_phone, phone) ORDER BY total_spent DESC")->fetchAll();
     } else {
         $fromOrders = [];
     }

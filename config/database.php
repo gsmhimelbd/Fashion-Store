@@ -2,7 +2,7 @@
 /**
  * OnlineBdMart - Universal Database Configuration
  * Auto-detects MySQL from .env or config, with SQLite fallback
- * Self-healing schema: auto-creates missing tables if needed
+ * Self-healing schema: auto-creates missing tables and columns on the fly
  */
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -48,218 +48,539 @@ function loadEnv() {
     return $env;
 }
 
+// Helper to add missing column safely
+function addColumnIfNotExists($pdo, $table, $col, $colDef) {
+    try {
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $stmt = $pdo->query("PRAGMA table_info({$table})");
+            $cols = $stmt->fetchAll(PDO::FETCH_COLUMN, 1);
+            if (!in_array($col, $cols)) {
+                $pdo->exec("ALTER TABLE {$table} ADD COLUMN {$col} {$colDef}");
+            }
+        } else {
+            $stmt = $pdo->query("SHOW COLUMNS FROM `{$table}` LIKE '{$col}'");
+            if ($stmt->rowCount() === 0) {
+                $pdo->exec("ALTER TABLE `{$table}` ADD COLUMN `{$col}` {$colDef}");
+            }
+        }
+    } catch (Exception $e) {}
+}
+
 // Auto ensure schema exists (creates missing tables on the fly)
 function ensureTablesExist($pdo) {
     static $checked = false;
     if ($checked) return;
     $checked = true;
 
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    $isSqlite = ($driver === 'sqlite');
+
     try {
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS admins (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(191) DEFAULT 'Super Admin',
-                username VARCHAR(191) UNIQUE,
-                email VARCHAR(191) UNIQUE,
-                password VARCHAR(191),
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            );
+        if ($isSqlite) {
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS admins (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT DEFAULT 'Super Admin',
+                    username TEXT UNIQUE,
+                    email TEXT UNIQUE,
+                    password TEXT,
+                    profile_photo TEXT DEFAULT 'uploads/admin/avatar.png',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS categories (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(191) NOT NULL,
-                slug VARCHAR(191) UNIQUE NOT NULL,
-                icon VARCHAR(100) DEFAULT 'fa-tag',
-                image_path VARCHAR(191) NULL,
-                description TEXT NULL,
-                is_active TINYINT(1) DEFAULT 1,
-                display_order INT DEFAULT 0,
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            );
+                CREATE TABLE IF NOT EXISTS categories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    parent_id INTEGER,
+                    name TEXT NOT NULL,
+                    slug TEXT UNIQUE NOT NULL,
+                    emoji TEXT DEFAULT '🛍️',
+                    icon TEXT DEFAULT 'fa-tag',
+                    image_path TEXT,
+                    description TEXT,
+                    is_active INTEGER DEFAULT 1,
+                    display_order INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS products (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                category_id INT NULL,
-                name VARCHAR(191) NOT NULL,
-                slug VARCHAR(191) UNIQUE NOT NULL,
-                sku VARCHAR(100) NULL,
-                price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-                sale_price DECIMAL(10,2) NULL,
-                wholesale_price DECIMAL(10,2) NULL,
-                wholesale_moq INT DEFAULT 5,
-                wholesale_min_qty INT DEFAULT 5,
-                is_wholesale TINYINT(1) DEFAULT 1,
-                stock INT DEFAULT 50,
-                stock_quantity INT DEFAULT 50,
-                is_featured TINYINT(1) DEFAULT 1,
-                is_active TINYINT(1) DEFAULT 1,
-                image_path VARCHAR(191) DEFAULT 'images/products/watch-1.jpg',
-                short_description TEXT NULL,
-                description TEXT NULL,
-                reviews_count INT DEFAULT 45,
-                rating DECIMAL(3,1) DEFAULT 4.9,
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            );
+                CREATE TABLE IF NOT EXISTS products (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    category_id INTEGER,
+                    subcategory_id INTEGER,
+                    name TEXT NOT NULL,
+                    slug TEXT UNIQUE NOT NULL,
+                    sku TEXT,
+                    price REAL NOT NULL DEFAULT 0.00,
+                    sale_price REAL,
+                    wholesale_price REAL,
+                    wholesale_moq INTEGER DEFAULT 5,
+                    wholesale_min_qty INTEGER DEFAULT 5,
+                    is_wholesale INTEGER DEFAULT 1,
+                    stock INTEGER DEFAULT 50,
+                    stock_quantity INTEGER DEFAULT 50,
+                    is_featured INTEGER DEFAULT 1,
+                    is_active INTEGER DEFAULT 1,
+                    image_path TEXT DEFAULT 'images/products/watch-1.jpg',
+                    gallery_images TEXT,
+                    short_description TEXT,
+                    description TEXT,
+                    specifications TEXT,
+                    why_buy_from_us TEXT,
+                    reviews_count INTEGER DEFAULT 45,
+                    rating REAL DEFAULT 4.9,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS banners (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                title VARCHAR(191) NOT NULL,
-                subtitle VARCHAR(191) NULL,
-                badge_text VARCHAR(100) NULL,
-                button_text VARCHAR(100) DEFAULT 'Shop Now',
-                button_url VARCHAR(191) DEFAULT 'shop.php',
-                image_path VARCHAR(191) NOT NULL,
-                display_order INT DEFAULT 0,
-                is_active TINYINT(1) DEFAULT 1,
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-            );
+                CREATE TABLE IF NOT EXISTS banners (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    subtitle TEXT,
+                    badge_text TEXT,
+                    button_text TEXT DEFAULT 'Shop Now',
+                    button_url TEXT DEFAULT 'shop.php',
+                    image_path TEXT NOT NULL,
+                    display_order INTEGER DEFAULT 1,
+                    is_active INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS districts (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(100) NOT NULL,
-                division_name VARCHAR(100) NOT NULL,
-                delivery_fee DECIMAL(10,2) NOT NULL DEFAULT 120.00,
-                estimated_days VARCHAR(50) DEFAULT '2-4 days',
-                is_active TINYINT(1) DEFAULT 1,
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-            );
+                CREATE TABLE IF NOT EXISTS districts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    division_name TEXT NOT NULL,
+                    delivery_fee REAL NOT NULL DEFAULT 120.00,
+                    estimated_days TEXT DEFAULT '2-4 days',
+                    is_active INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS orders (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                order_number VARCHAR(100) NULL,
-                customer_name VARCHAR(191) NOT NULL,
-                customer_email VARCHAR(191) NULL,
-                customer_phone VARCHAR(100) NOT NULL,
-                phone VARCHAR(100) NULL,
-                whatsapp VARCHAR(100) NULL,
-                delivery_address TEXT NOT NULL,
-                address TEXT NULL,
-                district VARCHAR(100) NULL,
-                district_name VARCHAR(100) NULL,
-                upazila VARCHAR(100) NULL,
-                subtotal DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-                delivery_cost DECIMAL(10,2) NOT NULL DEFAULT 120.00,
-                delivery_charge DECIMAL(10,2) NOT NULL DEFAULT 120.00,
-                total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-                grand_total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-                payment_method VARCHAR(50) DEFAULT 'cod',
-                payment_number VARCHAR(100) NULL,
-                transaction_id VARCHAR(100) NULL,
-                status VARCHAR(50) DEFAULT 'pending',
-                notes TEXT NULL,
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            );
+                CREATE TABLE IF NOT EXISTS orders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    order_number TEXT,
+                    customer_name TEXT NOT NULL,
+                    customer_email TEXT,
+                    customer_phone TEXT,
+                    phone TEXT,
+                    whatsapp TEXT,
+                    delivery_address TEXT,
+                    address TEXT,
+                    district TEXT,
+                    district_name TEXT,
+                    upazila TEXT,
+                    subtotal REAL NOT NULL DEFAULT 0.00,
+                    delivery_cost REAL NOT NULL DEFAULT 120.00,
+                    delivery_charge REAL NOT NULL DEFAULT 120.00,
+                    total_amount REAL NOT NULL DEFAULT 0.00,
+                    grand_total REAL NOT NULL DEFAULT 0.00,
+                    payment_method TEXT DEFAULT 'cod',
+                    payment_number TEXT,
+                    transaction_id TEXT,
+                    status TEXT DEFAULT 'pending',
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS order_items (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                order_id INT NOT NULL,
-                product_id INT NULL,
-                product_name VARCHAR(191) NOT NULL,
-                product_image VARCHAR(191) NULL,
-                price DECIMAL(10,2) NOT NULL,
-                quantity INT NOT NULL DEFAULT 1,
-                total_price DECIMAL(10,2) NULL,
-                is_wholesale TINYINT(1) DEFAULT 0,
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-            );
+                CREATE TABLE IF NOT EXISTS order_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    order_id INTEGER NOT NULL,
+                    product_id INTEGER,
+                    product_name TEXT NOT NULL,
+                    product_image TEXT,
+                    price REAL NOT NULL,
+                    quantity INTEGER NOT NULL DEFAULT 1,
+                    total_price REAL,
+                    is_wholesale INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS cart_abandonments (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                session_id VARCHAR(191) NULL,
-                customer_name VARCHAR(191) NULL,
-                customer_phone VARCHAR(100) NULL,
-                district_name VARCHAR(100) NULL,
-                product_name VARCHAR(191) NULL,
-                cart_value DECIMAL(10,2) DEFAULT 0.00,
-                step VARCHAR(50) DEFAULT 'cart',
-                recovered TINYINT(1) DEFAULT 0,
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-            );
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    email TEXT UNIQUE,
+                    phone TEXT,
+                    password TEXT NOT NULL,
+                    address TEXT,
+                    district TEXT DEFAULT 'Dhaka',
+                    is_active INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS settings (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                `key` VARCHAR(191) UNIQUE NULL,
-                setting_key VARCHAR(191) UNIQUE NULL,
-                `value` TEXT NULL,
-                setting_value TEXT NULL,
-                updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            );
+                CREATE TABLE IF NOT EXISTS cart_abandonments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT,
+                    customer_name TEXT,
+                    customer_phone TEXT,
+                    district_name TEXT,
+                    product_name TEXT,
+                    cart_value REAL DEFAULT 0.00,
+                    step TEXT DEFAULT 'cart',
+                    recovered INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS suppliers (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(191) NOT NULL,
-                contact_person VARCHAR(191) NULL,
-                phone VARCHAR(100) NULL,
-                category VARCHAR(191) NULL,
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-            );
+                CREATE TABLE IF NOT EXISTS settings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    key TEXT UNIQUE,
+                    setting_key TEXT UNIQUE,
+                    value TEXT,
+                    setting_value TEXT,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS messages (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(191) NOT NULL,
-                email VARCHAR(191) NULL,
-                phone VARCHAR(100) NULL,
-                message TEXT NOT NULL,
-                is_read TINYINT(1) DEFAULT 0,
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-            );
+                CREATE TABLE IF NOT EXISTS suppliers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    contact_person TEXT,
+                    phone TEXT,
+                    email TEXT,
+                    address TEXT,
+                    photo TEXT DEFAULT 'uploads/suppliers/supplier-default.jpg',
+                    supply_products TEXT,
+                    category TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS reviews (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                author_name VARCHAR(191) NOT NULL,
-                rating INT NOT NULL DEFAULT 5,
-                review_text TEXT NOT NULL,
-                district_name VARCHAR(100) DEFAULT 'Dhaka',
-                is_approved TINYINT(1) DEFAULT 1,
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-            );
+                CREATE TABLE IF NOT EXISTS customer_visits (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ip_address TEXT,
+                    session_id TEXT,
+                    city TEXT,
+                    district TEXT,
+                    referrer TEXT,
+                    page_url TEXT,
+                    user_agent TEXT,
+                    device_type TEXT,
+                    visited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS blog_posts (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                title VARCHAR(191) NOT NULL,
-                slug VARCHAR(191) UNIQUE NOT NULL,
-                excerpt TEXT NULL,
-                content LONGTEXT NULL,
-                is_published TINYINT(1) DEFAULT 1,
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-            );
+                CREATE TABLE IF NOT EXISTS messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    email TEXT,
+                    phone TEXT,
+                    message TEXT NOT NULL,
+                    is_read INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS blogs (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                title VARCHAR(191) NOT NULL,
-                slug VARCHAR(191) UNIQUE NOT NULL,
-                category VARCHAR(100) DEFAULT 'Buying Guide',
-                author VARCHAR(100) DEFAULT 'OnlineBdMart Team',
-                summary TEXT NULL,
-                content LONGTEXT NULL,
-                image_path VARCHAR(191) DEFAULT 'uploads/hero-banner-1.svg',
-                is_published TINYINT(1) DEFAULT 1,
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-            );
+                CREATE TABLE IF NOT EXISTS reviews (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    product_id INTEGER,
+                    author_name TEXT NOT NULL,
+                    customer_name TEXT,
+                    rating INTEGER NOT NULL DEFAULT 5,
+                    review_text TEXT,
+                    comment TEXT,
+                    district_name TEXT DEFAULT 'Dhaka',
+                    is_approved INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-            CREATE TABLE IF NOT EXISTS wholesale_inquiries (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                business_name VARCHAR(191) NOT NULL,
-                contact_person VARCHAR(191) NOT NULL,
-                phone VARCHAR(100) NOT NULL,
-                whatsapp VARCHAR(100) NULL,
-                district VARCHAR(100) NULL,
-                estimated_monthly_quantity VARCHAR(100) NULL,
-                message TEXT NULL,
-                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
-            );
-        ");
+                CREATE TABLE IF NOT EXISTS blog_posts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    slug TEXT UNIQUE NOT NULL,
+                    category TEXT DEFAULT 'Buying Guide',
+                    author TEXT DEFAULT 'OnlineBdMart Team',
+                    summary TEXT,
+                    excerpt TEXT,
+                    content TEXT,
+                    image_path TEXT DEFAULT 'images/hero/hero-1.jpg',
+                    meta_title TEXT,
+                    meta_description TEXT,
+                    meta_keywords TEXT,
+                    is_published INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
 
-        // Seed Default Admin if missing
-        $admCount = (int)$pdo->query("SELECT COUNT(*) FROM admins")->fetchColumn();
-        if ($admCount === 0) {
-            $hashed = password_hash('password', PASSWORD_BCRYPT);
-            $pdo->prepare("INSERT INTO admins (name, username, email, password) VALUES ('Super Admin', 'admin', 'admin@fashionstore.com', ?)")->execute([$hashed]);
+                CREATE TABLE IF NOT EXISTS wholesale_inquiries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    business_name TEXT NOT NULL,
+                    contact_person TEXT NOT NULL,
+                    phone TEXT NOT NULL,
+                    whatsapp TEXT,
+                    district TEXT,
+                    estimated_monthly_quantity TEXT,
+                    message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            ");
+        } else {
+            // MySQL Native DDL
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS `admins` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `name` VARCHAR(191) DEFAULT 'Super Admin',
+                    `username` VARCHAR(191) UNIQUE,
+                    `email` VARCHAR(191) UNIQUE,
+                    `password` VARCHAR(191),
+                    `profile_photo` VARCHAR(255) DEFAULT 'uploads/admin/avatar.png',
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `categories` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `parent_id` INT NULL,
+                    `name` VARCHAR(191) NOT NULL,
+                    `slug` VARCHAR(191) UNIQUE NOT NULL,
+                    `emoji` VARCHAR(50) DEFAULT '🛍️',
+                    `icon` VARCHAR(100) DEFAULT 'fa-tag',
+                    `image_path` VARCHAR(255) NULL,
+                    `description` TEXT NULL,
+                    `is_active` TINYINT(1) DEFAULT 1,
+                    `display_order` INT DEFAULT 1,
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `products` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `category_id` INT NULL,
+                    `subcategory_id` INT NULL,
+                    `name` VARCHAR(191) NOT NULL,
+                    `slug` VARCHAR(191) UNIQUE NOT NULL,
+                    `sku` VARCHAR(100) NULL,
+                    `price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    `sale_price` DECIMAL(10,2) NULL,
+                    `wholesale_price` DECIMAL(10,2) NULL,
+                    `wholesale_moq` INT DEFAULT 5,
+                    `wholesale_min_qty` INT DEFAULT 5,
+                    `is_wholesale` TINYINT(1) DEFAULT 1,
+                    `stock` INT DEFAULT 50,
+                    `stock_quantity` INT DEFAULT 50,
+                    `is_featured` TINYINT(1) DEFAULT 1,
+                    `is_active` TINYINT(1) DEFAULT 1,
+                    `image_path` VARCHAR(255) DEFAULT 'images/products/watch-1.jpg',
+                    `gallery_images` TEXT NULL,
+                    `short_description` TEXT NULL,
+                    `description` LONGTEXT NULL,
+                    `specifications` TEXT NULL,
+                    `why_buy_from_us` TEXT NULL,
+                    `reviews_count` INT DEFAULT 45,
+                    `rating` DECIMAL(3,1) DEFAULT 4.9,
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `banners` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `title` VARCHAR(191) NOT NULL,
+                    `subtitle` VARCHAR(191) NULL,
+                    `badge_text` VARCHAR(100) NULL,
+                    `button_text` VARCHAR(100) DEFAULT 'Shop Now',
+                    `button_url` VARCHAR(191) DEFAULT 'shop.php',
+                    `image_path` VARCHAR(255) NOT NULL,
+                    `display_order` INT DEFAULT 1,
+                    `is_active` TINYINT(1) DEFAULT 1,
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `districts` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `name` VARCHAR(100) NOT NULL,
+                    `division_name` VARCHAR(100) NOT NULL,
+                    `delivery_fee` DECIMAL(10,2) NOT NULL DEFAULT 120.00,
+                    `estimated_days` VARCHAR(50) DEFAULT '2-4 days',
+                    `is_active` TINYINT(1) DEFAULT 1,
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `orders` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `order_number` VARCHAR(100) NULL,
+                    `customer_name` VARCHAR(191) NOT NULL,
+                    `customer_email` VARCHAR(191) NULL,
+                    `customer_phone` VARCHAR(100) NULL,
+                    `phone` VARCHAR(100) NULL,
+                    `whatsapp` VARCHAR(100) NULL,
+                    `delivery_address` TEXT NULL,
+                    `address` TEXT NULL,
+                    `district` VARCHAR(100) NULL,
+                    `district_name` VARCHAR(100) NULL,
+                    `upazila` VARCHAR(100) NULL,
+                    `subtotal` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    `delivery_cost` DECIMAL(10,2) NOT NULL DEFAULT 120.00,
+                    `delivery_charge` DECIMAL(10,2) NOT NULL DEFAULT 120.00,
+                    `total_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    `grand_total` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    `payment_method` VARCHAR(50) DEFAULT 'cod',
+                    `payment_number` VARCHAR(100) NULL,
+                    `transaction_id` VARCHAR(100) NULL,
+                    `status` VARCHAR(50) DEFAULT 'pending',
+                    `notes` TEXT NULL,
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `order_items` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `order_id` INT NOT NULL,
+                    `product_id` INT NULL,
+                    `product_name` VARCHAR(191) NOT NULL,
+                    `product_image` VARCHAR(255) NULL,
+                    `price` DECIMAL(10,2) NOT NULL,
+                    `quantity` INT NOT NULL DEFAULT 1,
+                    `total_price` DECIMAL(10,2) NULL,
+                    `is_wholesale` TINYINT(1) DEFAULT 0,
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `users` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `name` VARCHAR(191) NOT NULL,
+                    `email` VARCHAR(191) UNIQUE,
+                    `phone` VARCHAR(100) NULL,
+                    `password` VARCHAR(191) NOT NULL,
+                    `address` TEXT NULL,
+                    `district` VARCHAR(100) DEFAULT 'Dhaka',
+                    `is_active` TINYINT(1) DEFAULT 1,
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `cart_abandonments` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `session_id` VARCHAR(191) NULL,
+                    `customer_name` VARCHAR(191) NULL,
+                    `customer_phone` VARCHAR(100) NULL,
+                    `district_name` VARCHAR(100) NULL,
+                    `product_name` VARCHAR(191) NULL,
+                    `cart_value` DECIMAL(10,2) DEFAULT 0.00,
+                    `step` VARCHAR(50) DEFAULT 'cart',
+                    `recovered` TINYINT(1) DEFAULT 0,
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `settings` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `key` VARCHAR(191) UNIQUE NULL,
+                    `setting_key` VARCHAR(191) UNIQUE NULL,
+                    `value` LONGTEXT NULL,
+                    `setting_value` LONGTEXT NULL,
+                    `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `suppliers` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `name` VARCHAR(191) NOT NULL,
+                    `contact_person` VARCHAR(191) NULL,
+                    `phone` VARCHAR(100) NULL,
+                    `email` VARCHAR(191) NULL,
+                    `address` TEXT NULL,
+                    `photo` VARCHAR(255) DEFAULT 'uploads/suppliers/supplier-default.jpg',
+                    `supply_products` TEXT NULL,
+                    `category` VARCHAR(191) NULL,
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `customer_visits` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `ip_address` VARCHAR(100) NULL,
+                    `session_id` VARCHAR(191) NULL,
+                    `city` VARCHAR(100) NULL,
+                    `district` VARCHAR(100) NULL,
+                    `referrer` VARCHAR(255) NULL,
+                    `page_url` VARCHAR(255) NULL,
+                    `user_agent` TEXT NULL,
+                    `device_type` VARCHAR(50) DEFAULT 'Mobile',
+                    `visited_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `messages` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `name` VARCHAR(191) NOT NULL,
+                    `email` VARCHAR(191) NULL,
+                    `phone` VARCHAR(100) NULL,
+                    `message` TEXT NOT NULL,
+                    `is_read` TINYINT(1) DEFAULT 0,
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `reviews` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `product_id` INT NULL,
+                    `author_name` VARCHAR(191) NOT NULL,
+                    `customer_name` VARCHAR(191) NULL,
+                    `rating` INT NOT NULL DEFAULT 5,
+                    `review_text` TEXT NULL,
+                    `comment` TEXT NULL,
+                    `district_name` VARCHAR(100) DEFAULT 'Dhaka',
+                    `is_approved` TINYINT(1) DEFAULT 1,
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `blog_posts` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `title` VARCHAR(191) NOT NULL,
+                    `slug` VARCHAR(191) UNIQUE NOT NULL,
+                    `category` VARCHAR(100) DEFAULT 'Buying Guide',
+                    `author` VARCHAR(100) DEFAULT 'OnlineBdMart Team',
+                    `summary` TEXT NULL,
+                    `excerpt` TEXT NULL,
+                    `content` LONGTEXT NULL,
+                    `image_path` VARCHAR(255) DEFAULT 'images/hero/hero-1.jpg',
+                    `meta_title` VARCHAR(191) NULL,
+                    `meta_description` TEXT NULL,
+                    `meta_keywords` TEXT NULL,
+                    `is_published` TINYINT(1) DEFAULT 1,
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `wholesale_inquiries` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `business_name` VARCHAR(191) NOT NULL,
+                    `contact_person` VARCHAR(191) NOT NULL,
+                    `phone` VARCHAR(100) NOT NULL,
+                    `whatsapp` VARCHAR(100) NULL,
+                    `district` VARCHAR(100) NULL,
+                    `estimated_monthly_quantity` VARCHAR(100) NULL,
+                    `message` TEXT NULL,
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+            ");
         }
+
+        // Add dynamic columns if existing tables lack them
+        addColumnIfNotExists($pdo, 'categories', 'parent_id', $isSqlite ? 'INTEGER' : 'INT NULL');
+        addColumnIfNotExists($pdo, 'categories', 'emoji', $isSqlite ? "TEXT DEFAULT '🛍️'" : "VARCHAR(50) DEFAULT '🛍️'");
+        addColumnIfNotExists($pdo, 'categories', 'display_order', $isSqlite ? 'INTEGER DEFAULT 1' : 'INT DEFAULT 1');
+        addColumnIfNotExists($pdo, 'categories', 'is_active', $isSqlite ? 'INTEGER DEFAULT 1' : 'TINYINT(1) DEFAULT 1');
+
+        addColumnIfNotExists($pdo, 'settings', 'key', $isSqlite ? 'TEXT' : 'VARCHAR(191) NULL');
+        addColumnIfNotExists($pdo, 'settings', 'value', $isSqlite ? 'TEXT' : 'LONGTEXT NULL');
+        addColumnIfNotExists($pdo, 'settings', 'setting_key', $isSqlite ? 'TEXT' : 'VARCHAR(191) NULL');
+        addColumnIfNotExists($pdo, 'settings', 'setting_value', $isSqlite ? 'TEXT' : 'LONGTEXT NULL');
+
+        addColumnIfNotExists($pdo, 'orders', 'customer_phone', $isSqlite ? 'TEXT' : 'VARCHAR(100) NULL');
+        addColumnIfNotExists($pdo, 'orders', 'customer_email', $isSqlite ? 'TEXT' : 'VARCHAR(191) NULL');
+        addColumnIfNotExists($pdo, 'orders', 'delivery_address', $isSqlite ? 'TEXT' : 'TEXT NULL');
+        addColumnIfNotExists($pdo, 'orders', 'district_name', $isSqlite ? 'TEXT' : 'VARCHAR(100) NULL');
+        addColumnIfNotExists($pdo, 'orders', 'delivery_cost', $isSqlite ? 'REAL DEFAULT 120.00' : 'DECIMAL(10,2) DEFAULT 120.00');
+        addColumnIfNotExists($pdo, 'orders', 'total_amount', $isSqlite ? 'REAL DEFAULT 0.00' : 'DECIMAL(10,2) DEFAULT 0.00');
+        addColumnIfNotExists($pdo, 'orders', 'order_number', $isSqlite ? 'TEXT' : 'VARCHAR(100) NULL');
+
+        addColumnIfNotExists($pdo, 'products', 'subcategory_id', $isSqlite ? 'INTEGER' : 'INT NULL');
+        addColumnIfNotExists($pdo, 'products', 'stock_quantity', $isSqlite ? 'INTEGER DEFAULT 50' : 'INT DEFAULT 50');
+        addColumnIfNotExists($pdo, 'products', 'wholesale_moq', $isSqlite ? 'INTEGER DEFAULT 5' : 'INT DEFAULT 5');
+        addColumnIfNotExists($pdo, 'products', 'gallery_images', $isSqlite ? 'TEXT' : 'TEXT NULL');
+        addColumnIfNotExists($pdo, 'products', 'specifications', $isSqlite ? 'TEXT' : 'TEXT NULL');
+        addColumnIfNotExists($pdo, 'products', 'why_buy_from_us', $isSqlite ? 'TEXT' : 'TEXT NULL');
+
+        addColumnIfNotExists($pdo, 'admins', 'name', $isSqlite ? "TEXT DEFAULT 'Super Admin'" : "VARCHAR(191) DEFAULT 'Super Admin'");
+        addColumnIfNotExists($pdo, 'admins', 'profile_photo', $isSqlite ? "TEXT DEFAULT 'uploads/admin/avatar.png'" : "VARCHAR(255) DEFAULT 'uploads/admin/avatar.png'");
+
+        addColumnIfNotExists($pdo, 'suppliers', 'photo', $isSqlite ? "TEXT DEFAULT 'uploads/suppliers/supplier-default.jpg'" : "VARCHAR(255) DEFAULT 'uploads/suppliers/supplier-default.jpg'");
+        addColumnIfNotExists($pdo, 'suppliers', 'supply_products', $isSqlite ? 'TEXT' : 'TEXT NULL');
+
+        addColumnIfNotExists($pdo, 'users', 'address', $isSqlite ? 'TEXT' : 'TEXT NULL');
+        addColumnIfNotExists($pdo, 'users', 'district', $isSqlite ? "TEXT DEFAULT 'Dhaka'" : "VARCHAR(100) DEFAULT 'Dhaka'");
+        addColumnIfNotExists($pdo, 'users', 'is_active', $isSqlite ? 'INTEGER DEFAULT 1' : 'TINYINT(1) DEFAULT 1');
 
         // Seed 64 districts if empty
         $distCount = (int)$pdo->query("SELECT COUNT(*) FROM districts")->fetchColumn();
@@ -335,9 +656,7 @@ function ensureTablesExist($pdo) {
                 $dStmt->execute($d);
             }
         }
-    } catch (Exception $e) {
-        // Silently skip if DB permissions don't allow CREATE TABLE
-    }
+    } catch (Exception $e) {}
 }
 
 // 2. Universal PDO Database Connection
@@ -378,17 +697,38 @@ function getDB() {
     }
 }
 
-// 3. Settings Helper
+// 3. Settings Helper (Bulletproof against both key/setting_key column naming)
 function getSetting($key, $default = '') {
     try {
         $db = getDB();
-        $stmt = $db->prepare("SELECT setting_value FROM settings WHERE setting_key = ? OR `key` = ? LIMIT 1");
+        $stmt = $db->prepare("SELECT * FROM settings WHERE `key` = ? OR setting_key = ? LIMIT 1");
         $stmt->execute([$key, $key]);
         $row = $stmt->fetch();
-        if ($row) return $row['setting_value'] ?: $row['value'];
+        if ($row) {
+            return !empty($row['value']) ? $row['value'] : (!empty($row['setting_value']) ? $row['setting_value'] : $default);
+        }
         return $default;
     } catch (Exception $e) {
         return $default;
+    }
+}
+
+function saveSetting($key, $value) {
+    try {
+        $db = getDB();
+        $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $stmt = $db->prepare("DELETE FROM settings WHERE `key` = ? OR setting_key = ?");
+            $stmt->execute([$key, $key]);
+            $ins = $db->prepare("INSERT INTO settings (`key`, setting_key, `value`, setting_value, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)");
+            $ins->execute([$key, $key, $value, $value]);
+        } else {
+            $stmt = $db->prepare("INSERT INTO settings (`key`, setting_key, `value`, setting_value, updated_at) VALUES (?, ?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`), setting_value = VALUES(setting_value), updated_at = NOW()");
+            $stmt->execute([$key, $key, $value, $value]);
+        }
+        return true;
+    } catch (Exception $e) {
+        return false;
     }
 }
 
@@ -398,8 +738,8 @@ function getAllSettings() {
         $stmt = $db->query("SELECT * FROM settings");
         $settings = [];
         while ($row = $stmt->fetch()) {
-            $k = $row['setting_key'] ?: ($row['key'] ?? '');
-            $v = $row['setting_value'] ?: ($row['value'] ?? '');
+            $k = !empty($row['key']) ? $row['key'] : (!empty($row['setting_key']) ? $row['setting_key'] : '');
+            $v = isset($row['value']) ? $row['value'] : (isset($row['setting_value']) ? $row['setting_value'] : '');
             if ($k) $settings[$k] = $v;
         }
         return $settings;
