@@ -21,6 +21,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $admin = $stmt->fetch();
 
         if ($admin && password_verify($password, $admin['password'])) {
+            $isGlobal2fa = (getSetting('admin_2fa_enabled', '0') === '1');
+            $isUser2fa = !empty($admin['two_factor_enabled']);
+
+            if ($isGlobal2fa || $isUser2fa) {
+                // Two-Factor Authentication required: Go to Step 2 PIN Verification
+                $_SESSION['2fa_pending_admin_id'] = $admin['id'];
+                $_SESSION['2fa_pending_admin_name'] = $admin['name'] ?? 'Staff Member';
+                $_SESSION['2fa_pending_admin_role'] = $admin['role'] ?? 'salesman';
+                header('Location: verify-2fa.php');
+                exit;
+            }
+
+            // Direct Login (2FA Disabled)
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['admin_id'] = $admin['id'];
             $_SESSION['admin_name'] = $admin['name'];

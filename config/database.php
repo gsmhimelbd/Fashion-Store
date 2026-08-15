@@ -573,6 +573,11 @@ function ensureTablesExist($pdo) {
         addColumnIfNotExists($pdo, 'products', 'why_buy_from_us', $isSqlite ? 'TEXT' : 'TEXT NULL');
 
         addColumnIfNotExists($pdo, 'admins', 'name', $isSqlite ? "TEXT DEFAULT 'Super Admin'" : "VARCHAR(191) DEFAULT 'Super Admin'");
+        addColumnIfNotExists($pdo, 'admins', 'role', $isSqlite ? "TEXT DEFAULT 'superadmin'" : "VARCHAR(50) DEFAULT 'superadmin'");
+        addColumnIfNotExists($pdo, 'admins', 'permissions', $isSqlite ? "TEXT DEFAULT 'all'" : "TEXT NULL");
+        addColumnIfNotExists($pdo, 'admins', 'is_active', $isSqlite ? "INTEGER DEFAULT 1" : "TINYINT(1) DEFAULT 1");
+        addColumnIfNotExists($pdo, 'admins', 'two_factor_enabled', $isSqlite ? "INTEGER DEFAULT 0" : "TINYINT(1) DEFAULT 0");
+        addColumnIfNotExists($pdo, 'admins', 'two_factor_pin', $isSqlite ? "TEXT DEFAULT '123456'" : "VARCHAR(50) DEFAULT '123456'");
         addColumnIfNotExists($pdo, 'admins', 'profile_photo', $isSqlite ? "TEXT DEFAULT 'uploads/admin/avatar.png'" : "VARCHAR(255) DEFAULT 'uploads/admin/avatar.png'");
 
         addColumnIfNotExists($pdo, 'suppliers', 'photo', $isSqlite ? "TEXT DEFAULT 'uploads/suppliers/supplier-default.jpg'" : "VARCHAR(255) DEFAULT 'uploads/suppliers/supplier-default.jpg'");

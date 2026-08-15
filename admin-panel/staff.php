@@ -41,6 +41,8 @@ try {
             $password = trim($_POST['password'] ?? '');
             $selectedPerms = $_POST['perms'] ?? [];
             $isActive = isset($_POST['is_active']) ? 1 : 0;
+            $twoFactorEnabled = isset($_POST['two_factor_enabled']) ? 1 : 0;
+            $twoFactorPin = trim($_POST['two_factor_pin'] ?? '123456');
 
             $permsJson = ($role === 'superadmin') ? 'all' : json_encode(array_values($selectedPerms));
 
@@ -49,19 +51,19 @@ try {
                     $error = 'Please fill out all required fields (Name, Email, and Password).';
                 } else {
                     $hashed = password_hash($password, PASSWORD_BCRYPT);
-                    $stmt = $db->prepare("INSERT INTO admins (name, username, email, password, role, permissions, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
-                    $stmt->execute([$name, $username, $email, $hashed, $role, $permsJson, $isActive]);
-                    $msg = "New staff account ({$name}) created with assigned permissions!";
+                    $stmt = $db->prepare("INSERT INTO admins (name, username, email, password, role, permissions, is_active, two_factor_enabled, two_factor_pin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
+                    $stmt->execute([$name, $username, $email, $hashed, $role, $permsJson, $isActive, $twoFactorEnabled, $twoFactorPin]);
+                    $msg = "New staff account ({$name}) created with assigned permissions & 2FA PIN!";
                 }
             } else {
                 $id = (int)$_POST['admin_id'];
                 if ($password) {
                     $hashed = password_hash($password, PASSWORD_BCRYPT);
-                    $stmt = $db->prepare("UPDATE admins SET name = ?, username = ?, email = ?, password = ?, role = ?, permissions = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                    $stmt->execute([$name, $username, $email, $hashed, $role, $permsJson, $isActive, $id]);
+                    $stmt = $db->prepare("UPDATE admins SET name = ?, username = ?, email = ?, password = ?, role = ?, permissions = ?, is_active = ?, two_factor_enabled = ?, two_factor_pin = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $stmt->execute([$name, $username, $email, $hashed, $role, $permsJson, $isActive, $twoFactorEnabled, $twoFactorPin, $id]);
                 } else {
-                    $stmt = $db->prepare("UPDATE admins SET name = ?, username = ?, email = ?, role = ?, permissions = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                    $stmt->execute([$name, $username, $email, $role, $permsJson, $isActive, $id]);
+                    $stmt = $db->prepare("UPDATE admins SET name = ?, username = ?, email = ?, role = ?, permissions = ?, is_active = ?, two_factor_enabled = ?, two_factor_pin = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $stmt->execute([$name, $username, $email, $role, $permsJson, $isActive, $twoFactorEnabled, $twoFactorPin, $id]);
                 }
                 $msg = "Staff account ({$name}) updated successfully!";
             }
@@ -267,6 +269,21 @@ try {
                     </div>
                 </div>
 
+                <!-- 2FA Security PIN settings for this staff member -->
+                <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="font-extrabold text-white text-xs"><i class="fas fa-shield-halved text-amber-400 mr-1.5"></i> 2-Factor Authentication (2FA) for this Staff</span>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="two_factor_enabled" id="s2faEnabled" value="1" class="rounded text-amber-500">
+                            <span class="text-amber-400 font-bold">Require 2FA PIN on Login</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-bold mb-1">Staff 2FA Security PIN Code</label>
+                        <input type="text" name="two_factor_pin" id="s2faPin" value="123456" placeholder="e.g. 123456" class="w-full px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono outline-none">
+                    </div>
+                </div>
+
                 <div class="flex items-center justify-between pt-2">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" name="is_active" id="sIsActive" value="1" checked class="rounded text-emerald-600">
@@ -299,6 +316,8 @@ function openAddStaffModal() {
     document.getElementById('sPassword').required = true;
     document.getElementById('passLabel').textContent = 'Login Password *';
     document.getElementById('sIsActive').checked = true;
+    document.getElementById('s2faEnabled').checked = false;
+    document.getElementById('s2faPin').value = '123456';
 
     // Default Salesman permissions: products, categories, wholesale, orders, messages
     const defaultSalesman = ['products', 'categories', 'wholesale', 'orders', 'messages'];
@@ -323,6 +342,8 @@ function openEditStaffModal(st) {
     document.getElementById('sPassword').required = false;
     document.getElementById('passLabel').textContent = 'New Password (Leave blank to keep current)';
     document.getElementById('sIsActive').checked = Boolean(Number(st.is_active));
+    document.getElementById('s2faEnabled').checked = Boolean(Number(st.two_factor_enabled));
+    document.getElementById('s2faPin').value = st.two_factor_pin || '123456';
 
     // Parse permissions
     let perms = [];

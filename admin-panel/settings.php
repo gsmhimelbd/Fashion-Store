@@ -45,6 +45,10 @@ try {
             'announcement_bar' => $_POST['announcement_bar'] ?? 'Free Delivery Tangail ৳50 | Others ৳150 • Free Shipping above ৳2000',
             'footer_about_text' => $_POST['footer_about_text'] ?? 'OnlineBdMart is Bangladesh premier wholesale and retail fashion destination offering 100% verified authentic accessories and smart gadgets with Cash on Delivery nationwide.',
             'footer_copyright' => $_POST['footer_copyright'] ?? 'OnlineBdMart • Online Shopping Bangladesh. All rights reserved.',
+            
+            // 2-Factor Authentication
+            'admin_2fa_enabled' => isset($_POST['admin_2fa_enabled']) ? '1' : '0',
+            'admin_2fa_master_pin' => $_POST['admin_2fa_master_pin'] ?? '123456',
         ];
 
         foreach ($keys as $k => $v) {
@@ -143,6 +147,24 @@ $logo = $settings['store_logo'] ?? 'images/logo.png';
             <div>
                 <label class="block text-slate-300 font-bold mb-1">Footer Copyright Text</label>
                 <input type="text" name="footer_copyright" value="<?= htmlspecialchars($settings['footer_copyright'] ?? 'OnlineBdMart • Online Shopping Bangladesh. All rights reserved.') ?>" class="w-full px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none">
+            </div>
+        </div>
+
+        <!-- 2-Factor Authentication Security Settings -->
+        <div class="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="font-extrabold text-white text-sm"><i class="fas fa-shield-halved text-amber-400 mr-1.5"></i> Admin & Staff 2-Factor Authentication (2FA)</h3>
+                    <p class="text-slate-400 text-[11px]">Require a 6-digit / 4-digit security PIN after entering password during login for maximum protection.</p>
+                </div>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="admin_2fa_enabled" <?= ($settings['admin_2fa_enabled'] ?? '0') === '1' ? 'checked' : '' ?> class="rounded text-amber-500">
+                    <span class="text-amber-400 font-bold">Enforce 2FA on Login</span>
+                </label>
+            </div>
+            <div>
+                <label class="block text-slate-300 font-bold mb-1">Global Master 2FA Security PIN Code</label>
+                <input type="password" name="admin_2fa_master_pin" value="<?= htmlspecialchars($settings['admin_2fa_master_pin'] ?? '123456') ?>" placeholder="e.g. 123456" class="w-full px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white font-mono outline-none">
             </div>
         </div>
 
