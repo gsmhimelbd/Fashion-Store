@@ -65,17 +65,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $total = $subtotal + $deliveryCost;
             $orderNumber = 'OBM-' . strtoupper(bin2hex(random_bytes(4)));
 
-            $orderStmt = $db->prepare("INSERT INTO orders (order_number, customer_name, customer_email, customer_phone, delivery_address, district_name, subtotal, delivery_cost, total_amount, payment_method, transaction_id, status, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
+            $orderStmt = $db->prepare("INSERT INTO orders (
+                order_number, customer_name, customer_email, customer_phone, phone, whatsapp, 
+                delivery_address, address, district_name, district, 
+                subtotal, delivery_cost, delivery_charge, total_amount, grand_total, 
+                payment_method, transaction_id, status, notes, created_at, updated_at
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, 
+                ?, ?, ?, ?, 
+                ?, ?, ?, ?, ?, 
+                ?, ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            )");
             
             $orderStmt->execute([
                 $orderNumber,
                 $name,
                 $email,
                 $phone,
+                $phone,
+                $phone,
                 $address,
+                $address,
+                $districtName,
                 $districtName,
                 $subtotal,
                 $deliveryCost,
+                $deliveryCost,
+                $total,
                 $total,
                 $paymentMethod,
                 $trxId,

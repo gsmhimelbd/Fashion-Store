@@ -49,13 +49,13 @@ try {
                             <span class="text-[10px] font-bold uppercase text-slate-400"><?= htmlspecialchars($p['category_name'] ?? 'Accessories') ?></span>
                             <a href="product.php?slug=<?= htmlspecialchars($p['slug']) ?>" class="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition line-clamp-2 block mt-0.5"><?= htmlspecialchars($p['name']) ?></a>
                         </div>
-                        <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                        <div class="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div>
                                 <span class="text-sm sm:text-base font-black text-rose-600 block">৳<?= number_format($p['sale_price'], 2) ?></span>
                                 <span class="text-[10px] text-slate-400 line-through">৳<?= number_format($p['price'], 2) ?></span>
                             </div>
-                            <button type="button" onclick="addToCart(<?= $p['id'] ?>)" class="px-3.5 py-2 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-xs font-black rounded-xl shadow transition flex items-center gap-1.5 shrink-0">
-                                <i class="fas fa-bag-shopping text-xs"></i> <span>Add</span>
+                            <button type="button" onclick="addToCart(<?= $p['id'] ?>)" class="w-full sm:w-auto px-3 py-2 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white text-xs font-black rounded-xl shadow transition flex items-center justify-center gap-1.5 active:scale-95">
+                                <i class="fas fa-bag-shopping text-xs"></i> <span>Add to Bag</span>
                             </button>
                         </div>
                     </div>
