@@ -78,16 +78,8 @@
         });
     @endphp
 
-    <!-- FLOATING DIRECT DOWNLOAD BANNER -->
-    <div class="fixed top-2 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 backdrop-blur-md text-white border-2 border-amber-400 px-4 py-2 rounded-2xl shadow-2xl flex items-center gap-3 text-xs">
-        <span class="font-extrabold text-amber-300 flex items-center gap-1.5"><i class="fas fa-file-zipper text-sm"></i> cPanel Ready ZIP</span>
-        <a href="/OnlineBdMart-cPanel-Ready.zip" download="OnlineBdMart-cPanel-Ready.zip" class="px-4 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black rounded-xl shadow transition flex items-center gap-1.5">
-            <i class="fas fa-download"></i> <span>Download ZIP</span>
-        </a>
-    </div>
-
     <!-- 1. TOP BAR with Track Order, Hotline & Customer Sign In / Sign Up -->
-    <div class="bg-slate-900 text-slate-300 text-xs py-2 px-4 border-b border-slate-800 pt-12 sm:pt-2">
+    <div class="bg-slate-900 text-slate-300 text-xs py-2 px-4 border-b border-slate-800">
         <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
             
             <!-- Left Promo Notice -->
@@ -98,12 +90,6 @@
 
             <!-- Right: Track Order, Hotline, Sign In / Sign Up -->
             <div class="flex items-center gap-3 sm:gap-4 text-xs font-semibold text-slate-300">
-                <a href="/OnlineBdMart-cPanel-Ready.zip" download="OnlineBdMart-cPanel-Ready.zip" class="hover:bg-amber-400 hover:text-slate-950 transition flex items-center gap-1.5 text-amber-300 font-extrabold bg-amber-500/20 border border-amber-400/40 px-3 py-1 rounded-full shadow-sm">
-                    <i class="fas fa-download"></i> <span>Download ZIP</span>
-                </a>
-
-                <span class="text-slate-700 hidden sm:inline">|</span>
-
                 <a href="{{ route('order.track') }}" class="hover:text-primary-400 transition flex items-center gap-1.5 text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full">
                     <i class="fas fa-truck-fast"></i> <span>Track Order</span>
                 </a>
@@ -302,9 +288,6 @@
                 @else
                 <a href="{{ route('login') }}" class="block w-full py-2.5 bg-primary-600 text-white font-bold rounded-xl text-xs text-center">Sign In / Sign Up</a>
                 @endif
-                <a href="/OnlineBdMart-cPanel-Ready.zip" download="OnlineBdMart-cPanel-Ready.zip" class="block w-full py-2.5 bg-amber-400 text-slate-950 font-black rounded-xl text-xs text-center shadow">
-                    <i class="fas fa-download mr-1"></i> Download Project ZIP
-                </a>
             </div>
         </div>
     </div>
@@ -431,7 +414,6 @@
                     <ul class="space-y-2 text-xs text-slate-400 font-semibold">
                         <li><a href="{{ route('order.track') }}" class="text-emerald-400 hover:underline">📦 Track Your Order</a></li>
                         <li><a href="{{ route('contact') }}" class="hover:text-white">📞 Contact & Help Center</a></li>
-                        <li><a href="/OnlineBdMart-cPanel-Ready.zip" download="OnlineBdMart-cPanel-Ready.zip" class="text-amber-400 hover:underline font-bold">📥 Download Full Project ZIP</a></li>
                         <li><a href="{{ route('checkout.index') }}" class="hover:text-white">⚡ Express Checkout</a></li>
                         <li><a href="/admin-panel/login" class="hover:text-white text-slate-500">🔐 Admin Portal</a></li>
                     </ul>
@@ -447,7 +429,7 @@
                 </div>
             </div>
             <div class="pt-8 text-center text-xs text-slate-500">
-                &copy; {{ date('Y') }} {{ $storeName }} • Online Shopping Bangladesh. Built with Laravel 11 & Tailwind CSS.
+                &copy; {{ date('Y') }} {{ $storeName }} • Online Shopping Bangladesh. All rights reserved.
             </div>
         </div>
     </footer>
