@@ -29,6 +29,7 @@ try {
     $adminRole = $currAdmin['role'] ?? ($_SESSION['admin_role'] ?? 'superadmin');
     $storeLogo = getSetting('store_logo', 'images/logo.png');
     $storeFavicon = getSetting('store_favicon', $storeLogo);
+    $faviconVer = file_exists(__DIR__ . '/../' . ltrim($storeFavicon, '/')) ? @filemtime(__DIR__ . '/../' . ltrim($storeFavicon, '/')) : time();
 } catch (Exception $e) {
     $pendingOrdersCount = 0;
     $unreadMessagesCount = 0;
@@ -36,6 +37,7 @@ try {
     $adminRole = 'superadmin';
     $storeLogo = 'images/logo.png';
     $storeFavicon = 'images/logo.png';
+    $faviconVer = time();
 }
 ?>
 <!DOCTYPE html>
@@ -44,8 +46,10 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($adminTitle ?? 'Admin Portal') ?> - OnlineBdMart</title>
-    <link rel="icon" href="/<?= ltrim($storeFavicon, '/') ?>">
-    <link rel="apple-touch-icon" href="/<?= ltrim($storeFavicon, '/') ?>">
+    <link rel="icon" type="image/png" href="/<?= ltrim($storeFavicon, '/') ?>?v=<?= $faviconVer ?>">
+    <link rel="icon" type="image/x-icon" href="/<?= ltrim($storeFavicon, '/') ?>?v=<?= $faviconVer ?>">
+    <link rel="shortcut icon" type="image/x-icon" href="/<?= ltrim($storeFavicon, '/') ?>?v=<?= $faviconVer ?>">
+    <link rel="apple-touch-icon" href="/<?= ltrim($storeFavicon, '/') ?>?v=<?= $faviconVer ?>">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>

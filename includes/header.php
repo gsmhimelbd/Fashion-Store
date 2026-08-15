@@ -4,8 +4,9 @@ trackCustomerVisit();
 
 $s = getAllSettings();
 $storeName = $s['store_name'] ?? 'OnlineBdMart';
-$storeLogo = $s['store_logo'] ?? 'images/logo.png';
-$storeFavicon = $s['store_favicon'] ?? ($s['store_logo'] ?? 'images/logo.png');
+$storeLogo = !empty($s['store_logo']) ? $s['store_logo'] : 'images/logo.png';
+$storeFavicon = !empty($s['store_favicon']) ? $s['store_favicon'] : $storeLogo;
+$faviconVer = file_exists(__DIR__ . '/../' . ltrim($storeFavicon, '/')) ? @filemtime(__DIR__ . '/../' . ltrim($storeFavicon, '/')) : time();
 $whatsapp = $s['whatsapp_number'] ?? '01775153740';
 $phone = $s['contact_phone'] ?? '01775153740';
 $tangailFee = $s['delivery_charge_tangail'] ?? '50';
@@ -47,10 +48,12 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? ($storeName . ' - Online Shopping Bangladesh')) ?></title>
     
-    <!-- Dynamic Favicon / Website Tab Icon -->
-    <link rel="icon" href="/<?= ltrim($storeFavicon, '/') ?>">
-    <link rel="shortcut icon" href="/<?= ltrim($storeFavicon, '/') ?>">
-    <link rel="apple-touch-icon" href="/<?= ltrim($storeFavicon, '/') ?>">
+    <!-- Dynamic Favicon / Website Tab Icon with Browser Cache Buster -->
+    <link rel="icon" type="image/png" href="/<?= ltrim($storeFavicon, '/') ?>?v=<?= $faviconVer ?>">
+    <link rel="icon" type="image/x-icon" href="/<?= ltrim($storeFavicon, '/') ?>?v=<?= $faviconVer ?>">
+    <link rel="shortcut icon" type="image/x-icon" href="/<?= ltrim($storeFavicon, '/') ?>?v=<?= $faviconVer ?>">
+    <link rel="apple-touch-icon" href="/<?= ltrim($storeFavicon, '/') ?>?v=<?= $faviconVer ?>">
+    <meta name="msapplication-TileImage" content="/<?= ltrim($storeFavicon, '/') ?>?v=<?= $faviconVer ?>">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
