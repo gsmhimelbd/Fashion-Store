@@ -20,9 +20,12 @@ try {
     $custPhone = '';
     $custEmail = '';
     $custDistrict = 'Dhaka';
+    $custUpazila = '';
+    $custPostOffice = '';
     $custAddress = '';
+    $isLoggedIn = !empty($_SESSION['user_id']) || !empty($_SESSION['user_logged_in']);
 
-    if (!empty($_SESSION['user_id']) || !empty($_SESSION['user_logged_in'])) {
+    if ($isLoggedIn) {
         $uId = $_SESSION['user_id'] ?? 0;
         $uEmail = $_SESSION['user_email'] ?? '';
         $uStmt = $db->prepare("SELECT * FROM users WHERE id = ? OR email = ? LIMIT 1");
@@ -32,7 +35,9 @@ try {
             $custName = $loggedUser['name'] ?? '';
             $custPhone = $loggedUser['phone'] ?? '';
             $custEmail = $loggedUser['email'] ?? '';
-            $custDistrict = $loggedUser['district'] ?? 'Dhaka';
+            $custDistrict = !empty($loggedUser['district']) ? $loggedUser['district'] : 'Dhaka';
+            $custUpazila = $loggedUser['upazila'] ?? '';
+            $custPostOffice = $loggedUser['post_office'] ?? '';
             $custAddress = $loggedUser['address'] ?? '';
         }
     }
@@ -51,7 +56,10 @@ try {
     $custPhone = '';
     $custEmail = '';
     $custDistrict = 'Dhaka';
+    $custUpazila = '';
+    $custPostOffice = '';
     $custAddress = '';
+    $isLoggedIn = false;
 }
 
 $subtotal = 0.0;
@@ -64,8 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['customer_name'] ?? '');
     $phone = trim($_POST['customer_phone'] ?? '');
     $email = trim($_POST['customer_email'] ?? '');
-    $address = trim($_POST['delivery_address'] ?? '');
     $districtName = trim($_POST['district'] ?? 'Dhaka');
+    $upazila = trim($_POST['upazila'] ?? '');
+    if (empty($upazila)) $upazila = $districtName;
+    $postOffice = trim($_POST['post_office'] ?? '');
+    $address = trim($_POST['delivery_address'] ?? '');
     $paymentMethod = trim($_POST['payment_method'] ?? 'cod');
     $trxId = trim($_POST['transaction_id'] ?? '');
     $notes = trim($_POST['notes'] ?? '');
@@ -94,12 +105,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $orderStmt = $db->prepare("INSERT INTO orders (
                 order_number, customer_name, customer_email, customer_phone, phone, whatsapp, 
-                delivery_address, address, district_name, district, 
+                delivery_address, address, district_name, district, upazila, post_office, country,
                 subtotal, delivery_cost, delivery_charge, total_amount, grand_total, 
                 payment_method, transaction_id, status, notes, created_at, updated_at
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, 
-                ?, ?, ?, ?, 
+                ?, ?, ?, ?, ?, ?, 'Bangladesh',
                 ?, ?, ?, ?, ?, 
                 ?, ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             )");
@@ -115,6 +126,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $address,
                 $districtName,
                 $districtName,
+                $upazila,
+                $postOffice,
                 $subtotal,
                 $deliveryCost,
                 $deliveryCost,
@@ -156,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$pageTitle = 'Checkout - OnlineBdMart';
+$pageTitle = 'Express Checkout - OnlineBdMart';
 require_once 'includes/header.php';
 
 $bkashNum = $settings['payment_bkash_number'] ?? '01775153740';
@@ -170,8 +183,8 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
 
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
     <div class="mb-8">
-        <h1 class="text-3xl font-extrabold font-serif text-slate-900">Complete Your Order</h1>
-        <p class="text-xs text-slate-500 mt-1">Cash on delivery available across all 64 districts of Bangladesh with optional digital & bank payments.</p>
+        <h1 class="text-2xl sm:text-3xl font-extrabold font-serif text-slate-900">Complete Your Order</h1>
+        <p class="text-xs text-slate-500 mt-1">Cash on delivery available across all 64 districts with digital & bank payment options.</p>
     </div>
 
     <?php if ($error): ?>
@@ -184,43 +197,62 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
         <!-- Customer Info & Shipping Address -->
         <div class="lg:col-span-2 space-y-6">
             <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-sm">
-                <h2 class="text-base font-extrabold text-slate-900 border-b pb-3 flex items-center gap-2">
-                    <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">1</span>
-                    Shipping & Customer Details
-                </h2>
+                <div class="border-b pb-3 flex items-center justify-between">
+                    <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">1</span>
+                        Shipping & Customer Details
+                    </h2>
+                </div>
 
-                <?php if (empty($_SESSION['user_logged_in'])): ?>
+                <!-- 2 Options for Logged in Customers vs Sign in Banner for Guests -->
+                <?php if ($isLoggedIn): ?>
+                <div class="p-4 bg-indigo-50/70 border border-indigo-100 rounded-2xl space-y-3 text-xs">
+                    <span class="font-extrabold text-indigo-950 uppercase tracking-wider text-[10px] block">Choose Delivery Address:</span>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <label class="flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-indigo-600 shadow-sm" id="optSavedLabel">
+                            <input type="radio" name="address_choice" value="saved" checked onchange="toggleAddressChoice('saved')" class="text-indigo-600">
+                            <div>
+                                <span class="font-bold text-slate-900 block">Use Saved Profile Address</span>
+                                <span class="text-[11px] text-slate-500"><?= htmlspecialchars($custDistrict) ?> • <?= htmlspecialchars($custPhone) ?></span>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-slate-200 hover:border-indigo-400" id="optNewLabel">
+                            <input type="radio" name="address_choice" value="new" onchange="toggleAddressChoice('new')" class="text-indigo-600">
+                            <div>
+                                <span class="font-bold text-slate-900 block">Ship to a Different Address</span>
+                                <span class="text-[11px] text-slate-500">For friend, office or gift</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <?php else: ?>
                 <div class="p-3.5 bg-indigo-50/80 border border-indigo-100 rounded-2xl flex items-center justify-between text-xs text-indigo-900">
                     <div class="flex items-center gap-2">
                         <i class="fas fa-user-circle text-indigo-600 text-base"></i>
                         <span>Have an account? <a href="login.php?redirect=checkout.php" class="font-extrabold text-indigo-600 underline">Sign In</a> to auto-fill your saved address.</span>
                     </div>
                 </div>
-                <?php else: ?>
-                <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2 text-xs font-bold text-emerald-800">
-                    <i class="fas fa-check-circle text-emerald-600"></i>
-                    <span>Signed in as <?= htmlspecialchars($custName) ?> (Delivery info auto-filled from your profile).</span>
-                </div>
                 <?php endif; ?>
 
+                <!-- Form Fields (Auto-filled when logged in) -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
-                        <input type="text" name="customer_name" value="<?= htmlspecialchars($custName) ?>" required placeholder="e.g. Arif Hossain" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Full Name (গ্রাহকের নাম) *</label>
+                        <input type="text" name="customer_name" id="inCustomerName" value="<?= htmlspecialchars($custName) ?>" required placeholder="e.g. Arif Hossain" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Mobile Phone Number (Active) *</label>
-                        <input type="tel" name="customer_phone" value="<?= htmlspecialchars($custPhone) ?>" required placeholder="017xxxxxxxx" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none font-mono">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Mobile Phone Number (সচল মোবাইল নাম্বার) *</label>
+                        <input type="tel" name="customer_phone" id="inCustomerPhone" value="<?= htmlspecialchars($custPhone) ?>" required placeholder="017xxxxxxxx" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none font-mono">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Email (Optional - for tax invoice & tracking)</label>
-                        <input type="email" name="customer_email" value="<?= htmlspecialchars($custEmail) ?>" placeholder="arif@example.com" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Email Address (ইমেইল - optional)</label>
+                        <input type="email" name="customer_email" id="inCustomerEmail" value="<?= htmlspecialchars($custEmail) ?>" placeholder="arif@example.com" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Select Delivery District (All 64 Districts) *</label>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Select Delivery District (জেলা) *</label>
                         <select name="district" id="districtSelect" onchange="updateDeliveryFee()" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50">
                             <?php foreach ($districts as $d): ?>
                             <option value="<?= htmlspecialchars($d['name']) ?>" data-fee="<?= $d['delivery_fee'] ?>" data-time="<?= htmlspecialchars($d['estimated_days'] ?? '2-4 days') ?>" <?= ($d['name'] === $custDistrict) ? 'selected' : '' ?>>
@@ -231,13 +263,29 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Complete Delivery Street Address *</label>
-                    <textarea name="delivery_address" rows="2" required placeholder="House/Flat No, Road Name, Area/Thana, Landmark..." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none"><?= htmlspecialchars($custAddress) ?></textarea>
+                <!-- Upazila, Post Office, Country -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Upazila / Thana (উপজেলা / থানা) *</label>
+                        <input type="text" name="upazila" id="inCustomerUpazila" value="<?= htmlspecialchars($custUpazila) ?>" placeholder="e.g. Tangail Sadar / Mirpur" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Post Office / Zip Code (ডাকঘর)</label>
+                        <input type="text" name="post_office" id="inCustomerPostOffice" value="<?= htmlspecialchars($custPostOffice) ?>" placeholder="e.g. Tangail 1900" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Country (দেশ)</label>
+                        <input type="text" name="country" value="Bangladesh" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 outline-none" readonly>
+                    </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Delivery Notes (Optional)</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Full Street Address / Village / Landmark (বাড়ি / গ্রাম / রোড নং) *</label>
+                    <textarea name="delivery_address" id="inCustomerAddress" rows="2" required placeholder="House/Flat No, Road Name, Area/Thana, Landmark..." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none"><?= htmlspecialchars($custAddress) ?></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Delivery Instructions / Notes (Optional)</label>
                     <input type="text" name="notes" placeholder="e.g. Call before delivery, deliver after 2 PM" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
             </div>
@@ -361,6 +409,42 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
 
 <script>
     const subtotal = <?= $subtotal ?>;
+    const savedData = {
+        name: "<?= addslashes($custName) ?>",
+        phone: "<?= addslashes($custPhone) ?>",
+        email: "<?= addslashes($custEmail) ?>",
+        district: "<?= addslashes($custDistrict) ?>",
+        upazila: "<?= addslashes($custUpazila) ?>",
+        post_office: "<?= addslashes($custPostOffice) ?>",
+        address: "<?= addslashes($custAddress) ?>"
+    };
+
+    function toggleAddressChoice(choice) {
+        const inName = document.getElementById('inCustomerName');
+        const inPhone = document.getElementById('inCustomerPhone');
+        const inEmail = document.getElementById('inCustomerEmail');
+        const inUpazila = document.getElementById('inCustomerUpazila');
+        const inPost = document.getElementById('inCustomerPostOffice');
+        const inAddr = document.getElementById('inCustomerAddress');
+        const selDist = document.getElementById('districtSelect');
+
+        if (choice === 'saved') {
+            inName.value = savedData.name;
+            inPhone.value = savedData.phone;
+            inEmail.value = savedData.email;
+            inUpazila.value = savedData.upazila;
+            inPost.value = savedData.post_office;
+            inAddr.value = savedData.address;
+            selDist.value = savedData.district || 'Dhaka';
+        } else {
+            inName.value = '';
+            inPhone.value = '';
+            inUpazila.value = '';
+            inPost.value = '';
+            inAddr.value = '';
+        }
+        updateDeliveryFee();
+    }
 
     function updateDeliveryFee() {
         const sel = document.getElementById('districtSelect');

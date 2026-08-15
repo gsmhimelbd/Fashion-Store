@@ -44,11 +44,14 @@ try {
             $phone = trim($_POST['phone'] ?? '');
             $email = trim($_POST['email'] ?? '');
             $district = trim($_POST['district'] ?? 'Dhaka');
+            $upazila = trim($_POST['upazila'] ?? '');
+            $postOffice = trim($_POST['post_office'] ?? '');
+            $country = trim($_POST['country'] ?? 'Bangladesh');
             $address = trim($_POST['address'] ?? '');
 
             if ($name && $email) {
-                $upStmt = $db->prepare("UPDATE users SET name = ?, phone = ?, email = ?, district = ?, address = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                $upStmt->execute([$name, $phone, $email, $district, $address, $user['id']]);
+                $upStmt = $db->prepare("UPDATE users SET name = ?, phone = ?, email = ?, district = ?, upazila = ?, post_office = ?, country = ?, address = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                $upStmt->execute([$name, $phone, $email, $district, $upazila, $postOffice, $country, $address, $user['id']]);
 
                 $_SESSION['user_name'] = $name;
                 $_SESSION['user_email'] = $email;
@@ -58,9 +61,12 @@ try {
                 $user['phone'] = $phone;
                 $user['email'] = $email;
                 $user['district'] = $district;
+                $user['upazila'] = $upazila;
+                $user['post_office'] = $postOffice;
+                $user['country'] = $country;
                 $user['address'] = $address;
 
-                $msg = 'Your profile and default delivery address have been updated!';
+                $msg = 'Your profile, upazila, post office, and default delivery address have been saved!';
             }
         } elseif ($action === 'update_password') {
             $currentPass = trim($_POST['current_password'] ?? '');
@@ -325,7 +331,7 @@ require_once 'includes/header.php';
                             <input type="email" name="email" value="<?= htmlspecialchars($user['email']) ?>" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 font-medium">
                         </div>
                         <div>
-                            <label class="block text-slate-700 font-bold mb-1">Default Delivery District *</label>
+                            <label class="block text-slate-700 font-bold mb-1">Default Delivery District (জেলা) *</label>
                             <select name="district" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 font-bold">
                                 <?php foreach ($districts as $dName): ?>
                                 <option value="<?= htmlspecialchars($dName) ?>" <?= ($user['district'] === $dName) ? 'selected' : '' ?>><?= htmlspecialchars($dName) ?></option>
@@ -334,8 +340,23 @@ require_once 'includes/header.php';
                         </div>
                     </div>
 
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-slate-700 font-bold mb-1">Upazila / Thana (উপজেলা / থানা) *</label>
+                            <input type="text" name="upazila" value="<?= htmlspecialchars($user['upazila'] ?? '') ?>" placeholder="e.g. Tangail Sadar / Mirpur" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 font-bold mb-1">Post Office / Zip Code (ডাকঘর) *</label>
+                            <input type="text" name="post_office" value="<?= htmlspecialchars($user['post_office'] ?? '') ?>" placeholder="e.g. Tangail 1900" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 font-bold mb-1">Country (দেশ)</label>
+                            <input type="text" name="country" value="<?= htmlspecialchars($user['country'] ?? 'Bangladesh') ?>" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none bg-slate-50 font-medium" readonly>
+                        </div>
+                    </div>
+
                     <div>
-                        <label class="block text-slate-700 font-bold mb-1">Default Street Address / Landmark *</label>
+                        <label class="block text-slate-700 font-bold mb-1">Street Address / Village / House No (গ্রাম / বাড়ি / রোড নং) *</label>
                         <textarea name="address" rows="3" placeholder="House No, Road Name, Area/Thana..." required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 font-medium"><?= htmlspecialchars($user['address'] ?? '') ?></textarea>
                     </div>
 

@@ -578,6 +578,13 @@ function ensureTablesExist($pdo) {
         addColumnIfNotExists($pdo, 'suppliers', 'photo', $isSqlite ? "TEXT DEFAULT 'uploads/suppliers/supplier-default.jpg'" : "VARCHAR(255) DEFAULT 'uploads/suppliers/supplier-default.jpg'");
         addColumnIfNotExists($pdo, 'suppliers', 'supply_products', $isSqlite ? 'TEXT' : 'TEXT NULL');
 
+        addColumnIfNotExists($pdo, 'orders', 'upazila', $isSqlite ? "TEXT DEFAULT ''" : "VARCHAR(100) DEFAULT ''");
+        addColumnIfNotExists($pdo, 'orders', 'post_office', $isSqlite ? "TEXT DEFAULT ''" : "VARCHAR(100) DEFAULT ''");
+        addColumnIfNotExists($pdo, 'orders', 'country', $isSqlite ? "TEXT DEFAULT 'Bangladesh'" : "VARCHAR(100) DEFAULT 'Bangladesh'");
+
+        addColumnIfNotExists($pdo, 'users', 'upazila', $isSqlite ? "TEXT DEFAULT ''" : "VARCHAR(100) DEFAULT ''");
+        addColumnIfNotExists($pdo, 'users', 'post_office', $isSqlite ? "TEXT DEFAULT ''" : "VARCHAR(100) DEFAULT ''");
+        addColumnIfNotExists($pdo, 'users', 'country', $isSqlite ? "TEXT DEFAULT 'Bangladesh'" : "VARCHAR(100) DEFAULT 'Bangladesh'");
         addColumnIfNotExists($pdo, 'users', 'address', $isSqlite ? 'TEXT' : 'TEXT NULL');
         addColumnIfNotExists($pdo, 'users', 'district', $isSqlite ? "TEXT DEFAULT 'Dhaka'" : "VARCHAR(100) DEFAULT 'Dhaka'");
         addColumnIfNotExists($pdo, 'users', 'is_active', $isSqlite ? 'INTEGER DEFAULT 1' : 'TINYINT(1) DEFAULT 1');
