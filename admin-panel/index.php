@@ -5,12 +5,12 @@ require_once __DIR__ . '/header.php';
 try {
     $db = getDB();
     $totalOrders = (int)$db->query("SELECT COUNT(*) FROM orders")->fetchColumn();
-    $totalRevenue = (float)$db->query("SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE status != 'cancelled'")->fetchColumn();
+    $totalRevenue = (float)$db->query("SELECT COALESCE(SUM(grand_total), SUM(total_amount), 0) FROM orders WHERE status != 'cancelled'")->fetchColumn();
     $totalProducts = (int)$db->query("SELECT COUNT(*) FROM products WHERE is_active = 1")->fetchColumn();
     $wholesaleCount = (int)$db->query("SELECT COUNT(*) FROM products WHERE is_wholesale = 1")->fetchColumn();
 
     $recentOrders = $db->query("SELECT * FROM orders ORDER BY id DESC LIMIT 5")->fetchAll();
-    $topDistricts = $db->query("SELECT district_name, COUNT(*) as count, SUM(total_amount) as revenue FROM orders WHERE district_name IS NOT NULL AND district_name != '' GROUP BY district_name ORDER BY count DESC LIMIT 5")->fetchAll();
+    $topDistricts = $db->query("SELECT district_name, COUNT(*) as count, SUM(COALESCE(grand_total, total_amount, 0)) as revenue FROM orders WHERE district_name IS NOT NULL AND district_name != '' GROUP BY district_name ORDER BY count DESC LIMIT 5")->fetchAll();
 } catch (Exception $e) {
     $totalOrders = 0;
     $totalRevenue = 0;
@@ -90,18 +90,25 @@ try {
                 </thead>
                 <tbody class="divide-y divide-slate-800/60">
                     <?php if (!empty($recentOrders)): ?>
-                        <?php foreach ($recentOrders as $ro): ?>
+                        <?php foreach ($recentOrders as $ro): 
+                            $orderNumber = $ro['order_number'] ?: ('OBM-' . $ro['id']);
+                            $cName = $ro['customer_name'] ?: 'Customer';
+                            $cPhone = $ro['customer_phone'] ?: ($ro['phone'] ?: 'N/A');
+                            $dist = $ro['district_name'] ?: ($ro['district'] ?: 'Dhaka');
+                            $amount = (float)($ro['grand_total'] ?: ($ro['total_amount'] ?? 0));
+                            $status = $ro['status'] ?: 'pending';
+                        ?>
                         <tr class="hover:bg-slate-800/40 transition">
-                            <td class="py-3 font-mono font-bold text-white"><?= htmlspecialchars($ro['order_number']) ?></td>
+                            <td class="py-3 font-mono font-bold text-white"><?= htmlspecialchars($orderNumber) ?></td>
                             <td class="py-3">
-                                <p class="font-bold text-slate-200"><?= htmlspecialchars($ro['customer_name']) ?></p>
-                                <span class="text-[11px] text-slate-400"><?= htmlspecialchars($ro['customer_phone']) ?></span>
+                                <p class="font-bold text-slate-200"><?= htmlspecialchars($cName) ?></p>
+                                <span class="text-[11px] text-slate-400"><?= htmlspecialchars($cPhone) ?></span>
                             </td>
-                            <td class="py-3 text-slate-300"><?= htmlspecialchars($ro['district_name'] ?? 'Dhaka') ?></td>
-                            <td class="py-3 font-black text-indigo-400">৳<?= number_format($ro['total_amount'], 2) ?></td>
+                            <td class="py-3 text-slate-300"><?= htmlspecialchars($dist) ?></td>
+                            <td class="py-3 font-black text-indigo-400">৳<?= number_format($amount, 2) ?></td>
                             <td class="py-3">
-                                <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase <?= $ro['status'] === 'delivered' ? 'bg-emerald-500/20 text-emerald-400' : ($ro['status'] === 'pending' ? 'bg-amber-500/20 text-amber-400' : 'bg-indigo-500/20 text-indigo-400') ?>">
-                                    <?= htmlspecialchars($ro['status']) ?>
+                                <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase <?= $status === 'delivered' ? 'bg-emerald-500/20 text-emerald-400' : ($status === 'pending' ? 'bg-amber-500/20 text-amber-400' : 'bg-indigo-500/20 text-indigo-400') ?>">
+                                    <?= htmlspecialchars($status) ?>
                                 </span>
                             </td>
                             <td class="py-3 text-right">
@@ -129,10 +136,10 @@ try {
                 <?php foreach ($topDistricts as $td): ?>
                 <div class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
                     <div>
-                        <span class="font-bold text-white block"><?= htmlspecialchars($td['district_name']) ?></span>
+                        <span class="font-bold text-white block"><?= htmlspecialchars((string)($td['district_name'] ?? 'Dhaka')) ?></span>
                         <span class="text-[11px] text-slate-400"><?= $td['count'] ?> Order(s)</span>
                     </div>
-                    <span class="font-black text-emerald-400">৳<?= number_format($td['revenue'], 2) ?></span>
+                    <span class="font-black text-emerald-400">৳<?= number_format((float)($td['revenue'] ?? 0), 2) ?></span>
                 </div>
                 <?php endforeach; ?>
             <?php else: ?>

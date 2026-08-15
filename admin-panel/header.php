@@ -9,10 +9,24 @@ try {
     $pendingOrdersCount = (int)$db->query("SELECT COUNT(*) FROM orders WHERE status = 'pending'")->fetchColumn();
     $unreadMessagesCount = (int)$db->query("SELECT COUNT(*) FROM messages WHERE is_read = 0")->fetchColumn();
     
-    $adminId = $_SESSION['admin_id'] ?? 1;
-    $currAdmin = $db->query("SELECT * FROM admins WHERE id = {$adminId}")->fetch();
+    $adminId = (int)($_SESSION['admin_id'] ?? 1);
+    $stmt = $db->prepare("SELECT * FROM admins WHERE id = ? LIMIT 1");
+    $stmt->execute([$adminId]);
+    $currAdmin = $stmt->fetch();
+
+    if (!is_array($currAdmin)) {
+        // Fallback default admin object if ID not found in database
+        $currAdmin = [
+            'id' => $adminId,
+            'name' => $_SESSION['admin_name'] ?? 'Super Admin',
+            'username' => $_SESSION['admin_username'] ?? 'admin',
+            'role' => $_SESSION['admin_role'] ?? 'superadmin',
+            'profile_photo' => 'images/products/watch-1.jpg'
+        ];
+    }
+    
     $adminAvatar = !empty($currAdmin['profile_photo']) ? $currAdmin['profile_photo'] : 'images/products/watch-1.jpg';
-    $adminRole = $currAdmin['role'] ?? ($_SESSION['admin_role'] ?? 'salesman');
+    $adminRole = $currAdmin['role'] ?? ($_SESSION['admin_role'] ?? 'superadmin');
     $storeLogo = getSetting('store_logo', 'images/logo.png');
 } catch (Exception $e) {
     $pendingOrdersCount = 0;

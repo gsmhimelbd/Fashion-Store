@@ -106,9 +106,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($isGoogleTotpValid || $isPinValid) {
             // 2FA Verified! Complete login session
             $_SESSION['admin_logged_in'] = true;
-            $_SESSION['admin_id'] = $admin ? $admin['id'] : $pendingId;
-            $_SESSION['admin_name'] = $admin ? $admin['name'] : $pendingName;
-            $_SESSION['admin_username'] = $admin ? $admin['username'] : 'admin';
+            $_SESSION['admin_id'] = $admin ? (int)$admin['id'] : $pendingId;
+            $_SESSION['admin_name'] = $admin ? ($admin['name'] ?? 'Super Admin') : $pendingName;
+            $_SESSION['admin_username'] = $admin ? ($admin['username'] ?? 'admin') : 'admin';
             $_SESSION['admin_role'] = $admin ? ($admin['role'] ?? 'superadmin') : 'superadmin';
 
             if (!$admin || ($admin['role'] ?? '') === 'superadmin' || ($admin['permissions'] ?? '') === 'all') {
