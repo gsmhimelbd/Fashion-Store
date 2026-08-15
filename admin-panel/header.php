@@ -12,11 +12,13 @@ try {
     $adminId = $_SESSION['admin_id'] ?? 1;
     $currAdmin = $db->query("SELECT * FROM admins WHERE id = {$adminId}")->fetch();
     $adminAvatar = !empty($currAdmin['profile_photo']) ? $currAdmin['profile_photo'] : 'images/products/watch-1.jpg';
+    $adminRole = $currAdmin['role'] ?? ($_SESSION['admin_role'] ?? 'salesman');
     $storeLogo = getSetting('store_logo', 'images/logo.png');
 } catch (Exception $e) {
     $pendingOrdersCount = 0;
     $unreadMessagesCount = 0;
     $adminAvatar = 'images/products/watch-1.jpg';
+    $adminRole = 'superadmin';
     $storeLogo = 'images/logo.png';
 }
 ?>
@@ -44,35 +46,86 @@ try {
                 <div class="flex items-center justify-between pb-4 border-b border-slate-800">
                     <div class="flex items-center gap-3">
                         <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white">O</div>
-                        <span class="font-extrabold text-sm text-white">OnlineBdMart Admin</span>
+                        <div>
+                            <span class="font-extrabold text-sm text-white block">OnlineBdMart</span>
+                            <span class="text-[10px] text-amber-400 uppercase font-black"><?= $adminRole === 'superadmin' ? '👑 Super Admin' : '💼 ' . ucfirst($adminRole) ?></span>
+                        </div>
                     </div>
                     <button type="button" onclick="closeAdminMobileMenu()" class="text-slate-400 p-1"><i class="fas fa-times text-lg"></i></button>
                 </div>
 
                 <nav class="space-y-1 text-xs font-semibold">
                     <a href="index.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'index.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-chart-pie w-4"></i> Dashboard</a>
+                    
+                    <?php if (hasPermission('products')): ?>
                     <a href="products.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'products.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-boxes-stacked w-4"></i> Products</a>
-                    <a href="wholesale.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'wholesale.php' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-amber-400 hover:bg-slate-800' ?>"><i class="fas fa-boxes-packing w-4"></i> Wholesale / B2B</a>
-                    <a href="orders.php" class="flex items-center justify-between px-3 py-2 rounded-xl transition <?= $activePage === 'orders.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><div class="flex items-center gap-3"><i class="fas fa-receipt w-4"></i> Orders</div><?php if ($pendingOrdersCount > 0): ?><span class="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full"><?= $pendingOrdersCount ?></span><?php endif; ?></a>
-                    <a href="banners.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'banners.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-images w-4"></i> Banners / Slider</a>
-                    <a href="payments.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'payments.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-credit-card w-4"></i> Payments</a>
-                    <a href="delivery.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'delivery.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-truck-fast w-4 text-emerald-400"></i> 64 Districts Delivery</a>
-                    <a href="customers.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'customers.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-users w-4"></i> Customers</a>
-                    <a href="suppliers.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'suppliers.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-truck-ramp-box w-4"></i> Suppliers</a>
-                    <a href="messages.php" class="flex items-center justify-between px-3 py-2 rounded-xl transition <?= $activePage === 'messages.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><div class="flex items-center gap-3"><i class="fas fa-envelope w-4"></i> Messages</div><?php if ($unreadMessagesCount > 0): ?><span class="bg-indigo-500 text-white text-[10px] px-2 py-0.5 rounded-full"><?= $unreadMessagesCount ?></span><?php endif; ?></a>
-                    <a href="analytics.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'analytics.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-chart-line w-4 text-pink-400"></i> Analytics & Behavior</a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('categories')): ?>
                     <a href="categories.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'categories.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-folder-tree w-4"></i> Categories & Sub</a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('wholesale')): ?>
+                    <a href="wholesale.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'wholesale.php' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-amber-400 hover:bg-slate-800' ?>"><i class="fas fa-boxes-packing w-4"></i> Wholesale / B2B</a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('orders')): ?>
+                    <a href="orders.php" class="flex items-center justify-between px-3 py-2 rounded-xl transition <?= $activePage === 'orders.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><div class="flex items-center gap-3"><i class="fas fa-receipt w-4"></i> Orders</div><?php if ($pendingOrdersCount > 0): ?><span class="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full"><?= $pendingOrdersCount ?></span><?php endif; ?></a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('deals')): ?>
                     <a href="deals.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'deals.php' ? 'bg-rose-600 text-white' : 'text-rose-400 hover:bg-slate-800' ?>"><i class="fas fa-fire w-4"></i> Flash Deals %</a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('delivery')): ?>
+                    <a href="delivery.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'delivery.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-truck-fast w-4 text-emerald-400"></i> 64 Districts Delivery</a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('customers')): ?>
+                    <a href="customers.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'customers.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-users w-4"></i> Customers</a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('suppliers')): ?>
+                    <a href="suppliers.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'suppliers.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-truck-ramp-box w-4"></i> Suppliers</a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('messages')): ?>
+                    <a href="messages.php" class="flex items-center justify-between px-3 py-2 rounded-xl transition <?= $activePage === 'messages.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><div class="flex items-center gap-3"><i class="fas fa-envelope w-4"></i> Messages</div><?php if ($unreadMessagesCount > 0): ?><span class="bg-indigo-500 text-white text-[10px] px-2 py-0.5 rounded-full"><?= $unreadMessagesCount ?></span><?php endif; ?></a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('analytics')): ?>
+                    <a href="analytics.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'analytics.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-chart-line w-4 text-pink-400"></i> Analytics & Behavior</a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('banners')): ?>
+                    <a href="banners.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'banners.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-images w-4"></i> Banners / Slider</a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('blog')): ?>
                     <a href="blog.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'blog.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-newspaper w-4"></i> Blog & SEO</a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('reviews')): ?>
                     <a href="reviews.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'reviews.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-star w-4 text-amber-400"></i> Reviews</a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('staff')): ?>
+                    <a href="staff.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'staff.php' ? 'bg-indigo-600 text-white' : 'text-indigo-400 hover:bg-slate-800' ?>"><i class="fas fa-user-shield w-4"></i> Staff & Salesmen</a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('whatsapp')): ?>
                     <a href="whatsapp.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'whatsapp.php' ? 'bg-emerald-600 text-white' : 'text-emerald-400 hover:bg-slate-800' ?>"><i class="fab fa-whatsapp w-4"></i> WhatsApp</a>
-                    <a href="telegram.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'telegram.php' ? 'bg-indigo-600 text-white' : 'text-sky-400 hover:bg-slate-800' ?>"><i class="fab fa-telegram w-4"></i> Telegram</a>
-                    <a href="facebook-pixel.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'facebook-pixel.php' ? 'bg-indigo-600 text-white' : 'text-blue-400 hover:bg-slate-800' ?>"><i class="fab fa-facebook w-4"></i> Facebook Pixel</a>
-                    <a href="colors.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'colors.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-palette w-4"></i> Colors</a>
-                    <a href="smtp.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'smtp.php' ? 'bg-indigo-600 text-white' : 'text-indigo-400 hover:bg-slate-800' ?>"><i class="fas fa-at w-4"></i> SMTP Mailer</a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('payments')): ?>
+                    <a href="payments.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'payments.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-credit-card w-4"></i> Payments</a>
+                    <?php endif; ?>
+
+                    <?php if (hasPermission('settings')): ?>
                     <a href="settings.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'settings.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-gear w-4"></i> Settings & Logo</a>
-                    <a href="profile.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'profile.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-user-shield w-4"></i> Profile & Photo</a>
-                    <a href="seo.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'seo.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-magnifying-glass-chart w-4"></i> SEO & Social</a>
+                    <?php endif; ?>
+
+                    <a href="profile.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'profile.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-user w-4"></i> My Profile</a>
                 </nav>
             </div>
             <div class="pt-4 border-t border-slate-800">
@@ -93,24 +146,38 @@ try {
                 </div>
                 <div>
                     <h2 class="font-extrabold text-sm text-white tracking-wide">OnlineBdMart</h2>
-                    <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Admin Engine</span>
+                    <span class="text-[10px] text-amber-400 font-bold uppercase tracking-wider"><?= $adminRole === 'superadmin' ? '👑 Super Admin' : '💼 ' . ucfirst($adminRole) ?></span>
                 </div>
             </div>
 
-            <!-- Navigation Links -->
+            <!-- Navigation Links with Permission Filters -->
             <nav class="space-y-1 text-xs font-semibold">
                 <a href="index.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'index.php' ? 'bg-indigo-600 text-white font-bold shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-chart-pie w-4"></i> <span>Dashboard</span>
                 </a>
+
+                <?php if (hasPermission('products')): ?>
                 <a href="products.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'products.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-boxes-stacked w-4"></i> <span>Products</span>
                 </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('categories')): ?>
+                <a href="categories.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'categories.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                    <i class="fas fa-folder-tree w-4"></i> <span>Categories & Sub</span>
+                </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('wholesale')): ?>
                 <a href="wholesale.php" class="flex items-center justify-between px-3 py-2.5 rounded-xl transition <?= $activePage === 'wholesale.php' ? 'bg-amber-500 text-slate-950 font-black' : 'text-amber-400 hover:bg-slate-800/60' ?>">
                     <div class="flex items-center gap-3">
                         <i class="fas fa-boxes-packing w-4"></i> <span>Wholesale / B2B</span>
                     </div>
                     <span class="text-[9px] bg-amber-400/20 px-2 py-0.5 rounded-full font-black text-amber-300">MOQ</span>
                 </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('orders')): ?>
                 <a href="orders.php" class="flex items-center justify-between px-3 py-2.5 rounded-xl transition <?= $activePage === 'orders.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <div class="flex items-center gap-3">
                         <i class="fas fa-receipt w-4"></i> <span>Orders</span>
@@ -119,21 +186,33 @@ try {
                     <span class="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full"><?= $pendingOrdersCount ?></span>
                     <?php endif; ?>
                 </a>
-                <a href="banners.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'banners.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
-                    <i class="fas fa-images w-4"></i> <span>Banners / Slider</span>
+                <?php endif; ?>
+
+                <?php if (hasPermission('deals')): ?>
+                <a href="deals.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'deals.php' ? 'bg-rose-600 text-white font-bold shadow-lg' : 'text-rose-400 hover:text-white hover:bg-slate-800/60' ?>">
+                    <i class="fas fa-fire w-4"></i> <span>Flash Deals %</span>
                 </a>
-                <a href="payments.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'payments.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
-                    <i class="fas fa-credit-card w-4"></i> <span>Payments</span>
-                </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('delivery')): ?>
                 <a href="delivery.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'delivery.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-truck-fast w-4 text-emerald-400"></i> <span>64 Districts Delivery</span>
                 </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('customers')): ?>
                 <a href="customers.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'customers.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-users w-4"></i> <span>Customers</span>
                 </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('suppliers')): ?>
                 <a href="suppliers.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'suppliers.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-truck-ramp-box w-4"></i> <span>Suppliers</span>
                 </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('messages')): ?>
                 <a href="messages.php" class="flex items-center justify-between px-3 py-2.5 rounded-xl transition <?= $activePage === 'messages.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <div class="flex items-center gap-3">
                         <i class="fas fa-envelope w-4"></i> <span>Messages</span>
@@ -142,44 +221,88 @@ try {
                     <span class="bg-indigo-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full"><?= $unreadMessagesCount ?></span>
                     <?php endif; ?>
                 </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('analytics')): ?>
                 <a href="analytics.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'analytics.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-chart-line w-4 text-pink-400"></i> <span>Analytics & Behavior</span>
                 </a>
-                <a href="categories.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'categories.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
-                    <i class="fas fa-folder-tree w-4"></i> <span>Categories & Sub</span>
+                <?php endif; ?>
+
+                <?php if (hasPermission('banners')): ?>
+                <a href="banners.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'banners.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                    <i class="fas fa-images w-4"></i> <span>Banners / Slider</span>
                 </a>
-                <a href="deals.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'deals.php' ? 'bg-rose-600 text-white font-bold shadow-lg' : 'text-rose-400 hover:text-white hover:bg-slate-800/60' ?>">
-                    <i class="fas fa-fire w-4"></i> <span>Flash Deals %</span>
-                </a>
-                <a href="blog.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'blog.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <?php endif; ?>
+
+                <?php if (hasPermission('blog')): ?>
+                <a href="blog.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'blog.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-newspaper w-4"></i> <span>Blog & SEO</span>
                 </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('reviews')): ?>
                 <a href="reviews.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'reviews.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-star w-4 text-amber-400"></i> <span>Reviews</span>
                 </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('staff')): ?>
+                <a href="staff.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'staff.php' ? 'bg-indigo-600 text-white font-bold' : 'text-indigo-400 hover:text-white hover:bg-slate-800/60' ?>">
+                    <i class="fas fa-user-shield w-4"></i> <span>Staff & Salesmen</span>
+                </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('whatsapp')): ?>
                 <a href="whatsapp.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'whatsapp.php' ? 'bg-emerald-600 text-white font-bold' : 'text-emerald-400 hover:bg-slate-800/60' ?>">
                     <i class="fab fa-whatsapp w-4"></i> <span>WhatsApp Setup</span>
                 </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('telegram')): ?>
                 <a href="telegram.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'telegram.php' ? 'bg-indigo-600 text-white font-bold' : 'text-sky-400 hover:bg-slate-800/60' ?>">
                     <i class="fab fa-telegram w-4"></i> <span>Telegram Bot</span>
                 </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('facebook-pixel')): ?>
                 <a href="facebook-pixel.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'facebook-pixel.php' ? 'bg-indigo-600 text-white font-bold' : 'text-blue-400 hover:bg-slate-800/60' ?>">
                     <i class="fab fa-facebook w-4"></i> <span>Facebook Pixel</span>
                 </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('colors')): ?>
                 <a href="colors.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'colors.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-palette w-4"></i> <span>Colors & Theme</span>
                 </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('smtp')): ?>
                 <a href="smtp.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'smtp.php' ? 'bg-indigo-600 text-white font-bold' : 'text-indigo-400 hover:text-white hover:bg-slate-800/60' ?>">
-                    <i class="fas fa-at w-4 text-indigo-400"></i> <span>SMTP Emailer</span>
+                    <i class="fas fa-at w-4"></i> <span>SMTP Emailer</span>
                 </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('settings')): ?>
                 <a href="settings.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'settings.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-gear w-4"></i> <span>Settings & Logo</span>
                 </a>
-                <a href="profile.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'profile.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
-                    <i class="fas fa-user-shield w-4"></i> <span>Admin Profile</span>
+                <?php endif; ?>
+
+                <?php if (hasPermission('otp-system')): ?>
+                <a href="otp-system.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'otp-system.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                    <i class="fas fa-key w-4"></i> <span>OTP System</span>
                 </a>
+                <?php endif; ?>
+
+                <?php if (hasPermission('seo')): ?>
                 <a href="seo.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'seo.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-magnifying-glass-chart w-4"></i> <span>SEO Optimization</span>
+                </a>
+                <?php endif; ?>
+
+                <a href="profile.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'profile.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                    <i class="fas fa-user-shield w-4"></i> <span>Admin Profile</span>
                 </a>
             </nav>
         </div>
@@ -210,7 +333,10 @@ try {
                 </a>
                 <div class="flex items-center gap-2.5 pl-2 border-l border-slate-800">
                     <img src="/<?= ltrim($adminAvatar, '/') ?>" class="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0">
-                    <span class="font-bold text-slate-300 hidden sm:inline"><?= htmlspecialchars($_SESSION['admin_name'] ?? $_SESSION['admin_username'] ?? 'Admin') ?></span>
+                    <div class="hidden sm:block">
+                        <span class="font-bold text-slate-200 block leading-tight"><?= htmlspecialchars($_SESSION['admin_name'] ?? $_SESSION['admin_username'] ?? 'Admin') ?></span>
+                        <span class="text-[9px] text-amber-400 font-black uppercase"><?= $adminRole === 'superadmin' ? 'Super Admin' : ucfirst($adminRole) ?></span>
+                    </div>
                 </div>
             </div>
         </header>

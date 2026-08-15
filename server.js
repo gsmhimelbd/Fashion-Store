@@ -2259,6 +2259,18 @@ const server = http.createServer(async (req, res) => {
             return sendHtml(renderAdminLayout('Flash Deals', content, 'deals'));
         }
 
+        if (pathname === '/admin-panel/staff') {
+            const staffList = db.prepare('SELECT * FROM admins ORDER BY id ASC').all();
+            const content = `
+                <div class="bg-white p-6 rounded-3xl border shadow-sm space-y-4 text-xs">
+                    <h3 class="font-bold text-sm uppercase text-indigo-600">Staff & Salesmen Permissions (${staffList.length})</h3>
+                    <p class="text-slate-400">Manage salesman login credentials and custom permission checkboxes.</p>
+                    <div class="divide-y">${staffList.map(st => `<div class="py-3 flex justify-between items-center"><div><strong class="text-slate-900">${st.name}</strong><span class="block text-slate-400 text-[10px]">${st.email} • Role: ${st.role}</span></div><span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${st.role === 'superadmin' ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-800'}">${st.role}</span></div>`).join('')}</div>
+                </div>
+            `;
+            return sendHtml(renderAdminLayout('Staff & Permissions', content, 'staff'));
+        }
+
         // Other admin modules
         if (pathname === '/admin-panel/reviews') return sendHtml(renderAdminLayout('Reviews', '<div class="bg-white p-6 rounded-3xl border text-xs">Reviews Moderation Center. Verified buyers ratings.</div>', 'reviews'));
         if (pathname === '/admin-panel/messages') return sendHtml(renderAdminLayout('Messages', '<div class="bg-white p-6 rounded-3xl border text-xs">Customer Messages & Inquiries.</div>', 'messages'));

@@ -260,6 +260,11 @@ if ($uri === '/admin-panel/settings' || $uri === '/admin-panel/settings.php') {
     exit;
 }
 
+if ($uri === '/admin-panel/staff' || $uri === '/admin-panel/staff.php') {
+    require __DIR__ . '/../admin-panel/staff.php';
+    exit;
+}
+
 if ($uri === '/admin-panel/otp-system' || $uri === '/admin-panel/otp' || $uri === '/admin-panel/otp-system.php') {
     require __DIR__ . '/../admin-panel/otp-system.php';
     exit;

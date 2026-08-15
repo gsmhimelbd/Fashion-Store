@@ -25,15 +25,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['admin_id'] = $admin['id'];
             $_SESSION['admin_name'] = $admin['name'];
             $_SESSION['admin_username'] = $admin['username'];
+            $_SESSION['admin_role'] = $admin['role'] ?? 'salesman';
+            
+            if (($admin['role'] ?? '') === 'superadmin' || ($admin['permissions'] ?? '') === 'all') {
+                $_SESSION['admin_permissions'] = 'all';
+            } else {
+                $perms = json_decode($admin['permissions'] ?? '[]', true);
+                if (!is_array($perms)) {
+                    $perms = array_filter(array_map('trim', explode(',', $admin['permissions'] ?? '')));
+                }
+                $_SESSION['admin_permissions'] = $perms;
+            }
+
             header('Location: index.php');
             exit;
         } else {
             // Default credential fallback for first-time login
-            if (($username === 'admin' || $username === 'admin@fashionstore.com') && ($password === 'password' || $password === 'admin123')) {
+            if (($username === 'admin' || $username === 'admin@fashionstore.com' || $username === 'admin@onlinebdmart.com') && ($password === 'password' || $password === 'admin123')) {
                 $_SESSION['admin_logged_in'] = true;
                 $_SESSION['admin_id'] = 1;
-                $_SESSION['admin_name'] = 'Admin';
+                $_SESSION['admin_name'] = 'Super Admin';
                 $_SESSION['admin_username'] = 'admin';
+                $_SESSION['admin_role'] = 'superadmin';
+                $_SESSION['admin_permissions'] = 'all';
                 header('Location: index.php');
                 exit;
             }
