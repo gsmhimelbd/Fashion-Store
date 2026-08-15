@@ -1483,48 +1483,50 @@ const server = http.createServer(async (req, res) => {
         const featured = db.prepare('SELECT * FROM products WHERE is_active = 1 AND is_featured = 1 ORDER BY id DESC LIMIT 8').all();
 
         const bannerHtml = `
-            <section class="relative bg-slate-950 text-white overflow-hidden rounded-3xl mb-12 shadow-2xl" id="heroSliderSection">
-                ${banners.map((b, idx) => `
-                    <div class="hero-slide relative min-h-[480px] lg:min-h-[560px] flex items-center transition-all duration-700 ${idx === 0 ? '' : 'hidden'}" data-slide="${idx}">
-                        <img src="/${b.image_path}" class="absolute inset-0 w-full h-full object-cover opacity-60">
-                        <div class="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent"></div>
-                        <div class="relative max-w-7xl mx-auto px-6 sm:px-12 py-16 w-full">
-                            <div class="max-w-2xl space-y-6">
-                                <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-black uppercase tracking-widest animate-pulse">
-                                    ${b.badge_text || '✨ NEW ARRIVALS 2026'}
-                                </span>
-                                <h1 class="text-3xl sm:text-5xl font-extrabold font-serif leading-tight">
-                                    ${b.title}
-                                </h1>
-                                <p class="text-slate-300 text-xs sm:text-base leading-relaxed font-normal">
-                                    ${b.subtitle}
-                                </p>
-                                <div class="pt-2 flex flex-wrap items-center gap-4">
-                                    <a href="${b.button_url || '/shop'}" class="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl shadow-xl transition flex items-center gap-2">
-                                        ${b.button_text || 'Shop Now'} &rarr;
-                                    </a>
-                                    <a href="/wholesale" class="px-6 py-3.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow transition">
-                                        Wholesale B2B &rarr;
-                                    </a>
+            <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-2 sm:pt-4 mb-10 sm:mb-12">
+                <section class="relative bg-slate-950 text-white overflow-hidden rounded-3xl sm:rounded-[2.5rem] shadow-2xl border border-slate-800/80" id="heroSliderSection">
+                    ${banners.map((b, idx) => `
+                        <div class="hero-slide relative min-h-[420px] sm:min-h-[480px] lg:min-h-[520px] flex items-center transition-all duration-700 ${idx === 0 ? '' : 'hidden'}" data-slide="${idx}">
+                            <img src="/${b.image_path}" class="absolute inset-0 w-full h-full object-cover opacity-60">
+                            <div class="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-transparent"></div>
+                            <div class="relative max-w-7xl mx-auto px-6 sm:px-12 py-12 sm:py-16 w-full">
+                                <div class="max-w-2xl space-y-4 sm:space-y-5">
+                                    <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-black uppercase tracking-widest animate-pulse">
+                                        ${b.badge_text || '✨ NEW ARRIVALS 2026'}
+                                    </span>
+                                    <h1 class="text-2xl sm:text-4xl lg:text-5xl font-extrabold font-serif leading-tight">
+                                        ${b.title}
+                                    </h1>
+                                    <p class="text-slate-300 text-xs sm:text-base leading-relaxed font-normal max-w-xl">
+                                        ${b.subtitle}
+                                    </p>
+                                    <div class="pt-2 flex flex-wrap items-center gap-3 sm:gap-4">
+                                        <a href="${b.button_url || '/shop'}" class="px-7 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl shadow-xl transition flex items-center gap-2">
+                                            ${b.button_text || 'Shop Now'} &rarr;
+                                        </a>
+                                        <a href="/wholesale" class="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-xl shadow transition">
+                                            Wholesale B2B &rarr;
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                `).join('')}
-
-                <button type="button" onclick="prevHeroSlide()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/40 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-sm transition z-20">
-                    <i class="fas fa-chevron-left text-sm"></i>
-                </button>
-                <button type="button" onclick="nextHeroSlide()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/40 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-sm transition z-20">
-                    <i class="fas fa-chevron-right text-sm"></i>
-                </button>
-
-                <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20">
-                    ${banners.map((_, idx) => `
-                        <button type="button" onclick="goToHeroSlide(${idx})" class="hero-dot h-2 rounded-full transition-all duration-300 ${idx === 0 ? 'w-8 bg-indigo-500' : 'w-2 bg-white/40'}" data-dot="${idx}"></button>
                     `).join('')}
-                </div>
-            </section>
+
+                    <button type="button" onclick="prevHeroSlide()" class="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-black/40 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-sm transition z-20">
+                        <i class="fas fa-chevron-left text-xs sm:text-sm"></i>
+                    </button>
+                    <button type="button" onclick="nextHeroSlide()" class="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-black/40 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-sm transition z-20">
+                        <i class="fas fa-chevron-right text-xs sm:text-sm"></i>
+                    </button>
+
+                    <div class="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20">
+                        ${banners.map((_, idx) => `
+                            <button type="button" onclick="goToHeroSlide(${idx})" class="hero-dot h-2 rounded-full transition-all duration-300 ${idx === 0 ? 'w-8 bg-indigo-500' : 'w-2 bg-white/40'}" data-dot="${idx}"></button>
+                        `).join('')}
+                    </div>
+                </section>
+            </div>
         `;
 
         const catCards = categories.map(c => `
