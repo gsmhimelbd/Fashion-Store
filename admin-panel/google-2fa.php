@@ -1,25 +1,115 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// 1. Self-contained Google Authenticator TOTP Helper
+if (!class_exists('GoogleAuthenticator')) {
+    class GoogleAuthenticator {
+        private static $base32Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+        public static function generateSecret($length = 16) {
+            $secret = '';
+            for ($i = 0; $i < $length; $i++) {
+                $secret .= self::$base32Chars[random_int(0, 31)];
+            }
+            return $secret;
+        }
+
+        public static function getCode($secret, $timeSlice = null) {
+            if ($timeSlice === null) {
+                $timeSlice = floor(time() / 30);
+            }
+            $secretKey = self::base32Decode($secret);
+            if (empty($secretKey)) return '000000';
+            $time = chr(0).chr(0).chr(0).chr(0).pack('N*', $timeSlice);
+            $hmac = hash_hmac('sha1', $time, $secretKey, true);
+            $offset = ord(substr($hmac, -1)) & 0x0F;
+            $hashpart = substr($hmac, $offset, 4);
+            $value = unpack('N', $hashpart);
+            $value = $value[1] & 0x7FFFFFFF;
+            $modulo = pow(10, 6);
+            return str_pad($value % $modulo, 6, '0', STR_PAD_LEFT);
+        }
+
+        public static function verifyCode($secret, $code, $discrepancy = 1) {
+            $code = trim((string)$code);
+            if (strlen($code) !== 6 && strlen($code) !== 4) return false;
+            
+            $currentTimeSlice = floor(time() / 30);
+            for ($i = -$discrepancy; $i <= $discrepancy; $i++) {
+                $calculatedCode = self::getCode($secret, $currentTimeSlice + $i);
+                if (hash_equals((string)$calculatedCode, (string)$code)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public static function getQrCodeUrl($name, $secret, $issuer = 'OnlineBdMart') {
+            $encodedIssuer = rawurlencode($issuer);
+            $encodedName = rawurlencode($name);
+            $otpauth = "otpauth://totp/{$encodedIssuer}:{$encodedName}?secret={$secret}&issuer={$encodedIssuer}";
+            return "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" . urlencode($otpauth);
+        }
+
+        private static function base32Decode($secret) {
+            if (empty($secret)) return '';
+            $base32chars = self::$base32Chars;
+            $base32charsFlipped = array_flip(str_split($base32chars));
+            $secret = strtoupper(str_replace('=', '', $secret));
+            $secret = str_split($secret);
+            $binaryString = '';
+            for ($i = 0; $i < count($secret); $i = $i + 8) {
+                $x = '';
+                if (!isset($base32charsFlipped[$secret[$i]])) return false;
+                for ($j = 0; $j < 8; $j++) {
+                    if (isset($secret[$i + $j]) && isset($base32charsFlipped[$secret[$i + $j]])) {
+                        $x .= str_pad(base_convert($base32charsFlipped[$secret[$i + $j]], 10, 2), 5, '0', STR_PAD_LEFT);
+                    }
+                }
+                $eightBits = str_split($x, 8);
+                for ($z = 0; $z < count($eightBits); $z++) {
+                    if (strlen($eightBits[$z]) === 8) {
+                        $binaryString .= chr(base_convert($eightBits[$z], 2, 10));
+                    }
+                }
+            }
+            return $binaryString;
+        }
+    }
+}
+
+require_once __DIR__ . '/auth.php';
+checkAdminAuth();
+
 $adminTitle = 'Google Authenticator (2FA) Setup';
 require_once __DIR__ . '/header.php';
 
 $msg = '';
 $error = '';
+$adminId = $_SESSION['admin_id'] ?? 1;
+$adminEmail = 'admin@onlinebdmart.com';
+$secret = 'JBSWY3DPEHPK3PXP';
+$is2faActive = false;
 
 try {
     $db = getDB();
-    $adminId = $_SESSION['admin_id'] ?? 1;
 
     $stmt = $db->prepare("SELECT * FROM admins WHERE id = ? LIMIT 1");
     $stmt->execute([$adminId]);
     $admin = $stmt->fetch();
 
-    $secret = $admin['google_2fa_secret'] ?? '';
+    if ($admin) {
+        $adminEmail = $admin['email'] ?? 'admin@onlinebdmart.com';
+        $secret = !empty($admin['google_2fa_secret']) ? $admin['google_2fa_secret'] : '';
+        $is2faActive = !empty($admin['google_2fa_enabled']) || !empty($admin['two_factor_enabled']);
+    }
+
     if (empty($secret)) {
         $secret = GoogleAuthenticator::generateSecret();
         $db->prepare("UPDATE admins SET google_2fa_secret = ? WHERE id = ?")->execute([$secret, $adminId]);
     }
-
-    $is2faActive = !empty($admin['google_2fa_enabled']) || !empty($admin['two_factor_enabled']);
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
@@ -44,12 +134,16 @@ try {
             $msg = 'New secret key generated! Please scan the new QR code with your Google Authenticator app.';
         }
     }
-
-    $qrUrl = GoogleAuthenticator::getQrCodeUrl($admin['email'] ?? 'admin@onlinebdmart.com', $secret, 'OnlineBdMart');
 } catch (Exception $e) {
     $error = $e->getMessage();
 }
+
+$otpAuthUrl = "otpauth://totp/OnlineBdMart:" . rawurlencode($adminEmail) . "?secret=" . rawurlencode($secret) . "&issuer=OnlineBdMart";
+$qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" . urlencode($otpAuthUrl);
 ?>
+
+<!-- QR Code Library CDN for 100% Client-side Rendering Backup -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <?php if ($msg): ?>
 <div class="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold flex items-center gap-2">
@@ -94,9 +188,10 @@ try {
                     Open the <strong>Google Authenticator</strong> app on your Android or iPhone, tap the <strong>"+"</strong> button, and scan the QR code below:
                 </p>
 
-                <!-- QR Code Box -->
-                <div class="p-4 bg-white rounded-2xl w-fit mx-auto shadow-xl border border-slate-200">
-                    <img src="<?= htmlspecialchars($qrUrl) ?>" alt="Google 2FA QR Code" class="w-48 h-48 mx-auto">
+                <!-- QR Code Box (Dual Image + Canvas rendering) -->
+                <div class="p-4 bg-white rounded-2xl w-fit mx-auto shadow-xl border border-slate-200 flex items-center justify-center min-h-[220px]">
+                    <div id="qrcodeCanvas"></div>
+                    <img id="qrcodeImg" src="<?= htmlspecialchars($qrUrl) ?>" alt="Google 2FA QR Code" class="w-48 h-48 mx-auto" onerror="renderJsQrCode()">
                 </div>
             </div>
 
@@ -105,7 +200,7 @@ try {
                 <span class="text-[10px] text-slate-400 font-bold uppercase block">Manual Secret Key (If unable to scan):</span>
                 <div class="flex items-center justify-between gap-2">
                     <span class="font-mono font-black text-amber-400 text-sm tracking-widest truncate"><?= htmlspecialchars($secret) ?></span>
-                    <button type="button" onclick="navigator.clipboard.writeText('<?= addslashes($secret) ?>'); alert('Secret key copied to clipboard!');" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg text-[11px] shrink-0">
+                    <button type="button" onclick="navigator.clipboard.writeText('<?= addslashes($secret) ?>'); alert('Secret key copied to clipboard: <?= addslashes($secret) ?>');" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg text-[11px] shrink-0">
                         Copy
                     </button>
                 </div>
@@ -170,5 +265,33 @@ try {
         </div>
     </div>
 </div>
+
+<script>
+function renderJsQrCode() {
+    const canvas = document.getElementById('qrcodeCanvas');
+    const img = document.getElementById('qrcodeImg');
+    if (canvas && typeof QRCode !== 'undefined') {
+        img.style.display = 'none';
+        canvas.innerHTML = '';
+        new QRCode(canvas, {
+            text: "<?= addslashes($otpAuthUrl) ?>",
+            width: 192,
+            height: 192,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    }
+}
+document.addEventListener('DOMContentLoaded', () => {
+    // If image takes too long, render client side JS QR
+    setTimeout(() => {
+        const img = document.getElementById('qrcodeImg');
+        if (!img || img.naturalWidth === 0) {
+            renderJsQrCode();
+        }
+    }, 1500);
+});
+</script>
 
 <?php require_once __DIR__ . '/footer.php'; ?>
