@@ -126,6 +126,7 @@ try {
                     <?php endif; ?>
 
                     <a href="profile.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'profile.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-user w-4"></i> My Profile</a>
+                    <a href="google-2fa.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'google-2fa.php' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-amber-400 hover:bg-slate-800' ?>"><i class="fab fa-google w-4"></i> Google 2FA Setup</a>
                 </nav>
             </div>
             <div class="pt-4 border-t border-slate-800">
@@ -195,25 +196,25 @@ try {
                 <?php endif; ?>
 
                 <?php if (hasPermission('delivery')): ?>
-                <a href="delivery.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'delivery.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="delivery.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'delivery.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-truck-fast w-4 text-emerald-400"></i> <span>64 Districts Delivery</span>
                 </a>
                 <?php endif; ?>
 
                 <?php if (hasPermission('customers')): ?>
-                <a href="customers.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'customers.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="customers.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'customers.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-users w-4"></i> <span>Customers</span>
                 </a>
                 <?php endif; ?>
 
                 <?php if (hasPermission('suppliers')): ?>
-                <a href="suppliers.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'suppliers.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="suppliers.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'suppliers.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-truck-ramp-box w-4"></i> <span>Suppliers</span>
                 </a>
                 <?php endif; ?>
 
                 <?php if (hasPermission('messages')): ?>
-                <a href="messages.php" class="flex items-center justify-between px-3 py-2.5 rounded-xl transition <?= $activePage === 'messages.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="messages.php" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'messages.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <div class="flex items-center gap-3">
                         <i class="fas fa-envelope w-4"></i> <span>Messages</span>
                     </div>
@@ -224,13 +225,13 @@ try {
                 <?php endif; ?>
 
                 <?php if (hasPermission('analytics')): ?>
-                <a href="analytics.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'analytics.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="analytics.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'analytics.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-chart-line w-4 text-pink-400"></i> <span>Analytics & Behavior</span>
                 </a>
                 <?php endif; ?>
 
                 <?php if (hasPermission('banners')): ?>
-                <a href="banners.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'banners.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="banners.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'banners.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-images w-4"></i> <span>Banners / Slider</span>
                 </a>
                 <?php endif; ?>
@@ -242,67 +243,71 @@ try {
                 <?php endif; ?>
 
                 <?php if (hasPermission('reviews')): ?>
-                <a href="reviews.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'reviews.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="reviews.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'reviews.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-star w-4 text-amber-400"></i> <span>Reviews</span>
                 </a>
                 <?php endif; ?>
 
                 <?php if (hasPermission('staff')): ?>
-                <a href="staff.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'staff.php' ? 'bg-indigo-600 text-white font-bold' : 'text-indigo-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="staff.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'staff.php' ? 'bg-indigo-600 text-white font-bold' : 'text-indigo-400 hover:bg-slate-800/60' ?>">
                     <i class="fas fa-user-shield w-4"></i> <span>Staff & Salesmen</span>
                 </a>
                 <?php endif; ?>
 
                 <?php if (hasPermission('whatsapp')): ?>
-                <a href="whatsapp.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'whatsapp.php' ? 'bg-emerald-600 text-white font-bold' : 'text-emerald-400 hover:bg-slate-800/60' ?>">
+                <a href="whatsapp.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'whatsapp.php' ? 'bg-emerald-600 text-white font-bold' : 'text-emerald-400 hover:bg-slate-800/60' ?>">
                     <i class="fab fa-whatsapp w-4"></i> <span>WhatsApp Setup</span>
                 </a>
                 <?php endif; ?>
 
                 <?php if (hasPermission('telegram')): ?>
-                <a href="telegram.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'telegram.php' ? 'bg-indigo-600 text-white font-bold' : 'text-sky-400 hover:bg-slate-800/60' ?>">
+                <a href="telegram.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'telegram.php' ? 'bg-indigo-600 text-white font-bold' : 'text-sky-400 hover:bg-slate-800/60' ?>">
                     <i class="fab fa-telegram w-4"></i> <span>Telegram Bot</span>
                 </a>
                 <?php endif; ?>
 
                 <?php if (hasPermission('facebook-pixel')): ?>
-                <a href="facebook-pixel.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'facebook-pixel.php' ? 'bg-indigo-600 text-white font-bold' : 'text-blue-400 hover:bg-slate-800/60' ?>">
+                <a href="facebook-pixel.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'facebook-pixel.php' ? 'bg-indigo-600 text-white font-bold' : 'text-blue-400 hover:bg-slate-800/60' ?>">
                     <i class="fab fa-facebook w-4"></i> <span>Facebook Pixel</span>
                 </a>
                 <?php endif; ?>
 
                 <?php if (hasPermission('colors')): ?>
-                <a href="colors.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'colors.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="colors.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'colors.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-palette w-4"></i> <span>Colors & Theme</span>
                 </a>
                 <?php endif; ?>
 
                 <?php if (hasPermission('smtp')): ?>
-                <a href="smtp.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'smtp.php' ? 'bg-indigo-600 text-white font-bold' : 'text-indigo-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="smtp.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'smtp.php' ? 'bg-indigo-600 text-white font-bold' : 'text-indigo-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-at w-4"></i> <span>SMTP Emailer</span>
                 </a>
                 <?php endif; ?>
 
                 <?php if (hasPermission('settings')): ?>
-                <a href="settings.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'settings.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="settings.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'settings.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-gear w-4"></i> <span>Settings & Logo</span>
                 </a>
                 <?php endif; ?>
 
                 <?php if (hasPermission('otp-system')): ?>
-                <a href="otp-system.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'otp-system.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="otp-system.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'otp-system.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-key w-4"></i> <span>OTP System</span>
                 </a>
                 <?php endif; ?>
 
                 <?php if (hasPermission('seo')): ?>
-                <a href="seo.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'seo.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="seo.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'seo.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-magnifying-glass-chart w-4"></i> <span>SEO Optimization</span>
                 </a>
                 <?php endif; ?>
 
-                <a href="profile.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'profile.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="profile.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'profile.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-user-shield w-4"></i> <span>Admin Profile</span>
+                </a>
+
+                <a href="google-2fa.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'google-2fa.php' ? 'bg-amber-500 text-slate-950 font-black shadow-lg' : 'text-amber-400 hover:text-white hover:bg-slate-800/60' ?>">
+                    <i class="fab fa-google w-4"></i> <span>Google 2FA Setup</span>
                 </a>
             </nav>
         </div>

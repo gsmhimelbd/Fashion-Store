@@ -160,6 +160,11 @@ if ($uri === '/admin-panel/verify-2fa' || $uri === '/admin-panel/verify-2fa.php'
     exit;
 }
 
+if ($uri === '/admin-panel/google-2fa' || $uri === '/admin-panel/google-2fa.php') {
+    require __DIR__ . '/../admin-panel/google-2fa.php';
+    exit;
+}
+
 if ($uri === '/admin-panel/logout' || $uri === '/admin-panel/logout.php') {
     require __DIR__ . '/../admin-panel/logout.php';
     exit;

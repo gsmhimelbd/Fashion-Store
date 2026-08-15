@@ -2271,6 +2271,21 @@ const server = http.createServer(async (req, res) => {
             return sendHtml(renderAdminLayout('Staff & Permissions', content, 'staff'));
         }
 
+        if (pathname === '/admin-panel/google-2fa') {
+            const admin = db.prepare('SELECT * FROM admins WHERE id = 1').get() || {};
+            const secret = admin.google_2fa_secret || 'JBSWY3DPEHPK3PXP';
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=otpauth%3A%2F%2Ftotp%2FOnlineBdMart%3Aadmin%40onlinebdmart.com%3Fsecret%3D${secret}%26issuer%3DOnlineBdMart`;
+            const content = `
+                <div class="bg-white p-6 rounded-3xl border shadow-sm max-w-xl space-y-4 text-xs">
+                    <h3 class="font-bold text-sm uppercase text-indigo-600">Google Authenticator (2FA) Setup</h3>
+                    <p class="text-slate-500">Scan this QR code with Google Authenticator on your phone:</p>
+                    <div class="p-3 bg-white border rounded-2xl w-fit mx-auto shadow"><img src="${qrUrl}" class="w-48 h-48"></div>
+                    <p class="text-center font-mono font-bold text-amber-600">Secret Key: ${secret}</p>
+                </div>
+            `;
+            return sendHtml(renderAdminLayout('Google 2FA Setup', content, 'google-2fa'));
+        }
+
         // Other admin modules
         if (pathname === '/admin-panel/reviews') return sendHtml(renderAdminLayout('Reviews', '<div class="bg-white p-6 rounded-3xl border text-xs">Reviews Moderation Center. Verified buyers ratings.</div>', 'reviews'));
         if (pathname === '/admin-panel/messages') return sendHtml(renderAdminLayout('Messages', '<div class="bg-white p-6 rounded-3xl border text-xs">Customer Messages & Inquiries.</div>', 'messages'));

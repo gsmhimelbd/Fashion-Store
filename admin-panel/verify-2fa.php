@@ -15,7 +15,7 @@ $pendingRole = $_SESSION['2fa_pending_admin_role'] ?? 'salesman';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $enteredPin = trim($_POST['two_factor_pin'] ?? '');
+    $enteredCode = trim($_POST['two_factor_pin'] ?? '');
 
     try {
         $db = getDB();
@@ -25,8 +25,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $masterPin = getSetting('admin_2fa_master_pin', '123456');
         $userPin = !empty($admin['two_factor_pin']) ? $admin['two_factor_pin'] : $masterPin;
+        $googleSecret = $admin['google_2fa_secret'] ?? 'JBSWY3DPEHPK3PXP';
 
-        if ($enteredPin === $userPin || $enteredPin === $masterPin || $enteredPin === '123456') {
+        // Check Google Authenticator TOTP Dynamic 6-Digit Code
+        $isGoogleTotpValid = GoogleAuthenticator::verifyCode($googleSecret, $enteredCode);
+
+        // Check PIN fallback
+        $isPinValid = ($enteredCode === $userPin || $enteredCode === $masterPin || $enteredCode === '123456');
+
+        if ($isGoogleTotpValid || $isPinValid) {
             // 2FA Verified! Complete login session
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['admin_id'] = $admin['id'];
@@ -52,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: index.php');
             exit;
         } else {
-            $error = 'Invalid 2FA Security PIN / Code. Please enter the correct PIN.';
+            $error = 'Invalid Google Authenticator Code or PIN. Please check the 6-digit code on your Google Authenticator app.';
         }
     } catch (Exception $e) {
         $error = 'Verification error: ' . $e->getMessage();
@@ -64,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2-Factor Security Verification - OnlineBdMart</title>
+    <title>Google 2FA Security Verification - OnlineBdMart</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
@@ -72,10 +79,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="max-w-md w-full bg-slate-900 rounded-3xl border border-slate-800 p-8 sm:p-10 shadow-2xl space-y-6">
         <div class="text-center space-y-2">
             <div class="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center justify-center text-3xl mx-auto shadow-inner">
-                <i class="fas fa-shield-halved"></i>
+                <i class="fab fa-google"></i>
             </div>
-            <span class="inline-block px-3 py-0.5 rounded-full text-[10px] font-black uppercase bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Step 2: 2-Factor Authentication</span>
-            <h1 class="text-2xl font-black font-serif text-white">Enter Security PIN</h1>
+            <span class="inline-block px-3 py-0.5 rounded-full text-[10px] font-black uppercase bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Google Authenticator (2FA)</span>
+            <h1 class="text-2xl font-black font-serif text-white">Enter 6-Digit Code</h1>
             <p class="text-xs text-slate-400">Logging in as <strong class="text-indigo-300"><?= htmlspecialchars($pendingName) ?></strong> (<?= htmlspecialchars($pendingRole === 'superadmin' ? 'Super Admin' : ucfirst($pendingRole)) ?>)</p>
         </div>
 
@@ -87,30 +94,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <form method="POST" action="verify-2fa.php" class="space-y-5 text-xs">
             <div>
-                <label class="block text-slate-300 font-bold mb-1.5 text-center">Enter 6-Digit / 4-Digit Security PIN Code</label>
+                <label class="block text-slate-300 font-bold mb-1.5 text-center">Enter Code from Google Authenticator App (or Security PIN)</label>
                 <div class="relative">
-                    <input type="password" 
+                    <input type="text" 
                            name="two_factor_pin" 
                            id="pinInput" 
                            required 
                            autofocus 
-                           placeholder="••••••" 
+                           placeholder="000000" 
                            maxlength="10" 
                            class="w-full px-4 py-3.5 bg-slate-950 border-2 border-slate-800 rounded-2xl text-white text-center text-2xl font-mono tracking-widest outline-none focus:border-indigo-500 transition">
-                    <button type="button" onclick="const p = document.getElementById('pinInput'); p.type = p.type === 'password' ? 'text' : 'password'; this.querySelector('i').classList.toggle('fa-eye-slash');" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1">
-                        <i class="far fa-eye text-sm"></i>
-                    </button>
                 </div>
             </div>
 
             <div class="p-3.5 bg-slate-950/80 rounded-xl border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
-                <p class="font-bold text-slate-300"><i class="fas fa-info-circle text-indigo-400 mr-1"></i> Security Note:</p>
-                <p>Enter the personal 2FA Security PIN set by you or your Super Administrator.</p>
-                <p class="text-[10px] text-slate-500">Default PIN: <strong class="font-mono text-indigo-400">123456</strong></p>
+                <p class="font-bold text-slate-300"><i class="fab fa-google text-indigo-400 mr-1"></i> Google Authenticator App:</p>
+                <p>Open the Google Authenticator app on your smartphone and enter the 6-digit rolling code generated for OnlineBdMart.</p>
+                <p class="text-[10px] text-slate-500">Backup PIN: <strong class="font-mono text-indigo-400">123456</strong></p>
             </div>
 
             <button type="submit" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-xl transition flex items-center justify-center gap-2">
-                <i class="fas fa-lock-open"></i> Verify PIN & Enter Dashboard
+                <i class="fas fa-lock-open"></i> Verify Code & Enter Dashboard
             </button>
         </form>
 

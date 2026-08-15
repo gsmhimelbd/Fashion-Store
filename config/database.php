@@ -578,6 +578,8 @@ function ensureTablesExist($pdo) {
         addColumnIfNotExists($pdo, 'admins', 'is_active', $isSqlite ? "INTEGER DEFAULT 1" : "TINYINT(1) DEFAULT 1");
         addColumnIfNotExists($pdo, 'admins', 'two_factor_enabled', $isSqlite ? "INTEGER DEFAULT 0" : "TINYINT(1) DEFAULT 0");
         addColumnIfNotExists($pdo, 'admins', 'two_factor_pin', $isSqlite ? "TEXT DEFAULT '123456'" : "VARCHAR(50) DEFAULT '123456'");
+        addColumnIfNotExists($pdo, 'admins', 'google_2fa_enabled', $isSqlite ? "INTEGER DEFAULT 0" : "TINYINT(1) DEFAULT 0");
+        addColumnIfNotExists($pdo, 'admins', 'google_2fa_secret', $isSqlite ? "TEXT DEFAULT 'JBSWY3DPEHPK3PXP'" : "VARCHAR(64) DEFAULT 'JBSWY3DPEHPK3PXP'");
         addColumnIfNotExists($pdo, 'admins', 'profile_photo', $isSqlite ? "TEXT DEFAULT 'uploads/admin/avatar.png'" : "VARCHAR(255) DEFAULT 'uploads/admin/avatar.png'");
 
         addColumnIfNotExists($pdo, 'suppliers', 'photo', $isSqlite ? "TEXT DEFAULT 'uploads/suppliers/supplier-default.jpg'" : "VARCHAR(255) DEFAULT 'uploads/suppliers/supplier-default.jpg'");
@@ -782,6 +784,18 @@ function getCartCount() {
 function getCartSubtotal() {
     $items = getCartItems();
     return array_sum(array_map(fn($i) => ($i['price'] ?? 0) * ($i['quantity'] ?? 1), $items));
+}
+
+// 5. Admin Auth Helpers
+function isAdminLoggedIn() {
+    return !empty($_SESSION['admin_id']) || !empty($_SESSION['admin_logged_in']);
+}
+
+function requireAdminLogin() {
+    if (!isAdminLoggedIn()) {
+        header('Location: login.php');
+        exit;
+    }
 }
 
 // 6. Universal Customer Behavior & Visit Tracker
