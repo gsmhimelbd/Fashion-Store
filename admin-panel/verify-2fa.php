@@ -88,14 +88,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form method="POST" action="verify-2fa.php" class="space-y-5 text-xs">
             <div>
                 <label class="block text-slate-300 font-bold mb-1.5 text-center">Enter 6-Digit / 4-Digit Security PIN Code</label>
-                <input type="password" 
-                       name="two_factor_pin" 
-                       id="pinInput" 
-                       required 
-                       autofocus 
-                       placeholder="••••••" 
-                       maxlength="10" 
-                       class="w-full px-4 py-3 bg-slate-950 border-2 border-slate-800 rounded-2xl text-white text-center text-2xl font-mono tracking-widest outline-none focus:border-indigo-500 transition">
+                <div class="relative">
+                    <input type="password" 
+                           name="two_factor_pin" 
+                           id="pinInput" 
+                           required 
+                           autofocus 
+                           placeholder="••••••" 
+                           maxlength="10" 
+                           class="w-full px-4 py-3.5 bg-slate-950 border-2 border-slate-800 rounded-2xl text-white text-center text-2xl font-mono tracking-widest outline-none focus:border-indigo-500 transition">
+                    <button type="button" onclick="const p = document.getElementById('pinInput'); p.type = p.type === 'password' ? 'text' : 'password'; this.querySelector('i').classList.toggle('fa-eye-slash');" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1">
+                        <i class="far fa-eye text-sm"></i>
+                    </button>
+                </div>
             </div>
 
             <div class="p-3.5 bg-slate-950/80 rounded-xl border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
