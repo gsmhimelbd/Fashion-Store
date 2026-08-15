@@ -60,26 +60,6 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-                        serif: ['"Playfair Display"', 'serif'],
-                    },
-                    colors: {
-                        primary: {
-                            50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc',
-                            400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca',
-                            800: '#3730a3', 900: '#312e81', 950: '#1e1b4b'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -90,7 +70,7 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-600 selection:text-white overflow-x-hidden w-full max-w-full">
 
-    <!-- 1. TOP UTILITY BAR (Track Order, Hotline, Sign In) -->
+    <!-- 1. TOP UTILITY BAR -->
     <div class="bg-slate-900 text-slate-300 text-xs py-2 px-3 sm:px-4 border-b border-slate-800">
         <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 sm:gap-3">
             <div class="flex items-center gap-2 overflow-hidden text-xs max-w-full sm:max-w-md">
@@ -122,7 +102,7 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
         </div>
     </div>
 
-    <!-- 2. MAIN HEADER (Brand Logo, Realtime Category Search, Wishlist & Cart Drawers) -->
+    <!-- 2. MAIN HEADER -->
     <header class="sticky top-0 z-40 bg-white shadow-sm border-b border-slate-200">
         <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between gap-2 sm:gap-4 py-3 sm:py-4">
@@ -172,7 +152,6 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
                         </button>
                     </form>
 
-                    <!-- Realtime Instant Dropdown Overlay -->
                     <div id="desktopLiveSearchDropdown" 
                          style="display: none;"
                          class="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-2xl border-2 border-slate-200 p-3 z-50 overflow-hidden divide-y divide-slate-100 max-h-96 overflow-y-auto">
@@ -181,18 +160,15 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
 
                 <!-- Right Action Buttons: Account, Wishlist & Cart -->
                 <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-                    <!-- Account Icon (Desktop & Mobile) -->
                     <a href="<?= $isCustomerLoggedIn ? 'account.php' : 'login.php' ?>" class="relative p-2 sm:p-2.5 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 transition shrink-0" title="<?= $isCustomerLoggedIn ? htmlspecialchars($customerName) : 'My Account' ?>">
                         <i class="<?= $isCustomerLoggedIn ? 'fas fa-user-circle text-indigo-600' : 'far fa-user' ?> text-base sm:text-lg"></i>
                     </a>
 
-                    <!-- Wishlist Icon -->
                     <button type="button" onclick="openWishlistDrawer()" class="relative p-2 sm:p-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 transition shrink-0" title="Wishlist">
                         <i class="far fa-heart text-base sm:text-lg"></i>
                         <span id="headerWishlistBadge" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] sm:text-[10px] font-black rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">0</span>
                     </button>
 
-                    <!-- Cart Bag Icon -->
                     <button type="button" onclick="openCartDrawer()" class="relative p-2 sm:px-4 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center gap-1.5 sm:gap-2.5 shadow-md shadow-indigo-600/25 shrink-0" title="Cart">
                         <i class="fas fa-bag-shopping text-base sm:text-lg"></i>
                         <div class="hidden sm:block text-left text-xs leading-tight">
@@ -214,7 +190,7 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
             </div>
         </div>
 
-        <!-- 3. EXACT HEADER MENU (Home | Shop | Wholesale | Categories | Deals | Blog | Contact) -->
+        <!-- 3. Desktop Main Navigation Bar -->
         <div class="hidden lg:block bg-slate-900 text-white border-t border-slate-800">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
                 <nav class="flex items-center space-x-1 text-xs font-bold text-slate-200">
