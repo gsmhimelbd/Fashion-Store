@@ -1,339 +1,462 @@
--- =========================================================
--- OnlineBdMart - Complete cPanel Ready MySQL Database Dump
--- Compatible with MySQL 5.7, 8.0, 8.4+, MariaDB & cPanel phpMyAdmin
--- =========================================================
+-- OnlineBdMart Complete MySQL Database Dump
+-- Compatible with MySQL 5.7, 8.0, MariaDB 10.x and phpMyAdmin
 
-SET FOREIGN_KEY_CHECKS=0;
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
-SET time_zone = "+06:00";
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
 
--- --------------------------------------------------------
--- Table structure for `admins`
--- --------------------------------------------------------
+-- 1. Admins Table
 DROP TABLE IF EXISTS `admins`;
 CREATE TABLE `admins` (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `username` varchar(50) NOT NULL,
-  `email` varchar(100) NOT NULL,
-  `password` varchar(255) NOT NULL,
-  `remember_token` varchar(100) DEFAULT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(191) NOT NULL DEFAULT 'Super Admin',
+  `username` varchar(191) NOT NULL DEFAULT 'admin',
+  `email` varchar(191) NOT NULL DEFAULT 'admin@fashionstore.com',
+  `password` varchar(191) NOT NULL,
+  `profile_photo` varchar(255) DEFAULT 'uploads/admin/avatar.png',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `admins_username_unique` (`username`),
-  UNIQUE KEY `admins_email_unique` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `username` (`username`),
+  UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `admins` (`id`, `username`, `email`, `password`, `created_at`, `updated_at`) VALUES
-(1, 'admin', 'admin@onlinebdmart.com', '$2y$12$e6bF00L22s0sZ3p1uI4wIe6jN6Z1.6iB0/Hk/eTj9EFe6U3oNqJ8a', '2026-01-01 00:00:00', '2026-01-01 00:00:00');
+INSERT INTO `admins` (`id`, `name`, `username`, `email`, `password`, `profile_photo`) VALUES
+(1, 'OnlineBdMart Admin', 'admin', 'admin@onlinebdmart.com', 'y02IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'uploads/admin/avatar.png');
 
--- --------------------------------------------------------
--- Table structure for `users` (Customers)
--- --------------------------------------------------------
-DROP TABLE IF EXISTS `users`;
-CREATE TABLE `users` (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(100) NOT NULL,
-  `phone` varchar(20) NOT NULL,
-  `email` varchar(100) NOT NULL,
-  `password` varchar(255) NOT NULL,
-  `remember_token` varchar(100) DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `users_phone_unique` (`phone`),
-  UNIQUE KEY `users_email_unique` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-INSERT INTO `users` (`id`, `name`, `phone`, `email`, `password`, `created_at`, `updated_at`) VALUES
-(1, 'Tanvir Ahmed', '01711223344', 'tanvir@example.com', '$2y$12$e6bF00L22s0sZ3p1uI4wIe6jN6Z1.6iB0/Hk/eTj9EFe6U3oNqJ8a', '2026-08-10 10:00:00', '2026-08-10 10:00:00');
-
--- --------------------------------------------------------
--- Table structure for `settings`
--- --------------------------------------------------------
-DROP TABLE IF EXISTS `settings`;
-CREATE TABLE `settings` (
-  `setting_key` varchar(100) NOT NULL,
-  `setting_value` text DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`setting_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-INSERT INTO `settings` (`setting_key`, `setting_value`, `created_at`, `updated_at`) VALUES
-('store_name', 'OnlineBdMart', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('store_tagline', 'Upgrade Your World with Latest Accessories & Gadgets', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('store_logo', 'images/logo.svg', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('contact_phone', '01775153740', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('contact_email', 'support@onlinebdmart.com', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('whatsapp_number', '01775153740', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('delivery_charge_tangail', '50', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('delivery_charge_dhaka', '80', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('delivery_charge_other', '150', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('free_delivery_threshold', '2000', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('bkash_number', '01775153740', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('bkash_type', 'Personal', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('nagad_number', '01775153740', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('nagad_type', 'Personal', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('rocket_number', '01775153740', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('facebook_page', 'https://facebook.com', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('instagram_page', 'https://instagram.com', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('store_address', 'Main Road, Tangail Sadar, Tangail - 1900, Bangladesh', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('currency', '৳', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('currency_code', 'BDT', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('announcement_bar', 'Free Delivery Tangail ৳50 | Others ৳150 • Free Shipping above ৳2000', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('telegram_bot_token', '7891234567:AAHxyz_sample_token_onlinebdmart', '2026-01-01 00:00:00', '2026-01-01 00:00:00'),
-('telegram_chat_id', '123456789', '2026-01-01 00:00:00', '2026-01-01 00:00:00');
-
--- --------------------------------------------------------
--- Table structure for `categories`
--- --------------------------------------------------------
+-- 2. Categories & Subcategories Table
 DROP TABLE IF EXISTS `categories`;
 CREATE TABLE `categories` (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(100) NOT NULL,
-  `slug` varchar(100) NOT NULL,
-  `icon` varchar(50) DEFAULT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `parent_id` int(11) DEFAULT NULL,
+  `name` varchar(191) NOT NULL,
+  `slug` varchar(191) NOT NULL,
+  `emoji` varchar(50) DEFAULT '🛍️',
+  `icon` varchar(100) DEFAULT 'fa-tag',
+  `image_path` varchar(255) DEFAULT NULL,
   `description` text DEFAULT NULL,
-  `image` varchar(255) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT 1,
+  `display_order` int(11) DEFAULT 0,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `categories_slug_unique` (`slug`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `slug` (`slug`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `categories` (`id`, `name`, `slug`, `icon`, `description`) VALUES
-(1, 'Men Collection', 'men-collection', 'fa-person', 'Premium luxury watches, leather wallets, formal belts, silk ties, and modern accessories for men.'),
-(2, 'Women Collection', 'women-collection', 'fa-person-dress', 'Designer handbags, pearl necklaces, sterling silver jewelry, sunglasses, and elegant accessories for women.'),
-(3, 'New Arrivals', 'new-arrivals', 'fa-sparkles', 'The latest trends and hot trending fashion accessories of the season.'),
-(4, 'Watches & Tech', 'watches-tech', 'fa-clock', 'Luxury chronograph timepieces and AMOLED smartwatches with premium build.'),
-(5, 'Leather Goods', 'leather-goods', 'fa-wallet', 'Handcrafted full-grain leather wallets, travel backpacks, card holders, and belts.'),
-(6, 'Jewelry & Fragrance', 'jewelry-fragrance', 'fa-gem', 'Long-lasting luxury Eau De Parfum and sterling silver crystal rings and pendants.');
+INSERT INTO `categories` (`id`, `parent_id`, `name`, `slug`, `emoji`, `icon`, `display_order`) VALUES
+(1, NULL, 'Watches', 'watches', '⌚', 'fa-clock', 1),
+(2, NULL, 'Smart Gadgets', 'smart-gadgets', '📱', 'fa-mobile-screen-button', 2),
+(3, NULL, 'Leather Wallets', 'leather-wallets', '👛', 'fa-wallet', 3),
+(4, NULL, 'Luxury Bags', 'luxury-bags', '👜', 'fa-bag-shopping', 4),
+(5, NULL, 'Sunglasses', 'sunglasses', '🕶️', 'fa-glasses', 5),
+(6, NULL, 'Accessories & Belts', 'accessories-belts', '👔', 'fa-gem', 6),
+(7, 1, 'Chronograph Watches', 'chronograph-watches', '⏱️', 'fa-clock', 1),
+(8, 1, 'Automatic Mechanical', 'automatic-mechanical', '⚙️', 'fa-gear', 2),
+(9, 3, 'Full Grain Leather Wallets', 'full-grain-wallets', '💼', 'fa-wallet', 1),
+(10, 4, 'Executive Handbags', 'executive-handbags', '👝', 'fa-briefcase', 1);
 
--- --------------------------------------------------------
--- Table structure for `products`
--- --------------------------------------------------------
+-- 3. Products Table
 DROP TABLE IF EXISTS `products`;
 CREATE TABLE `products` (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `category_id` bigint(20) UNSIGNED NOT NULL,
-  `name` varchar(200) NOT NULL,
-  `slug` varchar(200) NOT NULL,
-  `sku` varchar(50) DEFAULT NULL,
-  `description` text DEFAULT NULL,
-  `short_description` text DEFAULT NULL,
-  `price` decimal(10,2) NOT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `category_id` int(11) DEFAULT NULL,
+  `subcategory_id` int(11) DEFAULT NULL,
+  `name` varchar(191) NOT NULL,
+  `slug` varchar(191) NOT NULL,
+  `sku` varchar(100) DEFAULT NULL,
+  `price` decimal(10,2) NOT NULL DEFAULT 0.00,
   `sale_price` decimal(10,2) DEFAULT NULL,
   `wholesale_price` decimal(10,2) DEFAULT NULL,
+  `wholesale_moq` int(11) DEFAULT 5,
   `wholesale_min_qty` int(11) DEFAULT 5,
-  `is_wholesale` tinyint(1) NOT NULL DEFAULT 1,
-  `stock` int(11) NOT NULL DEFAULT 0,
-  `is_featured` tinyint(1) NOT NULL DEFAULT 0,
-  `is_active` tinyint(1) NOT NULL DEFAULT 1,
-  `rating` decimal(2,1) NOT NULL DEFAULT 5.0,
-  `reviews_count` int(11) NOT NULL DEFAULT 0,
+  `is_wholesale` tinyint(1) DEFAULT 1,
+  `stock` int(11) DEFAULT 50,
+  `stock_quantity` int(11) DEFAULT 50,
+  `is_featured` tinyint(1) DEFAULT 1,
+  `is_active` tinyint(1) DEFAULT 1,
+  `image_path` varchar(255) DEFAULT 'images/products/watch-1.jpg',
+  `gallery_images` text DEFAULT NULL,
+  `short_description` text DEFAULT NULL,
+  `description` longtext DEFAULT NULL,
+  `specifications` text DEFAULT NULL,
+  `why_buy_from_us` text DEFAULT NULL,
+  `reviews_count` int(11) DEFAULT 45,
+  `rating` decimal(3,1) DEFAULT 4.9,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `products_slug_unique` (`slug`),
-  KEY `products_category_id_foreign` (`category_id`),
-  CONSTRAINT `products_category_id_foreign` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `slug` (`slug`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `products` (`id`, `category_id`, `name`, `slug`, `sku`, `short_description`, `description`, `price`, `sale_price`, `wholesale_price`, `wholesale_min_qty`, `is_wholesale`, `stock`, `is_featured`, `is_active`, `rating`, `reviews_count`) VALUES
-(1, 4, 'Luxury Chronograph Sapphire Watch', 'luxury-chronograph-sapphire-watch', 'WAT-001', 'Precision Japanese quartz movement with scratch-resistant sapphire crystal glass.', 'Crafted from surgical 316L stainless steel with anti-reflective sapphire glass, stopwatch function, and 50M water resistance.', 3850.00, 3250.00, 2450.00, 5, 1, 25, 1, 1, 4.9, 38),
-(2, 5, 'Handcrafted Full-Grain Leather Wallet', 'handcrafted-full-grain-leather-wallet', 'WAL-002', '100% genuine vintage brown cowhide leather with RFID blocking technology.', '8 Card slots, 2 cash compartments, and RFID blocking security for total protection.', 1450.00, 1190.00, 890.00, 5, 1, 40, 1, 1, 4.8, 64),
-(3, 1, 'Aviator Polarized Titanium Sunglasses', 'aviator-polarized-titanium-sunglasses', 'SUN-003', 'Ultra-lightweight titanium alloy frame with HD polarized UV400 lenses.', 'Glare-free polarized lenses block 100% of UVA and UVB radiation with titanium comfort.', 1850.00, 1490.00, 1050.00, 5, 1, 30, 1, 1, 4.7, 42),
-(4, 2, 'Minimalist Luxury Leather Handbag', 'minimalist-luxury-leather-handbag', 'BAG-004', 'Italian style premium calfskin leather handbag with detachable shoulder strap.', 'Soft Italian calfskin with dual top handles, adjustable crossbody strap, and gold-plated hardware.', 4200.00, 3650.00, 2800.00, 3, 1, 15, 1, 1, 5.0, 29),
-(5, 5, 'Classic Reversible Leather Formal Belt', 'classic-reversible-leather-formal-belt', 'BLT-005', '2-in-1 Black & Brown reversible leather belt with rotating nickel buckle.', 'Twist buckle effortlessly to switch between Black and Brown full-grain cowhide leather.', 1100.00, 890.00, 650.00, 5, 1, 50, 0, 1, 4.6, 51),
-(6, 4, 'Pro Ultra AMOLED Smartwatch', 'pro-ultra-amoled-smartwatch', 'SMW-006', '1.96-inch HD AMOLED display, Bluetooth calling, heart rate & SpO2 health tracking.', 'Ultra-bright display, 10-day battery life, 100+ sport modes, and IP68 waterproof design.', 3200.00, 2750.00, 2100.00, 5, 1, 20, 1, 1, 4.9, 77),
-(7, 6, 'Freshwater Pearl Pendant Necklace', 'freshwater-pearl-pendant-necklace', 'JWL-007', 'Cultured natural freshwater pearl on an 18K gold plated hypoallergenic chain.', 'AAA Grade baroque pearl with 18K yellow gold vermeil chain in luxury velvet gift box.', 1650.00, 1350.00, 950.00, 5, 1, 18, 1, 1, 4.9, 35),
-(8, 6, 'Eau De Parfum Noir Edition (100ml)', 'eau-de-parfum-noir-edition', 'PER-008', 'Sensual blend of rich bergamot, smoky amber, oud wood, and warm vanilla.', 'Enduring 25% oil concentration for 12+ hours projection and signature aroma.', 2800.00, 2290.00, 1650.00, 5, 1, 22, 1, 1, 4.9, 93),
-(9, 5, 'Urban Water-Resistant Leather Backpack', 'urban-water-resistant-leather-backpack', 'BAG-009', 'Sleek commuter backpack with 15.6-inch padded laptop sleeve.', 'Weather-proof matte leather with anti-theft hidden pockets and ergonomic back support.', 2950.00, 2450.00, 1850.00, 4, 1, 12, 0, 1, 4.7, 24),
-(10, 1, '100% Jacquard Silk Tie & Cufflinks Set', 'jacquard-silk-tie-cufflinks-set', 'TIE-010', 'Handwoven pure mulberry silk necktie, pocket square, and cufflinks.', '1200-stitch pure mulberry silk necktie with matching cufflinks and silver tie bar.', 1400.00, 1050.00, 750.00, 5, 1, 35, 0, 1, 4.8, 19),
-(11, 6, '925 Sterling Silver Crystal Ring', '925-sterling-silver-crystal-ring', 'RNG-011', 'Adjustable open-band cocktail ring with sparkling Austrian cubic zirconia.', 'Hand-set 5A cubic zirconia stones in pure 925 sterling silver with rhodium plating.', 1250.00, 950.00, 680.00, 5, 1, 28, 0, 1, 4.8, 31),
-(12, 3, 'Vintage Distressed Cotton Baseball Cap', 'vintage-embroidered-cotton-baseball-cap', 'CAP-012', 'Washed vintage distressed cotton twill cap with 3D embroidery.', '100% Organic breathable washed cotton with adjustable antique brass buckle strap.', 750.00, 590.00, 420.00, 10, 1, 60, 1, 1, 4.6, 48);
+INSERT INTO `products` (`id`, `category_id`, `name`, `slug`, `sku`, `price`, `sale_price`, `wholesale_price`, `wholesale_moq`, `is_wholesale`, `stock`, `is_featured`, `image_path`, `gallery_images`, `short_description`, `description`, `specifications`, `why_buy_from_us`) VALUES
+(1, 1, 'Naviforce Luxury Chronograph Watch', 'naviforce-luxury-chronograph-watch', 'WAT-01', 3850.00, 3250.00, 2450.00, 5, 1, 45, 1, 'images/products/watch-1.jpg', 'images/products/watch-1.jpg,images/products/watch-2.jpg,images/products/smartwatch-1.jpg', 'Premium Japanese quartz movement with genuine stainless steel strap and water resistance.', 'Experience timeless elegance with the Naviforce Luxury Chronograph. Crafted from surgical-grade 316L stainless steel with hardened mineral crystal glass and full functional sub-dials.', 'Dial Diameter: 45mm
+Case Thickness: 12mm
+Band Material: Stainless Steel
+Movement: Japanese Quartz
+Water Resistance: 30M (3ATM)
+Glass: Scratch-resistant Hardlex', '✓ 100% Original Product Guarantee
+✓ 7 Days Free Replacement Policy
+✓ Cash On Delivery Across 64 Districts
+✓ Official Warranty Card Included'),
+(2, 2, 'Ultra AMOLED Bluetooth Calling Smartwatch', 'ultra-amoled-bluetooth-calling-smartwatch', 'SMW-01', 4200.00, 3499.00, 2600.00, 5, 1, 30, 1, 'images/products/smartwatch-1.jpg', 'images/products/smartwatch-1.jpg,images/products/headphone-1.jpg', 'High-definition 1.96-inch curved AMOLED display with health monitoring and Bluetooth 5.3 calling.', 'Stay connected in style with this Ultra Smartwatch. Includes heart rate, SpO2, sleep tracking, 100+ sports modes, wireless fast charging, and IP68 waterproof rating.', 'Display: 1.96-inch AMOLED 410x502
+Battery Life: 7-10 Days
+Connectivity: Bluetooth 5.3
+Sensor: BioTracker PPG 4.0
+Water Resistance: IP68
+Compatibility: Android & iOS', '✓ 1 Year Replacement Guarantee
+✓ Instant WhatsApp Support
+✓ Free Home Delivery Available
+✓ Original Box with Wireless Charger'),
+(3, 3, 'Handcrafted Full-Grain Cowhide Leather Wallet', 'handcrafted-full-grain-cowhide-leather-wallet', 'WAL-01', 1650.00, 1290.00, 950.00, 5, 1, 80, 1, 'images/products/wallet-1.jpg', 'images/products/wallet-1.jpg,images/products/belt-1.jpg', 'Genuine full-grain cowhide leather with RFID blocking technology and dual cash compartments.', 'Handcrafted by master leather artisans in Tangail, this wallet combines minimalist slim aesthetics with maximum capacity for 8 cards, IDs, and Bangladeshi currency notes.', 'Material: 100% Genuine Full-Grain Cowhide Leather
+Card Slots: 8 Dedicated Slots
+Cash Compartments: 2 Full-Length Pockets
+RFID Protection: Built-in RFID Shielding
+Dimensions: 11.5cm x 9.5cm', '✓ Genuine Leather Certified
+✓ 5 Years Leather Durability Guarantee
+✓ Premium Gift Box Included
+✓ Cash on Delivery at Your Doorstep'),
+(4, 4, 'Executive Minimalist Leather Handbag', 'executive-minimalist-leather-handbag', 'BAG-01', 3950.00, 3190.00, 2400.00, 5, 1, 25, 1, 'images/products/bag-1.jpg', 'images/products/bag-1.jpg,images/products/wallet-1.jpg', 'Structured luxury design with gold-tone hardware and spacious multi-compartment interior.', 'The ultimate statement piece for professional and casual outings. Accommodates 13-inch laptop, tablets, makeup, and daily essentials with detachable shoulder strap.', 'Material: Premium Textured PU & Cowhide Trim
+Lining: High-density Polyester
+Closure: Heavy-duty Gold Metal Zipper
+Strap: Detachable & Adjustable
+Weight: 680 grams', '✓ Luxury Presentation Box & Dust Bag
+✓ 100% Quality Checked Before Dispatch
+✓ Free Parcel Open Check on Delivery
+✓ 24/7 WhatsApp Hotline Support'),
+(5, 5, 'Aviator Polarized UV400 Sunglasses', 'aviator-polarized-uv400-sunglasses', 'SUN-01', 1850.00, 1390.00, 990.00, 5, 1, 60, 1, 'images/products/sunglasses-1.jpg', 'images/products/sunglasses-1.jpg,images/products/watch-1.jpg', 'HD Polarized TAC lenses with full UV400 protection and ultra-lightweight magnesium aluminum frame.', 'Shield your eyes with timeless aviator elegance. Eliminates glare from road surfaces and water for high-definition visual clarity while driving or outdoors.', 'Frame Material: Aluminum Magnesium Alloy
+Lens Type: Triacetate TAC HD Polarized
+UV Protection: 100% UV400 (UVA/UVB)
+Lens Width: 62mm
+Bridge Width: 14mm', '✓ Polarized Test Card Included in Box
+✓ Hard Leather Protective Case + Microfiber Cloth
+✓ 7 Days Return Guarantee
+✓ Cash on Delivery'),
+(6, 6, 'Automatic Reversible Genuine Leather Belt', 'automatic-reversible-genuine-leather-belt', 'BLT-01', 1450.00, 1150.00, 850.00, 5, 1, 75, 1, 'images/products/belt-1.jpg', 'images/products/belt-1.jpg,images/products/wallet-1.jpg', 'Premium ratchet automatic buckle with micro-adjustable no-hole strap design in genuine leather.', 'Say goodbye to stretched belt holes. The smooth micro-click sliding ratchet buckle gives a customized perfect fit for waist sizes from 28 to 44 inches.', 'Material: 100% Genuine Split Cowhide Leather
+Buckle: Zinc Alloy Scratch-resistant Automatic
+Belt Width: 3.5cm (Standard Formal & Casual)
+Length: 125cm (Easy to trim to custom size)', '✓ Heavy-duty Alloy Buckle Guarantee
+✓ Elegant Magnetic Gift Packaging
+✓ Direct Factory Wholesale Rate Available
+✓ Cash on Delivery');
 
--- --------------------------------------------------------
--- Table structure for `product_images`
--- --------------------------------------------------------
-DROP TABLE IF EXISTS `product_images`;
-CREATE TABLE `product_images` (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `product_id` bigint(20) UNSIGNED NOT NULL,
-  `image_path` varchar(255) NOT NULL,
-  `is_primary` tinyint(1) NOT NULL DEFAULT 0,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `product_images_product_id_foreign` (`product_id`),
-  CONSTRAINT `product_images_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-INSERT INTO `product_images` (`id`, `product_id`, `image_path`, `is_primary`) VALUES
-(1, 1, 'uploads/luxury-watch.svg', 1),
-(2, 2, 'uploads/leather-wallet.svg', 1),
-(3, 3, 'uploads/polaroid-sunglasses.svg', 1),
-(4, 4, 'uploads/designer-handbag.svg', 1),
-(5, 5, 'uploads/leather-belt.svg', 1),
-(6, 6, 'uploads/smart-watch.svg', 1),
-(7, 7, 'uploads/pearl-necklace.svg', 1),
-(8, 8, 'uploads/perfume-bottle.svg', 1),
-(9, 9, 'uploads/leather-backpack.svg', 1),
-(10, 10, 'uploads/silk-tie-set.svg', 1),
-(11, 11, 'uploads/diamond-ring.svg', 1),
-(12, 12, 'uploads/cotton-cap.svg', 1);
-
--- --------------------------------------------------------
--- Table structure for `banners`
--- --------------------------------------------------------
+-- 4. Banners Table
 DROP TABLE IF EXISTS `banners`;
 CREATE TABLE `banners` (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `title` varchar(200) DEFAULT NULL,
-  `subtitle` varchar(200) DEFAULT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` varchar(191) NOT NULL,
+  `subtitle` varchar(191) DEFAULT NULL,
   `badge_text` varchar(100) DEFAULT NULL,
-  `button_text` varchar(50) NOT NULL DEFAULT 'Shop Now',
-  `button_url` varchar(255) NOT NULL DEFAULT '/shop',
+  `button_text` varchar(100) DEFAULT 'Shop Now',
+  `button_url` varchar(191) DEFAULT 'shop.php',
   `image_path` varchar(255) NOT NULL,
-  `is_active` tinyint(1) NOT NULL DEFAULT 1,
-  `display_order` int(11) NOT NULL DEFAULT 0,
+  `display_order` int(11) DEFAULT 0,
+  `is_active` tinyint(1) DEFAULT 1,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `banners` (`id`, `title`, `subtitle`, `badge_text`, `button_text`, `button_url`, `image_path`, `is_active`, `display_order`) VALUES
-(1, 'Elevate Your Everyday Style', 'Curated premium fashion accessories designed to make an impression.', '✨ NEW ARRIVALS 2026', 'Explore Shop', '/shop', 'uploads/hero-banner-1.svg', 1, 1),
-(2, 'Exclusive Luxury Watches & Bags', 'Up to 40% OFF with Cash on Delivery nationwide across Bangladesh.', '🔥 LIMITED TIME OFFER', 'View Deals', '/deals', 'uploads/hero-banner-2.svg', 1, 2),
-(3, 'Factory Prices for Retailers & Resellers', 'Low 5 Pcs Minimum Order Quantity with direct wholesale rates and fast dispatch.', '📦 WHOLESALE / B2B RATE', 'Open Wholesale', '/wholesale', 'uploads/hero-banner-3.svg', 1, 3);
+INSERT INTO `banners` (`id`, `title`, `subtitle`, `badge_text`, `button_text`, `button_url`, `image_path`, `display_order`) VALUES
+(1, 'Premium Quartz & Leather Collection', 'Discover original chronographs, handcrafted leather wallets, and smart gadgets in Bangladesh.', '✨ 2026 LUXURY ARRIVALS', 'Explore Catalog', 'shop.php', 'images/hero/hero-1.jpg', 1),
+(2, 'Wholesale & B2B Bulk Supply Portal', 'Get factory direct pricing with low 5 pcs MOQ for online retailers, boutique stores, and corporate gifting.', '📦 B2B WHOLESALE RATES', 'Open Wholesale', 'wholesale.php', 'images/hero/hero-2.jpg', 2);
 
--- --------------------------------------------------------
--- Table structure for `coupons`
--- --------------------------------------------------------
-DROP TABLE IF EXISTS `coupons`;
-CREATE TABLE `coupons` (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `code` varchar(50) NOT NULL,
-  `type` enum('percentage','fixed') NOT NULL DEFAULT 'percentage',
-  `value` decimal(10,2) NOT NULL,
-  `min_spend` decimal(10,2) DEFAULT NULL,
-  `max_discount` decimal(10,2) DEFAULT NULL,
-  `usage_limit` int(11) DEFAULT NULL,
-  `times_used` int(11) NOT NULL DEFAULT 0,
-  `is_active` tinyint(1) NOT NULL DEFAULT 1,
-  `expires_at` timestamp NULL DEFAULT NULL,
+-- 5. Districts Table (64 Bangladesh Districts)
+DROP TABLE IF EXISTS `districts`;
+CREATE TABLE `districts` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL,
+  `division_name` varchar(100) NOT NULL,
+  `delivery_fee` decimal(10,2) NOT NULL DEFAULT 120.00,
+  `estimated_days` varchar(50) DEFAULT '2-4 days',
+  `is_active` tinyint(1) DEFAULT 1,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `coupons_code_unique` (`code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `coupons` (`id`, `code`, `type`, `value`, `min_spend`, `max_discount`, `usage_limit`, `times_used`, `is_active`, `expires_at`) VALUES
-(1, 'FASHION10', 'percentage', 10.00, 1000.00, 500.00, 1000, 24, 1, '2027-01-01 00:00:00'),
-(2, 'SAVE200', 'fixed', 200.00, 2000.00, 200.00, 500, 12, 1, '2027-01-01 00:00:00');
+INSERT INTO `districts` (`name`, `division_name`, `delivery_fee`, `estimated_days`) VALUES
+('Dhaka', 'Dhaka', 80.00, '1-2 days'),
+('Tangail', 'Dhaka', 50.00, '24 hours'),
+('Gazipur', 'Dhaka', 80.00, '1-2 days'),
+('Narayanganj', 'Dhaka', 80.00, '1-2 days'),
+('Chittagong', 'Chittagong', 130.00, '2-3 days'),
+('Sylhet', 'Sylhet', 130.00, '2-3 days'),
+('Rajshahi', 'Rajshahi', 130.00, '2-4 days'),
+('Khulna', 'Khulna', 130.00, '2-4 days'),
+('Barisal', 'Barisal', 130.00, '2-4 days'),
+('Rangpur', 'Rangpur', 130.00, '2-4 days'),
+('Mymensingh', 'Mymensingh', 100.00, '2-3 days'),
+('Comilla', 'Chittagong', 120.00, '2-3 days'),
+('Bogra', 'Rajshahi', 120.00, '2-3 days'),
+('Jessore', 'Khulna', 120.00, '2-3 days'),
+('Cox's Bazar', 'Chittagong', 130.00, '2-4 days'),
+('Narsingdi', 'Dhaka', 100.00, '2-3 days'),
+('Faridpur', 'Dhaka', 120.00, '2-3 days'),
+('Kushtia', 'Khulna', 120.00, '2-3 days'),
+('Pabna', 'Rajshahi', 120.00, '2-3 days'),
+('Dinajpur', 'Rangpur', 130.00, '2-4 days'),
+('Sirajganj', 'Rajshahi', 100.00, '2-3 days'),
+('Jamalpur', 'Mymensingh', 100.00, '2-3 days'),
+('Brahmanbaria', 'Chittagong', 120.00, '2-3 days'),
+('Noakhali', 'Chittagong', 120.00, '2-3 days'),
+('Feni', 'Chittagong', 120.00, '2-3 days'),
+('Manikganj', 'Dhaka', 100.00, '2-3 days'),
+('Munshiganj', 'Dhaka', 100.00, '2-3 days'),
+('Kishoreganj', 'Dhaka', 100.00, '2-3 days'),
+('Netrokona', 'Mymensingh', 120.00, '2-3 days'),
+('Sherpur', 'Mymensingh', 120.00, '2-3 days'),
+('Habiganj', 'Sylhet', 130.00, '2-3 days'),
+('Moulvibazar', 'Sylhet', 130.00, '2-3 days'),
+('Sunamganj', 'Sylhet', 130.00, '2-4 days'),
+('Natore', 'Rajshahi', 120.00, '2-3 days'),
+('Naogaon', 'Rajshahi', 120.00, '2-3 days'),
+('Chapainawabganj', 'Rajshahi', 130.00, '2-4 days'),
+('Joypurhat', 'Rajshahi', 130.00, '2-4 days'),
+('Kurigram', 'Rangpur', 130.00, '2-4 days'),
+('Gaibandha', 'Rangpur', 130.00, '2-4 days'),
+('Lalmonirhat', 'Rangpur', 130.00, '2-4 days'),
+('Nilphamari', 'Rangpur', 130.00, '2-4 days'),
+('Panchagarh', 'Rangpur', 140.00, '3-5 days'),
+('Thakurgaon', 'Rangpur', 140.00, '3-5 days'),
+('Satkhira', 'Khulna', 130.00, '2-4 days'),
+('Bagerhat', 'Khulna', 130.00, '2-4 days'),
+('Jhenaidah', 'Khulna', 120.00, '2-3 days'),
+('Magura', 'Khulna', 120.00, '2-3 days'),
+('Narail', 'Khulna', 120.00, '2-3 days'),
+('Chuadanga', 'Khulna', 130.00, '2-4 days'),
+('Meherpur', 'Khulna', 130.00, '2-4 days'),
+('Bhola', 'Barisal', 140.00, '3-5 days'),
+('Jhalokati', 'Barisal', 130.00, '2-4 days'),
+('Pirojpur', 'Barisal', 130.00, '2-4 days'),
+('Patuakhali', 'Barisal', 140.00, '3-5 days'),
+('Barguna', 'Barisal', 140.00, '3-5 days'),
+('Chandpur', 'Chittagong', 120.00, '2-3 days'),
+('Lakshmipur', 'Chittagong', 120.00, '2-3 days'),
+('Bandarban', 'Chittagong', 140.00, '3-5 days'),
+('Rangamati', 'Chittagong', 140.00, '3-5 days'),
+('Khagrachhari', 'Chittagong', 140.00, '3-5 days'),
+('Gopalganj', 'Dhaka', 120.00, '2-3 days'),
+('Madaripur', 'Dhaka', 120.00, '2-3 days'),
+('Rajbari', 'Dhaka', 120.00, '2-3 days'),
+('Shariatpur', 'Dhaka', 120.00, '2-3 days');
 
--- --------------------------------------------------------
--- Table structure for `blogs`
--- --------------------------------------------------------
-DROP TABLE IF EXISTS `blogs`;
-CREATE TABLE `blogs` (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `title` varchar(255) NOT NULL,
-  `slug` varchar(255) NOT NULL,
-  `category` varchar(100) DEFAULT 'Buying Guide',
-  `summary` text DEFAULT NULL,
-  `content` longtext DEFAULT NULL,
-  `image_path` varchar(255) DEFAULT NULL,
-  `author` varchar(100) DEFAULT 'OnlineBdMart Team',
-  `is_published` tinyint(1) NOT NULL DEFAULT 1,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `blogs_slug_unique` (`slug`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-INSERT INTO `blogs` (`id`, `title`, `slug`, `category`, `summary`, `content`, `image_path`, `author`) VALUES
-(1, 'Top 5 Luxury Chronograph Watches & Leather Wallets Under ৳5000 in 2026', 'top-5-luxury-watches-wallets-2026', 'Buying Guide', 'We tested 15+ premium Japanese quartz watches and full-grain cowhide leather wallets to find the best value for money in Bangladesh.', 'Finding genuine quality accessories in Bangladesh has never been easier. When choosing a chronograph watch, always check for 316L stainless steel and sapphire glass.\n\nFor leather wallets, full-grain cowhide develops a natural patina over time. All items at OnlineBdMart come with official warranty and nationwide cash on delivery.', 'uploads/hero-banner-1.svg', 'OnlineBdMart Editorial'),
-(2, 'How to Spot Original vs Copy Accessories Before Paying', 'how-to-spot-original-vs-copy', 'Tips & Tricks', 'Avoid cheap replicas with these 5 quick verification checks before making payment to courier riders.', 'Always check the weight of the steel buckle, leather grain texture, and scratch resistance of TAC polarized lenses. With OnlineBdMart, you can inspect your parcel before accepting.', 'uploads/hero-banner-2.svg', 'Rahman T.'),
-(3, 'Wholesale & Reselling Guide for Beginners in Bangladesh', 'wholesale-reselling-guide-bangladesh', 'B2B & Wholesale', 'How to start your online or offline accessory business with low MOQ and factory pricing directly from Tangail & Dhaka.', 'Start with high-demand everyday essentials: polarized sunglasses, reversible belts, and minimalist wallets. OnlineBdMart offers minimum 5 pcs bulk pricing with direct courier delivery.', 'uploads/hero-banner-3.svg', 'B2B Operations Team');
-
--- --------------------------------------------------------
--- Table structure for `orders`
--- --------------------------------------------------------
+-- 6. Orders Table
 DROP TABLE IF EXISTS `orders`;
 CREATE TABLE `orders` (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `customer_name` varchar(100) NOT NULL,
-  `phone` varchar(20) NOT NULL,
-  `whatsapp` varchar(20) DEFAULT NULL,
-  `district` varchar(100) NOT NULL,
-  `upazila` varchar(100) NOT NULL,
-  `address` text NOT NULL,
-  `notes` text DEFAULT NULL,
-  `payment_method` varchar(50) NOT NULL DEFAULT 'cod',
-  `payment_number` varchar(50) DEFAULT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `order_number` varchar(100) DEFAULT NULL,
+  `customer_name` varchar(191) NOT NULL,
+  `customer_email` varchar(191) DEFAULT NULL,
+  `customer_phone` varchar(100) NOT NULL,
+  `phone` varchar(100) DEFAULT NULL,
+  `whatsapp` varchar(100) DEFAULT NULL,
+  `delivery_address` text NOT NULL,
+  `address` text DEFAULT NULL,
+  `district` varchar(100) DEFAULT NULL,
+  `district_name` varchar(100) DEFAULT NULL,
+  `upazila` varchar(100) DEFAULT NULL,
+  `subtotal` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `delivery_cost` decimal(10,2) NOT NULL DEFAULT 120.00,
+  `delivery_charge` decimal(10,2) NOT NULL DEFAULT 120.00,
+  `total_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `grand_total` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `payment_method` varchar(50) DEFAULT 'cod',
+  `payment_number` varchar(100) DEFAULT NULL,
   `transaction_id` varchar(100) DEFAULT NULL,
-  `subtotal` decimal(10,2) NOT NULL,
-  `delivery_charge` decimal(10,2) NOT NULL DEFAULT 50.00,
-  `discount_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
-  `coupon_code` varchar(50) DEFAULT NULL,
-  `grand_total` decimal(10,2) NOT NULL,
-  `status` enum('pending','confirmed','processing','shipped','delivered','cancelled') NOT NULL DEFAULT 'pending',
+  `status` varchar(50) DEFAULT 'pending',
+  `notes` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `orders` (`id`, `customer_name`, `phone`, `whatsapp`, `district`, `upazila`, `address`, `notes`, `payment_method`, `payment_number`, `transaction_id`, `subtotal`, `delivery_charge`, `discount_amount`, `grand_total`, `status`, `created_at`) VALUES
-(1001, 'Tanvir Ahmed', '01711223344', '01711223344', 'Tangail', 'Tangail Sadar', 'House 24, Road 4, Victoria Road', 'Please deliver after 4 PM', 'cod', NULL, NULL, 3250.00, 50.00, 0.00, 3300.00, 'delivered', '2026-08-10 11:20:00'),
-(1002, 'Nusrat Jahan', '01899887766', '01899887766', 'Dhaka', 'Dhanmondi', 'House 5, Road 27, Dhanmondi', 'Call before arrival', 'bkash', '01899887766', 'TRX98432849', 3650.00, 80.00, 365.00, 3365.00, 'confirmed', '2026-08-12 14:15:00'),
-(1003, 'Sabbir Hossain', '01912345678', '01912345678', 'Chittagong', 'Panchlaish', 'Nasirabad Housing Society', 'Handle with care', 'nagad', '01912345678', 'NGD77621893', 1190.00, 130.00, 0.00, 1320.00, 'pending', '2026-08-14 09:30:00');
-
--- --------------------------------------------------------
--- Table structure for `order_items`
--- --------------------------------------------------------
+-- 7. Order Items Table
 DROP TABLE IF EXISTS `order_items`;
 CREATE TABLE `order_items` (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `order_id` bigint(20) UNSIGNED NOT NULL,
-  `product_id` bigint(20) UNSIGNED DEFAULT NULL,
-  `product_name` varchar(200) NOT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `order_id` int(11) NOT NULL,
+  `product_id` int(11) DEFAULT NULL,
+  `product_name` varchar(191) NOT NULL,
   `product_image` varchar(255) DEFAULT NULL,
   `price` decimal(10,2) NOT NULL,
   `quantity` int(11) NOT NULL DEFAULT 1,
+  `total_price` decimal(10,2) DEFAULT NULL,
+  `is_wholesale` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 8. Users Table
+DROP TABLE IF EXISTS `users`;
+CREATE TABLE `users` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(191) NOT NULL,
+  `email` varchar(191) NOT NULL,
+  `phone` varchar(100) DEFAULT NULL,
+  `password` varchar(191) NOT NULL,
+  `address` text DEFAULT NULL,
+  `district` varchar(100) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT 1,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `order_items_order_id_foreign` (`order_id`),
-  CONSTRAINT `order_items_order_id_foreign` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `order_items` (`id`, `order_id`, `product_id`, `product_name`, `product_image`, `price`, `quantity`) VALUES
-(1, 1001, 1, 'Luxury Chronograph Sapphire Watch', 'uploads/luxury-watch.svg', 3250.00, 1),
-(2, 1002, 4, 'Minimalist Luxury Leather Handbag', 'uploads/designer-handbag.svg', 3650.00, 1),
-(3, 1003, 2, 'Handcrafted Full-Grain Leather Wallet', 'uploads/leather-wallet.svg', 1190.00, 1);
-
--- --------------------------------------------------------
--- Table structure for `wholesale_inquiries`
--- --------------------------------------------------------
-DROP TABLE IF EXISTS `wholesale_inquiries`;
-CREATE TABLE `wholesale_inquiries` (
-  `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `business_name` varchar(150) NOT NULL,
-  `contact_person` varchar(100) NOT NULL,
-  `phone` varchar(20) NOT NULL,
-  `whatsapp` varchar(20) DEFAULT NULL,
-  `district` varchar(100) DEFAULT NULL,
-  `estimated_monthly_quantity` varchar(100) DEFAULT NULL,
-  `message` text DEFAULT NULL,
+-- 9. Suppliers Table
+DROP TABLE IF EXISTS `suppliers`;
+CREATE TABLE `suppliers` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(191) NOT NULL,
+  `contact_person` varchar(191) DEFAULT NULL,
+  `phone` varchar(100) DEFAULT NULL,
+  `email` varchar(191) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `photo` varchar(255) DEFAULT 'uploads/suppliers/supplier-default.jpg',
+  `supply_products` text DEFAULT NULL,
+  `category` varchar(191) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `wholesale_inquiries` (`id`, `business_name`, `contact_person`, `phone`, `whatsapp`, `district`, `estimated_monthly_quantity`, `message`) VALUES
-(1, 'Dhaka Gadget Zone', 'Tanvir Ahmed', '01711223344', '01711223344', 'Dhaka', '20 - 50 pcs', 'Interested in wholesale chronograph watches and genuine leather wallets.');
+INSERT INTO `suppliers` (`id`, `name`, `contact_person`, `phone`, `email`, `address`, `photo`, `supply_products`, `category`) VALUES
+(1, 'BD Watch & Quartz Importers Ltd', 'Kamal Hossain', '01711223344', 'kamal@bdwatch.com', 'Chawkbazar, Dhaka', 'uploads/suppliers/supplier-default.jpg', 'Naviforce, Curren, Skmei, Casio Quartz Watches', 'Watches & Chronographs'),
+(2, 'Tangail Artisan Leather Works', 'Siddiqur Rahman', '01811998877', 'tangailleather@gmail.com', 'Court Bazar, Tangail', 'uploads/suppliers/supplier-default.jpg', 'Handmade Cowhide Wallets, Leather Belts, Card Holders', 'Leather Goods'),
+(3, 'SmartTech Gadgets Bangladesh', 'Fahim Morshed', '01911445566', 'fahim@smarttech.bd', 'Elephant Road, Dhaka', 'uploads/suppliers/supplier-default.jpg', 'Ultra AMOLED Smartwatches, Bluetooth Earbuds', 'Smart Electronics');
 
-SET FOREIGN_KEY_CHECKS=1;
-COMMIT;
+-- 10. Customer Behavior & Visits
+DROP TABLE IF EXISTS `customer_visits`;
+CREATE TABLE `customer_visits` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `ip_address` varchar(100) DEFAULT NULL,
+  `session_id` varchar(191) DEFAULT NULL,
+  `city` varchar(100) DEFAULT NULL,
+  `district` varchar(100) DEFAULT NULL,
+  `referrer` varchar(255) DEFAULT NULL,
+  `page_url` varchar(255) DEFAULT NULL,
+  `user_agent` text DEFAULT NULL,
+  `device_type` varchar(50) DEFAULT 'Mobile',
+  `visited_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 11. Cart Abandonments Table
+DROP TABLE IF EXISTS `cart_abandonments`;
+CREATE TABLE `cart_abandonments` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `session_id` varchar(191) DEFAULT NULL,
+  `customer_name` varchar(191) DEFAULT NULL,
+  `customer_phone` varchar(100) DEFAULT NULL,
+  `district_name` varchar(100) DEFAULT NULL,
+  `product_name` varchar(191) DEFAULT NULL,
+  `cart_value` decimal(10,2) DEFAULT 0.00,
+  `step` varchar(50) DEFAULT 'cart',
+  `recovered` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 12. Messages Table
+DROP TABLE IF EXISTS `messages`;
+CREATE TABLE `messages` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(191) NOT NULL,
+  `email` varchar(191) DEFAULT NULL,
+  `phone` varchar(100) DEFAULT NULL,
+  `message` text NOT NULL,
+  `is_read` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 13. Customer Reviews Table
+DROP TABLE IF EXISTS `reviews`;
+CREATE TABLE `reviews` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `product_id` int(11) DEFAULT NULL,
+  `author_name` varchar(191) NOT NULL,
+  `rating` int(11) NOT NULL DEFAULT 5,
+  `review_text` text NOT NULL,
+  `district_name` varchar(100) DEFAULT 'Dhaka',
+  `is_approved` tinyint(1) DEFAULT 1,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `reviews` (`id`, `author_name`, `rating`, `review_text`, `district_name`) VALUES
+(1, 'Arif Hossain', 5, 'Luxury watch quality outstanding! Heavy steel weight and sapphire glass looks premium. Delivery was completed in 2 days.', 'Dhaka'),
+(2, 'Nusrat Jahan', 5, 'Got genuine leather handbag and pearl necklace. Best price in BD and cash on delivery was smooth.', 'Chittagong'),
+(3, 'Tanvir Ahmed', 5, 'Polarized sunglasses and leather wallet are authentic. Real-time order tracking updated every step.', 'Sylhet');
+
+-- 14. Blog Posts Table
+DROP TABLE IF EXISTS `blog_posts`;
+CREATE TABLE `blog_posts` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` varchar(191) NOT NULL,
+  `slug` varchar(191) NOT NULL,
+  `category` varchar(100) DEFAULT 'Buying Guide',
+  `author` varchar(100) DEFAULT 'OnlineBdMart Team',
+  `summary` text DEFAULT NULL,
+  `excerpt` text DEFAULT NULL,
+  `content` longtext DEFAULT NULL,
+  `image_path` varchar(255) DEFAULT 'images/hero/hero-1.jpg',
+  `meta_title` varchar(191) DEFAULT NULL,
+  `meta_description` text DEFAULT NULL,
+  `meta_keywords` text DEFAULT NULL,
+  `is_published` tinyint(1) DEFAULT 1,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `slug` (`slug`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `blog_posts` (`id`, `title`, `slug`, `category`, `author`, `summary`, `content`, `image_path`, `meta_title`, `meta_description`) VALUES
+(1, 'Top 5 Luxury Watches & Accessories Under ৳5000 in 2026', 'top-5-luxury-watches-2026', 'Buying Guide', 'OnlineBdMart Experts', 'Complete breakdown of build materials, glass scratch resistance, and Japanese quartz movements available in BD.', 'We tested 15+ premium Japanese quartz watches and full-grain cowhide leather wallets to find the best value for money in Bangladesh. Finding authentic accessories with durable build quality under ৳5,000 is now easier with verified warranty backing.', 'images/hero/hero-1.jpg', 'Top 5 Luxury Watches Under 5000 BD 2026', 'Best luxury chronograph watches in Bangladesh under 5000 taka.'),
+(2, 'How to Spot Original vs Copy Accessories Before Paying', 'spot-original-vs-copy-accessories', 'Tips & Tricks', 'OnlineBdMart Quality Team', 'Simple checks on stitching quality, serial engravings, and packaging seals to ensure you get authentic goods.', 'Avoid cheap replicas with these 5 quick verification checks before making payment to courier riders: 1. Check serial number engraving, 2. Inspect leather grain smell and texture, 3. Test chronograph sub-dials.', 'images/hero/hero-2.jpg', 'How to Spot Original vs Copy Accessories BD', 'Avoid counterfeit replica watches and leather bags in Bangladesh with these 5 checks.'),
+(3, 'Wholesale & Reselling Guide for Beginners in Bangladesh', 'wholesale-reselling-guide-bangladesh', 'Wholesale & B2B', 'B2B Wholesale Manager', 'Start an online boutique or Facebook shop with minimal capital using OnlineBdMart low 5 pcs MOQ bulk policy.', 'Starting an online accessory boutique in Bangladesh no longer requires large capital. With OnlineBdMart low 5 pcs MOQ policy, you can source at factory rates and sell directly to customers.', 'images/hero/hero-1.jpg', 'Wholesale Reselling Business Guide Bangladesh', 'How to start online fashion accessories wholesale and dropshipping in BD.');
+
+-- 15. Settings Table
+DROP TABLE IF EXISTS `settings`;
+CREATE TABLE `settings` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `key` varchar(191) DEFAULT NULL,
+  `setting_key` varchar(191) DEFAULT NULL,
+  `value` longtext DEFAULT NULL,
+  `setting_value` longtext DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `key_unique` (`key`),
+  UNIQUE KEY `setting_key_unique` (`setting_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `settings` (`key`, `setting_key`, `value`, `setting_value`) VALUES
+('store_name', 'store_name', 'OnlineBdMart', 'OnlineBdMart'),
+('store_tagline', 'store_tagline', 'Online Shopping BD - Wholesale & Retail', 'Online Shopping BD - Wholesale & Retail'),
+('store_logo', 'store_logo', 'images/logo.png', 'images/logo.png'),
+('store_email', 'store_email', 'support@onlinebdmart.com', 'support@onlinebdmart.com'),
+('store_phone', 'store_phone', '01775153740', '01775153740'),
+('store_address', 'store_address', 'Tangail, Dhaka Division, Bangladesh', 'Tangail, Dhaka Division, Bangladesh'),
+('whatsapp_number', 'whatsapp_number', '01775153740', '01775153740'),
+('whatsapp_floating_enabled', 'whatsapp_floating_enabled', '1', '1'),
+('payment_cod_enabled', 'payment_cod_enabled', '1', '1'),
+('payment_bkash_enabled', 'payment_bkash_enabled', '1', '1'),
+('payment_bkash_number', 'payment_bkash_number', '01775153740', '01775153740'),
+('payment_bkash_type', 'payment_bkash_type', 'merchant', 'merchant'),
+('payment_nagad_enabled', 'payment_nagad_enabled', '1', '1'),
+('payment_nagad_number', 'payment_nagad_number', '01775153740', '01775153740'),
+('payment_rocket_enabled', 'payment_rocket_enabled', '1', '1'),
+('payment_rocket_number', 'payment_rocket_number', '01775153740', '01775153740'),
+('payment_bank_enabled', 'payment_bank_enabled', '1', '1'),
+('payment_bank_name', 'payment_bank_name', 'Islami Bank Bangladesh Ltd', 'Islami Bank Bangladesh Ltd'),
+('payment_bank_acc_name', 'payment_bank_acc_name', 'OnlineBdMart Enterprise', 'OnlineBdMart Enterprise'),
+('payment_bank_acc_no', 'payment_bank_acc_no', '2050123456789012', '2050123456789012'),
+('payment_bank_branch', 'payment_bank_branch', 'Tangail Branch', 'Tangail Branch'),
+('payment_bank_routing', 'payment_bank_routing', '125272648', '125272648'),
+('payment_ssl_enabled', 'payment_ssl_enabled', '0', '0'),
+('payment_ssl_store_id', 'payment_ssl_store_id', 'onlinebdmart_live', 'onlinebdmart_live'),
+('payment_ssl_store_passwd', 'payment_ssl_store_passwd', 'sslcommerz_secret_key', 'sslcommerz_secret_key'),
+('payment_ssl_sandbox', 'payment_ssl_sandbox', '1', '1'),
+('footer_about_text', 'footer_about_text', 'OnlineBdMart is Bangladesh premier wholesale and retail fashion destination offering 100% verified authentic accessories and smart gadgets with Cash on Delivery nationwide.', 'OnlineBdMart is Bangladesh premier wholesale and retail fashion destination offering 100% verified authentic accessories and smart gadgets with Cash on Delivery nationwide.'),
+('footer_copyright', 'footer_copyright', 'OnlineBdMart • Online Shopping Bangladesh. All rights reserved.', 'OnlineBdMart • Online Shopping Bangladesh. All rights reserved.'),
+('seo_meta_title', 'seo_meta_title', 'OnlineBdMart • Online Shopping BD - Wholesale & Retail', 'OnlineBdMart • Online Shopping BD - Wholesale & Retail'),
+('seo_meta_description', 'seo_meta_description', 'Buy original luxury watches, leather wallets, handbags, and smart gadgets at best prices in Bangladesh with Cash on Delivery across 64 districts.', 'Buy original luxury watches, leather wallets, handbags, and smart gadgets at best prices in Bangladesh with Cash on Delivery across 64 districts.'),
+('seo_meta_keywords', 'seo_meta_keywords', 'online shopping bd, onlinebdmart, wholesale bangladesh, watches bd, leather wallet, accessories bangladesh, cash on delivery', 'online shopping bd, onlinebdmart, wholesale bangladesh, watches bd, leather wallet, accessories bangladesh, cash on delivery'),
+('seo_og_image', 'seo_og_image', 'images/hero/hero-1.jpg', 'images/hero/hero-1.jpg');
+
+SET FOREIGN_KEY_CHECKS = 1;

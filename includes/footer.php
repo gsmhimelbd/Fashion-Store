@@ -34,15 +34,16 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-slate-800">
                 <div class="space-y-4">
                     <h3 class="text-xl font-extrabold"><?= htmlspecialchars($storeName) ?></h3>
-                    <p class="text-slate-400 text-xs sm:text-sm leading-relaxed"><?= htmlspecialchars($s['store_tagline'] ?? 'Premium Wholesale & Retail in Bangladesh.') ?></p>
-                    <p class="text-xs text-slate-500"><?= htmlspecialchars($s['store_address'] ?? 'Tangail, Bangladesh') ?></p>
+                    <p class="text-slate-400 text-xs sm:text-sm leading-relaxed"><?= htmlspecialchars($s['footer_about_text'] ?? ($s['store_tagline'] ?? 'Premium Wholesale & Retail in Bangladesh.')) ?></p>
+                    <p class="text-xs text-slate-500"><i class="fas fa-location-dot text-rose-500 mr-1"></i> <?= htmlspecialchars($s['store_address'] ?? 'Tangail, Bangladesh') ?></p>
+                    <p class="text-xs text-slate-400"><i class="fas fa-phone text-emerald-400 mr-1"></i> <?= htmlspecialchars($s['store_phone'] ?? '01775153740') ?></p>
                 </div>
                 <div>
                     <h4 class="font-bold text-xs uppercase tracking-wider text-slate-200 mb-4">Quick Navigation</h4>
                     <ul class="space-y-2 text-xs text-slate-400">
                         <li><a href="index.php" class="hover:text-white">Home</a></li>
                         <li><a href="shop.php" class="hover:text-white">All Products</a></li>
-                        <li><a href="wholesale.php" class="hover:text-white text-amber-400">Wholesale / B2B Rate</a></li>
+                        <li><a href="wholesale.php" class="hover:text-white text-amber-400 font-bold">Wholesale / B2B Rate</a></li>
                         <li><a href="categories.php" class="hover:text-white">Categories</a></li>
                         <li><a href="deals.php" class="hover:text-white text-rose-400">Hot Deals %</a></li>
                         <li><a href="blog.php" class="hover:text-white">Buying Guides</a></li>
@@ -65,11 +66,12 @@
                         <span class="px-2.5 py-1 bg-slate-900 rounded font-bold text-pink-400">bKash</span>
                         <span class="px-2.5 py-1 bg-slate-900 rounded font-bold text-orange-400">Nagad</span>
                         <span class="px-2.5 py-1 bg-slate-900 rounded font-bold text-purple-400">Rocket</span>
+                        <span class="px-2.5 py-1 bg-slate-900 rounded font-bold text-cyan-400">Bank Transfer</span>
                     </div>
                 </div>
             </div>
             <div class="pt-8 text-center text-xs text-slate-500">
-                &copy; <?= date('Y') ?> <?= htmlspecialchars($storeName) ?> • Online Shopping Bangladesh. All rights reserved.
+                &copy; <?= date('Y') ?> <?= htmlspecialchars($s['footer_copyright'] ?? ($storeName . ' • Online Shopping Bangladesh. All rights reserved.')) ?>
             </div>
         </div>
     </footer>
