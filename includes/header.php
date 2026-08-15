@@ -107,13 +107,17 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
                         <i class="fas fa-bars-staggered text-xl"></i>
                     </button>
                     <a href="index.php" class="flex items-center gap-3 group">
-                        <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-cyan-500 flex items-center justify-center text-white text-xl shadow-md group-hover:scale-105 transition-transform">
-                            <i class="fas fa-bag-shopping"></i>
-                        </div>
-                        <div>
-                            <span class="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-none block"><?= strtoupper(htmlspecialchars($storeName)) ?></span>
-                            <span class="text-[10px] tracking-widest font-extrabold text-indigo-600 uppercase block mt-0.5">Online Shopping BD</span>
-                        </div>
+                        <?php if (!empty($s['store_logo']) && file_exists(__DIR__ . '/../' . ltrim($s['store_logo'], '/'))): ?>
+                            <img src="/<?= ltrim($s['store_logo'], '/') ?>" alt="<?= htmlspecialchars($storeName) ?>" class="h-10 max-w-[150px] object-contain group-hover:scale-105 transition-transform">
+                        <?php else: ?>
+                            <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-cyan-500 flex items-center justify-center text-white text-xl shadow-md group-hover:scale-105 transition-transform">
+                                <i class="fas fa-bag-shopping"></i>
+                            </div>
+                            <div>
+                                <span class="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-none block"><?= strtoupper(htmlspecialchars($storeName)) ?></span>
+                                <span class="text-[10px] tracking-widest font-extrabold text-indigo-600 uppercase block mt-0.5">Online Shopping BD</span>
+                            </div>
+                        <?php endif; ?>
                     </a>
                 </div>
 

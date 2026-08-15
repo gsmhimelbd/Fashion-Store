@@ -70,7 +70,10 @@ function parseBody(req) {
 }
 
 function serveStatic(req, res, pathname) {
-    const filePath = path.join(__dirname, 'public', pathname);
+    let filePath = path.join(__dirname, 'public', pathname);
+    if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+        filePath = path.join(__dirname, pathname);
+    }
     if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) return false;
     const ext = path.extname(filePath).toLowerCase();
     const mimeTypes = {
