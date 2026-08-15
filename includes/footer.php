@@ -1,6 +1,6 @@
     </main>
 
-    <!-- Mobile Bottom Navigation Bar -->
+    <!-- Mobile Bottom Navigation Bar (Home, Shop, Wholesale, Track, Account) -->
     <div class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-6 py-2.5 flex items-center justify-between text-[10px] font-bold text-slate-600 shadow-xl">
         <a href="index.php" class="flex flex-col items-center gap-1 <?= $currentPage === 'index.php' ? 'text-indigo-600' : '' ?>">
             <i class="fas fa-house text-base"></i> <span>Home</span>
@@ -14,10 +14,9 @@
         <a href="track-order.php" class="flex flex-col items-center gap-1 text-emerald-600 font-extrabold">
             <i class="fas fa-truck-fast text-base"></i> <span>Track</span>
         </a>
-        <button type="button" onclick="openCartDrawer()" class="flex flex-col items-center gap-1 relative text-indigo-600">
-            <i class="fas fa-bag-shopping text-base"></i> <span>Bag</span>
-            <span id="mobileBottomCartBadge" class="absolute -top-1.5 right-1 bg-amber-400 text-slate-950 text-[9px] font-black rounded-full h-3.5 min-w-[14px] px-0.5 flex items-center justify-center"><?= $cartCount ?></span>
-        </button>
+        <a href="<?= !empty($_SESSION['user_logged_in']) ? 'account.php' : 'login.php' ?>" class="flex flex-col items-center gap-1 <?= ($currentPage === 'account.php' || $currentPage === 'login.php' || $currentPage === 'register.php') ? 'text-indigo-600 font-extrabold' : '' ?>">
+            <i class="fas fa-user-circle text-base"></i> <span>Account</span>
+        </a>
     </div>
 
     <!-- Floating WhatsApp Support Button -->

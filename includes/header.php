@@ -156,13 +156,20 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
                     </div>
                 </div>
 
-                <!-- Right Action Buttons: Wishlist & Cart -->
-                <div class="flex items-center gap-2 sm:gap-4 shrink-0">
+                <!-- Right Action Buttons: Account, Wishlist & Cart -->
+                <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+                    <!-- Account Icon (Desktop & Mobile) -->
+                    <a href="<?= !empty($_SESSION['user_logged_in']) ? 'account.php' : 'login.php' ?>" class="relative p-2 sm:p-2.5 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 transition shrink-0" title="My Account">
+                        <i class="far fa-user text-base sm:text-lg"></i>
+                    </a>
+
+                    <!-- Wishlist Icon -->
                     <button type="button" onclick="openWishlistDrawer()" class="relative p-2 sm:p-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 transition shrink-0" title="Wishlist">
                         <i class="far fa-heart text-base sm:text-lg"></i>
                         <span id="headerWishlistBadge" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] sm:text-[10px] font-black rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">0</span>
                     </button>
 
+                    <!-- Cart Bag Icon -->
                     <button type="button" onclick="openCartDrawer()" class="relative p-2 sm:px-4 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition flex items-center gap-1.5 sm:gap-2.5 shadow-md shadow-indigo-600/25 shrink-0" title="Cart">
                         <i class="fas fa-bag-shopping text-base sm:text-lg"></i>
                         <div class="hidden sm:block text-left text-xs leading-tight">
