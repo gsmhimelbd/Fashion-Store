@@ -18,7 +18,26 @@ $customerName = $_SESSION['user_name'] ?? ($_SESSION['customer_name'] ?? 'Accoun
 
 try {
     $db = getDB();
-    $categories = $db->query("SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id) as products_count FROM categories c WHERE c.is_active = 1 OR c.is_active IS NULL ORDER BY c.display_order ASC, c.id ASC")->fetchAll();
+    $catRows = $db->query("SELECT * FROM categories ORDER BY display_order ASC, id ASC")->fetchAll();
+    if (!empty($catRows)) {
+        $counts = [];
+        try {
+            $pStmt = $db->query("SELECT category_id, COUNT(*) as c FROM products WHERE is_active = 1 GROUP BY category_id");
+            while ($r = $pStmt->fetch()) {
+                $counts[$r['category_id']] = (int)$r['c'];
+            }
+        } catch (Exception $ex) {}
+
+        $categories = [];
+        foreach ($catRows as $crow) {
+            $crow['products_count'] = $counts[$crow['id']] ?? 0;
+            if (empty($crow['emoji'])) $crow['emoji'] = '🛍️';
+            if (empty($crow['icon'])) $crow['icon'] = 'fa-tag';
+            $categories[] = $crow;
+        }
+    } else {
+        $categories = [];
+    }
     $allProducts = $db->query("SELECT p.id, p.name, p.slug, p.price, p.sale_price, p.image_path, c.name as category FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1")->fetchAll();
 } catch (Exception $e) {
     $categories = [];
