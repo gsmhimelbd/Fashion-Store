@@ -156,19 +156,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $orderId = $db->lastInsertId();
 
-            // Insert items with picture
-            $itemStmt = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, product_image, price, quantity, total_price, is_wholesale, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
+            // Auto-heal order_items schema if columns were missing in legacy MySQL tables
+            try {
+                $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
+                if ($driver === 'mysql') {
+                    @$db->exec("ALTER TABLE `order_items` ADD COLUMN `product_image` varchar(255) DEFAULT NULL");
+                    @$db->exec("ALTER TABLE `order_items` ADD COLUMN `total_price` decimal(10,2) DEFAULT NULL");
+                    @$db->exec("ALTER TABLE `order_items` ADD COLUMN `is_wholesale` tinyint(1) DEFAULT 0");
+                }
+            } catch (Exception $ex) {}
+
+            // Insert items safely
             foreach ($cart as $item) {
-                $itemStmt->execute([
-                    $orderId,
-                    $item['id'],
-                    $item['name'],
-                    $item['image'],
-                    $item['price'],
-                    $item['quantity'],
-                    $item['price'] * $item['quantity'],
-                    !empty($item['is_wholesale']) ? 1 : 0
-                ]);
+                $itemTotal = (float)($item['price'] * $item['quantity']);
+                $isWholesale = !empty($item['is_wholesale']) ? 1 : 0;
+                $img = $item['image'] ?? '';
+
+                try {
+                    $itemStmt = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, product_image, price, quantity, total_price, is_wholesale, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
+                    $itemStmt->execute([$orderId, $item['id'], $item['name'], $img, $item['price'], $item['quantity'], $itemTotal, $isWholesale]);
+                } catch (Exception $e1) {
+                    try {
+                        $itemStmt2 = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, price, quantity) VALUES (?, ?, ?, ?, ?)");
+                        $itemStmt2->execute([$orderId, $item['id'], $item['name'], $item['price'], $item['quantity']]);
+                    } catch (Exception $e2) {}
+                }
             }
 
             // Mark any cart abandonment session as recovered

@@ -587,6 +587,10 @@ function ensureTablesExist($pdo) {
         addColumnIfNotExists($pdo, 'suppliers', 'photo', $isSqlite ? "TEXT DEFAULT 'uploads/suppliers/supplier-default.jpg'" : "VARCHAR(255) DEFAULT 'uploads/suppliers/supplier-default.jpg'");
         addColumnIfNotExists($pdo, 'suppliers', 'supply_products', $isSqlite ? 'TEXT' : 'TEXT NULL');
 
+        addColumnIfNotExists($pdo, 'order_items', 'product_image', $isSqlite ? 'TEXT NULL' : 'VARCHAR(255) NULL');
+        addColumnIfNotExists($pdo, 'order_items', 'total_price', $isSqlite ? 'REAL DEFAULT 0.00' : 'DECIMAL(10,2) DEFAULT NULL');
+        addColumnIfNotExists($pdo, 'order_items', 'is_wholesale', $isSqlite ? 'INTEGER DEFAULT 0' : 'TINYINT(1) DEFAULT 0');
+
         addColumnIfNotExists($pdo, 'orders', 'payment_number', $isSqlite ? 'TEXT' : 'VARCHAR(100) NULL');
         addColumnIfNotExists($pdo, 'orders', 'transaction_id', $isSqlite ? 'TEXT' : 'VARCHAR(100) NULL');
         addColumnIfNotExists($pdo, 'orders', 'upazila', $isSqlite ? "TEXT DEFAULT ''" : "VARCHAR(100) DEFAULT ''");
