@@ -15,16 +15,43 @@ try {
     $districts = $db->query("SELECT * FROM districts ORDER BY division_name ASC, name ASC")->fetchAll();
     $settings = getAllSettings();
 
+    // Auto-fill logged-in customer info
+    $custName = '';
+    $custPhone = '';
+    $custEmail = '';
+    $custDistrict = 'Dhaka';
+    $custAddress = '';
+
+    if (!empty($_SESSION['user_id']) || !empty($_SESSION['user_logged_in'])) {
+        $uId = $_SESSION['user_id'] ?? 0;
+        $uEmail = $_SESSION['user_email'] ?? '';
+        $uStmt = $db->prepare("SELECT * FROM users WHERE id = ? OR email = ? LIMIT 1");
+        $uStmt->execute([$uId, $uEmail]);
+        $loggedUser = $uStmt->fetch();
+        if ($loggedUser) {
+            $custName = $loggedUser['name'] ?? '';
+            $custPhone = $loggedUser['phone'] ?? '';
+            $custEmail = $loggedUser['email'] ?? '';
+            $custDistrict = $loggedUser['district'] ?? 'Dhaka';
+            $custAddress = $loggedUser['address'] ?? '';
+        }
+    }
+
     // Record visitor behavior in customer_visits
     $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
     $page = $_SERVER['REQUEST_URI'] ?? '/checkout.php';
     $ref = $_SERVER['HTTP_REFERER'] ?? 'Direct';
     $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'Mobile';
     $dev = (str_contains(strtolower($ua), 'mobile') || str_contains(strtolower($ua), 'android') || str_contains(strtolower($ua), 'iphone')) ? 'Mobile' : 'Desktop';
-    $db->prepare("INSERT INTO customer_visits (ip_address, session_id, district, referrer, page_url, user_agent, device_type, visited_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)")->execute([$ip, session_id(), 'Checkout', $ref, $page, $ua, $dev]);
+    $db->prepare("INSERT INTO customer_visits (ip_address, session_id, district, referrer, page_url, user_agent, device_type, visited_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)")->execute([$ip, session_id(), $custDistrict, $ref, $page, $ua, $dev]);
 } catch (Exception $e) {
     $districts = [];
     $settings = [];
+    $custName = '';
+    $custPhone = '';
+    $custEmail = '';
+    $custDistrict = 'Dhaka';
+    $custAddress = '';
 }
 
 $subtotal = 0.0;
@@ -162,27 +189,41 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
                     Shipping & Customer Details
                 </h2>
 
+                <?php if (empty($_SESSION['user_logged_in'])): ?>
+                <div class="p-3.5 bg-indigo-50/80 border border-indigo-100 rounded-2xl flex items-center justify-between text-xs text-indigo-900">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-user-circle text-indigo-600 text-base"></i>
+                        <span>Have an account? <a href="login.php?redirect=checkout.php" class="font-extrabold text-indigo-600 underline">Sign In</a> to auto-fill your saved address.</span>
+                    </div>
+                </div>
+                <?php else: ?>
+                <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2 text-xs font-bold text-emerald-800">
+                    <i class="fas fa-check-circle text-emerald-600"></i>
+                    <span>Signed in as <?= htmlspecialchars($custName) ?> (Delivery info auto-filled from your profile).</span>
+                </div>
+                <?php endif; ?>
+
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
-                        <input type="text" name="customer_name" required placeholder="e.g. Arif Hossain" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <input type="text" name="customer_name" value="<?= htmlspecialchars($custName) ?>" required placeholder="e.g. Arif Hossain" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Mobile Phone Number (Active) *</label>
-                        <input type="tel" name="customer_phone" required placeholder="017xxxxxxxx" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <input type="tel" name="customer_phone" value="<?= htmlspecialchars($custPhone) ?>" required placeholder="017xxxxxxxx" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none font-mono">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Email (Optional - for tax invoice & tracking)</label>
-                        <input type="email" name="customer_email" placeholder="arif@example.com" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <input type="email" name="customer_email" value="<?= htmlspecialchars($custEmail) ?>" placeholder="arif@example.com" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Select Delivery District (All 64 Districts) *</label>
                         <select name="district" id="districtSelect" onchange="updateDeliveryFee()" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50">
                             <?php foreach ($districts as $d): ?>
-                            <option value="<?= htmlspecialchars($d['name']) ?>" data-fee="<?= $d['delivery_fee'] ?>" data-time="<?= htmlspecialchars($d['estimated_days'] ?? '2-4 days') ?>" <?= ($d['name'] === 'Dhaka' || $d['name'] === 'Tangail') ? 'selected' : '' ?>>
+                            <option value="<?= htmlspecialchars($d['name']) ?>" data-fee="<?= $d['delivery_fee'] ?>" data-time="<?= htmlspecialchars($d['estimated_days'] ?? '2-4 days') ?>" <?= ($d['name'] === $custDistrict) ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($d['name']) ?> (<?= htmlspecialchars($d['division_name']) ?>) - ৳<?= number_format($d['delivery_fee'], 0) ?> [<?= htmlspecialchars($d['estimated_days'] ?? '2-4 days') ?>]
                             </option>
                             <?php endforeach; ?>
@@ -192,7 +233,7 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
 
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Complete Delivery Street Address *</label>
-                    <textarea name="delivery_address" rows="2" required placeholder="House/Flat No, Road Name, Area/Thana, Landmark..." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+                    <textarea name="delivery_address" rows="2" required placeholder="House/Flat No, Road Name, Area/Thana, Landmark..." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none"><?= htmlspecialchars($custAddress) ?></textarea>
                 </div>
 
                 <div>

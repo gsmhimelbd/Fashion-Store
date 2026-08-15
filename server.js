@@ -1880,15 +1880,17 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/checkout' && isGet) {
         const items = Object.values(sessionData.cart);
         const subtotal = items.reduce((s, i) => s + (i.price * i.quantity), 0);
+        const customer = sessionData.customer || {};
         const content = `
             <div class="max-w-7xl mx-auto px-4 py-10">
                 <h1 class="text-2xl sm:text-3xl font-extrabold font-serif mb-8">Express Checkout</h1>
                 <form id="chkForm" onsubmit="event.preventDefault(); placeOrder();" class="grid grid-cols-1 lg:grid-cols-12 gap-8 text-xs">
                     <div class="lg:col-span-7 bg-white p-6 rounded-3xl border space-y-4">
                         <h3 class="font-bold text-sm border-b pb-2">1. Delivery Address (64 Districts)</h3>
-                        <input type="text" id="chkName" required placeholder="Full Name *" class="w-full border rounded-xl px-3.5 py-2.5">
+                        ${customer.name ? `<div class="p-3 bg-emerald-50 text-emerald-800 rounded-xl font-bold">✓ Signed in as ${customer.name} (Auto-filled from profile)</div>` : ''}
+                        <input type="text" id="chkName" required value="${customer.name || ''}" placeholder="Full Name *" class="w-full border rounded-xl px-3.5 py-2.5">
                         <div class="grid grid-cols-2 gap-3">
-                            <input type="tel" id="chkPhone" required placeholder="Phone Number *" class="border rounded-xl px-3.5 py-2.5">
+                            <input type="tel" id="chkPhone" required value="${customer.phone || ''}" placeholder="Phone Number *" class="border rounded-xl px-3.5 py-2.5">
                             <select id="chkDistrict" onchange="updateDeliveryFee()" class="border rounded-xl px-3.5 py-2.5 bg-white font-bold">
                                 <option value="Tangail">Tangail (৳50 Delivery - 24 Hours)</option>
                                 <option value="Dhaka">Dhaka City (৳80 Delivery - 1-2 Days)</option>
@@ -1898,7 +1900,7 @@ const server = http.createServer(async (req, res) => {
                                 <option value="Other">All Other Districts (৳150 Delivery)</option>
                             </select>
                         </div>
-                        <textarea id="chkAddress" required rows="2" placeholder="Full Street Address *" class="w-full border rounded-xl px-3.5 py-2.5"></textarea>
+                        <textarea id="chkAddress" required rows="2" placeholder="Full Street Address *" class="w-full border rounded-xl px-3.5 py-2.5">${customer.address || ''}</textarea>
                     </div>
                     <div class="lg:col-span-5 bg-white p-6 rounded-3xl border space-y-4">
                         <h3 class="font-bold text-sm border-b pb-2">Order Total</h3>
