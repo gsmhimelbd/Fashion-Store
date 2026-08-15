@@ -2002,8 +2002,13 @@ const server = http.createServer(async (req, res) => {
 
         const s = getSettings();
         if (s.telegram_alerts_enabled === '1' && s.telegram_bot_token && s.telegram_chat_id) {
+            const rawPhone = body.phone || '';
+            const digits = String(rawPhone).replace(/[^0-9]/g, '');
+            const waPhone = digits.startsWith('880') ? digits : (digits.startsWith('0') ? '88' + digits : (digits.startsWith('1') && digits.length === 10 ? '880' + digits : (digits ? '88' + digits : '8801775153740')));
+            const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(`Assalamu Alaikum, OnlineBdMart theke apnar Order #${orderId} er bishoye jogajog korsi.`)}`;
+
             const itemsText = items.map(i => `• <b>${i.name}</b>\n  └ <i>${i.quantity} pcs × ৳${i.price}</i> = <b>৳${(i.quantity * i.price).toFixed(2)}</b>`).join('\n');
-            const teleMsg = `🛍️ <b>NEW ORDER RECEIVED!</b>\n━━━━━━━━━━━━━━━━━━━━\n🧾 <b>Order ID:</b> <code>#OBM-${orderId}</code> (DB: #${orderId})\n📊 <b>Status:</b> <code>[PENDING]</code>\n\n👤 <b>CUSTOMER DETAILS</b>\n• <b>Name:</b> ${body.customer_name}\n• <b>Phone:</b> <code>${body.phone}</code>\n• <b>Address:</b> ${body.address}, ${body.district}\n\n📦 <b>ORDERED ITEMS (${items.reduce((sum, i) => sum + i.quantity, 0)} pcs)</b>\n${itemsText}\n\n💰 <b>PAYMENT & BILLING SUMMARY</b>\n• <b>Subtotal:</b> ৳${subtotal.toFixed(2)}\n• <b>Delivery Fee:</b> ৳${deliveryCharge.toFixed(2)}\n• <b>GRAND TOTAL:</b> <b>৳${grandTotal.toFixed(2)}</b>\n• <b>Method:</b> <code>${(body.payment_method || 'COD').toUpperCase()}</code>\n━━━━━━━━━━━━━━━━━━━━\n⚡ <i>Tap an action button below to manage this order:</i>`;
+            const teleMsg = `🛍️ <b>NEW ORDER RECEIVED!</b>\n━━━━━━━━━━━━━━━━━━━━\n🧾 <b>Order ID:</b> <code>#OBM-${orderId}</code> (DB: #${orderId})\n📊 <b>Status:</b> <code>[PENDING]</code>\n\n👤 <b>CUSTOMER DETAILS</b>\n• <b>Name:</b> ${body.customer_name}\n• <b>Phone:</b> <code>${body.phone}</code>\n• <b>WhatsApp:</b> <a href="${waUrl}">Chat on WhatsApp</a>\n• <b>Address:</b> ${body.address}, ${body.district}\n\n📦 <b>ORDERED ITEMS (${items.reduce((sum, i) => sum + i.quantity, 0)} pcs)</b>\n${itemsText}\n\n💰 <b>PAYMENT & BILLING SUMMARY</b>\n• <b>Subtotal:</b> ৳${subtotal.toFixed(2)}\n• <b>Delivery Fee:</b> ৳${deliveryCharge.toFixed(2)}\n• <b>GRAND TOTAL:</b> <b>৳${grandTotal.toFixed(2)}</b>\n• <b>Method:</b> <code>${(body.payment_method || 'COD').toUpperCase()}</code>\n━━━━━━━━━━━━━━━━━━━━\n⚡ <i>Direct Contact & Order Actions:</i>`;
 
             callTelegramApi(s.telegram_bot_token, 'sendMessage', {
                 chat_id: s.telegram_chat_id,
@@ -2012,12 +2017,19 @@ const server = http.createServer(async (req, res) => {
                 reply_markup: {
                     inline_keyboard: [
                         [
-                            { text: '✅ Confirm Order', callback_data: `confirm_${orderId}` },
-                            { text: '🚚 Mark Shipped', callback_data: `ship_${orderId}` }
+                            { text: '🟢 WhatsApp Customer', url: waUrl },
+                            { text: '👁️ View in Admin', url: `https://onlinebdmart.com/admin-panel/orders` }
                         ],
                         [
-                            { text: '❌ Cancel Order', callback_data: `cancel_${orderId}` },
-                            { text: '👁️ Admin View', url: `https://onlinebdmart.com/admin-panel/orders` }
+                            { text: '✅ Confirm Order', callback_data: `confirm_${orderId}` },
+                            { text: '⚙️ Processing', callback_data: `process_${orderId}` }
+                        ],
+                        [
+                            { text: '🚚 Mark Shipped', callback_data: `ship_${orderId}` },
+                            { text: '📦 Delivered', callback_data: `deliver_${orderId}` }
+                        ],
+                        [
+                            { text: '❌ Cancel Order', callback_data: `cancel_${orderId}` }
                         ]
                     ]
                 }
@@ -2522,7 +2534,7 @@ const server = http.createServer(async (req, res) => {
                 stmt.run('telegram_chat_id', String(body.telegram_chat_id || ''));
                 stmt.run('telegram_alerts_enabled', body.telegram_alerts_enabled ? '1' : '0');
             } else if (action === 'test_alert' && token && chatId) {
-                const testMsg = `🚀 <b>TELEGRAM BOT CONNECTION TEST</b>\n━━━━━━━━━━━━━━━━━━━━\n🧾 <b>Order ID:</b> <code>#TEST-8972</code>\n📊 <b>Status:</b> <code>[PENDING]</code>\n\n👤 <b>CUSTOMER DETAILS</b>\n• <b>Name:</b> Himel (Test Customer)\n• <b>Phone:</b> <code>01775153740</code>\n• <b>Address:</b> Uttara Sector 11, Dhaka\n\n📦 <b>ORDERED ITEMS (2 pcs)</b>\n• <b>Naviforce Luxury Chronograph</b>\n  └ <i>1 pcs × ৳2,450</i> = <b>৳2,450</b>\n• <b>Full Grain Leather Wallet</b>\n  └ <i>1 pcs × ৳750</i> = <b>৳750</b>\n\n💰 <b>PAYMENT & BILLING SUMMARY</b>\n• <b>Subtotal:</b> ৳3,200.00\n• <b>Delivery Fee:</b> ৳60.00\n• <b>GRAND TOTAL:</b> <b>৳3,260.00</b>\n• <b>Method:</b> <code>BKASH</code>\n• <b>Sender Number:</b> <code>01775153740</code>\n• <b>TrxID:</b> <code>TRX897TEST123</code>\n━━━━━━━━━━━━━━━━━━━━\n⚡ <i>Tap an action button below to test interaction:</i>`;
+                const testMsg = `🚀 <b>TELEGRAM BOT CONNECTION TEST</b>\n━━━━━━━━━━━━━━━━━━━━\n🧾 <b>Order ID:</b> <code>#TEST-8972</code>\n📊 <b>Status:</b> <code>[PENDING]</code>\n\n👤 <b>CUSTOMER DETAILS</b>\n• <b>Name:</b> Himel (Test Customer)\n• <b>Phone:</b> <code>01775153740</code>\n• <b>WhatsApp:</b> <a href="https://wa.me/8801775153740">Chat on WhatsApp</a>\n• <b>Address:</b> Uttara Sector 11, Dhaka\n\n📦 <b>ORDERED ITEMS (2 pcs)</b>\n• <b>Naviforce Luxury Chronograph</b>\n  └ <i>1 pcs × ৳2,450</i> = <b>৳2,450</b>\n• <b>Full Grain Leather Wallet</b>\n  └ <i>1 pcs × ৳750</i> = <b>৳750</b>\n\n💰 <b>PAYMENT & BILLING SUMMARY</b>\n• <b>Subtotal:</b> ৳3,200.00\n• <b>Delivery Fee:</b> ৳60.00\n• <b>GRAND TOTAL:</b> <b>৳3,260.00</b>\n• <b>Method:</b> <code>BKASH</code>\n• <b>Sender Number:</b> <code>01775153740</code>\n• <b>TrxID:</b> <code>TRX897TEST123</code>\n━━━━━━━━━━━━━━━━━━━━\n⚡ <i>Direct Contact & Order Actions:</i>`;
                 
                 await callTelegramApi(token, 'sendMessage', {
                     chat_id: chatId,
@@ -2531,12 +2543,19 @@ const server = http.createServer(async (req, res) => {
                     reply_markup: {
                         inline_keyboard: [
                             [
-                                { text: '✅ Confirm Order', callback_data: 'confirm_9999' },
-                                { text: '🚚 Mark Shipped', callback_data: 'ship_9999' }
+                                { text: '🟢 WhatsApp Customer', url: 'https://wa.me/8801775153740' },
+                                { text: '👁️ View in Admin', url: 'https://onlinebdmart.com/admin-panel' }
                             ],
                             [
-                                { text: '❌ Cancel Order', callback_data: 'cancel_9999' },
-                                { text: '👁️ Admin View', url: 'https://onlinebdmart.com/admin-panel' }
+                                { text: '✅ Confirm Order', callback_data: 'confirm_9999' },
+                                { text: '⚙️ Processing', callback_data: 'process_9999' }
+                            ],
+                            [
+                                { text: '🚚 Mark Shipped', callback_data: 'ship_9999' },
+                                { text: '📦 Delivered', callback_data: 'deliver_9999' }
+                            ],
+                            [
+                                { text: '❌ Cancel Order', callback_data: 'cancel_9999' }
                             ]
                         ]
                     }
@@ -2560,11 +2579,11 @@ const server = http.createServer(async (req, res) => {
                 if (ordId === 9999) {
                     await callTelegramApi(token, 'answerCallbackQuery', {
                         callback_query_id: cb.id,
-                        text: `✓ Test Action '${act}' executed successfully!`,
+                        text: `✓ Action '${act}' executed successfully!`,
                         show_alert: true
                     });
                 } else if (ordId > 0) {
-                    const statusMap = { confirm: 'confirmed', ship: 'shipped', deliver: 'delivered', cancel: 'cancelled' };
+                    const statusMap = { confirm: 'confirmed', process: 'processing', ship: 'shipped', deliver: 'delivered', cancel: 'cancelled' };
                     const newSt = statusMap[act] || 'confirmed';
                     db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newSt, ordId);
                     await callTelegramApi(token, 'answerCallbackQuery', {

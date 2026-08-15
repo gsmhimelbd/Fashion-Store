@@ -28,7 +28,7 @@ if (empty($token)) {
 try {
     $db = getDB();
 
-    // 1. Handle Inline Button Callback Queries
+    // 1. Handle Inline Button Callback Queries (Confirm, Process, Ship, Deliver, Cancel)
     if (isset($update['callback_query'])) {
         $callback = $update['callback_query'];
         $callbackId = $callback['id'];
@@ -48,15 +48,16 @@ try {
             // Test order mock action
             telegramApiCall('answerCallbackQuery', [
                 'callback_query_id' => $callbackId,
-                'text' => "✓ Test Action '{$action}' acknowledged! Your Telegram Bot integration is working perfectly.",
+                'text' => "✓ Action '{$action}' acknowledged! Telegram Bot webhook is working perfectly.",
                 'show_alert' => true
             ], $token);
             exit;
         }
 
-        if ($orderId > 0 && in_array($action, ['confirm', 'ship', 'deliver', 'cancel'])) {
+        if ($orderId > 0 && in_array($action, ['confirm', 'process', 'ship', 'deliver', 'cancel'])) {
             $statusMap = [
                 'confirm' => 'confirmed',
+                'process' => 'processing',
                 'ship'    => 'shipped',
                 'deliver' => 'delivered',
                 'cancel'  => 'cancelled',
@@ -78,15 +79,17 @@ try {
                 $items = $itemsStmt->fetchAll();
 
                 $statusHead = match($newStatus) {
-                    'confirmed' => '✅ ORDER #' . ($order['order_number'] ?: $orderId) . ' CONFIRMED BY ADMIN!',
-                    'shipped'   => '🚚 ORDER #' . ($order['order_number'] ?: $orderId) . ' MARKED AS SHIPPED!',
-                    'delivered' => '📦 ORDER #' . ($order['order_number'] ?: $orderId) . ' DELIVERED!',
-                    'cancelled' => '❌ ORDER #' . ($order['order_number'] ?: $orderId) . ' CANCELLED!',
-                    default     => 'ORDER STATUS UPDATED'
+                    'confirmed'  => '✅ ORDER #' . ($order['order_number'] ?: $orderId) . ' CONFIRMED BY ADMIN!',
+                    'processing' => '⚙️ ORDER #' . ($order['order_number'] ?: $orderId) . ' IS NOW PROCESSING / PACKING!',
+                    'shipped'    => '🚚 ORDER #' . ($order['order_number'] ?: $orderId) . ' MARKED AS SHIPPED!',
+                    'delivered'  => '📦 ORDER #' . ($order['order_number'] ?: $orderId) . ' DELIVERED!',
+                    'cancelled'  => '❌ ORDER #' . ($order['order_number'] ?: $orderId) . ' CANCELLED!',
+                    default      => 'ORDER STATUS UPDATED'
                 };
 
+                $rawPhone = $order['customer_phone'] ?: ($order['phone'] ?: '');
                 $updatedText = formatTelegramOrderMessage($order, $items, $statusHead);
-                $updatedKeyboard = getTelegramOrderInlineKeyboard($orderId, $newStatus, $cfg['site_url']);
+                $updatedKeyboard = getTelegramOrderInlineKeyboard($orderId, $newStatus, $cfg['site_url'], $rawPhone);
 
                 // Edit original message text
                 if ($messageId) {
@@ -111,7 +114,7 @@ try {
         exit;
     }
 
-    // 2. Handle Text Bot Commands (/start, /orders, /confirm, /ship, /cancel, /view)
+    // 2. Handle Text Bot Commands (/start, /orders, /confirm, /process, /ship, /cancel, /view)
     if (isset($update['message'])) {
         $msg = $update['message'];
         $chatId = $msg['chat']['id'];
@@ -122,8 +125,9 @@ try {
             $welcome .= "━━━━━━━━━━━━━━━━━━━━\n";
             $welcome .= "Use the commands below to monitor and manage your store orders directly inside Telegram:\n\n";
             $welcome .= "📦 <b>/orders</b> — View latest pending orders\n";
-            $welcome .= "🔍 <b>/view [ID]</b> — View full order & payment details\n";
-            $welcome .= "✅ <b>/confirm [ID]</b> — Confirm an order\n";
+            $welcome .= "🔍 <b>/view [ID]</b> — View full order & customer details\n";
+            $welcome .= "✅ <b>/confirm [ID]</b> — Confirm order\n";
+            $welcome .= "⚙️ <b>/process [ID]</b> — Set order to Processing\n";
             $welcome .= "🚚 <b>/ship [ID]</b> — Mark order as shipped\n";
             $welcome .= "❌ <b>/cancel [ID]</b> — Cancel an order\n";
             $welcome .= "📊 <b>/status</b> — Store summary statistics\n\n";
@@ -154,8 +158,9 @@ try {
                 $itemsStmt->execute([$ord['id']]);
                 $items = $itemsStmt->fetchAll();
 
+                $rawPhone = $ord['customer_phone'] ?: ($ord['phone'] ?: '');
                 $ordText = formatTelegramOrderMessage($ord, $items, '⏳ PENDING ORDER #' . ($ord['order_number'] ?: $ord['id']));
-                $ordKb = getTelegramOrderInlineKeyboard($ord['id'], $ord['status'], $cfg['site_url']);
+                $ordKb = getTelegramOrderInlineKeyboard($ord['id'], $ord['status'], $cfg['site_url'], $rawPhone);
 
                 telegramApiCall('sendMessage', [
                     'chat_id' => $chatId,
@@ -171,6 +176,7 @@ try {
         if ($text === '/status') {
             $totalOrders = (int)$db->query("SELECT COUNT(*) FROM orders")->fetchColumn();
             $pendingOrders = (int)$db->query("SELECT COUNT(*) FROM orders WHERE status = 'pending'")->fetchColumn();
+            $processingOrders = (int)$db->query("SELECT COUNT(*) FROM orders WHERE status = 'processing'")->fetchColumn();
             $confirmedOrders = (int)$db->query("SELECT COUNT(*) FROM orders WHERE status = 'confirmed'")->fetchColumn();
             $deliveredOrders = (int)$db->query("SELECT COUNT(*) FROM orders WHERE status = 'delivered'")->fetchColumn();
             $totalSales = (float)$db->query("SELECT SUM(grand_total) FROM orders WHERE status != 'cancelled'")->fetchColumn();
@@ -179,8 +185,9 @@ try {
             $stats .= "━━━━━━━━━━━━━━━━━━━━\n";
             $stats .= "🧾 Total Orders: <b>{$totalOrders}</b>\n";
             $stats .= "⏳ Pending Orders: <b>{$pendingOrders}</b>\n";
-            $stats .= "✅ Confirmed Orders: <b>{$confirmedOrders}</b>\n";
-            $stats .= "📦 Delivered Orders: <b>{$deliveredOrders}</b>\n";
+            $stats .= "⚙️ Processing: <b>{$processingOrders}</b>\n";
+            $stats .= "✅ Confirmed: <b>{$confirmedOrders}</b>\n";
+            $stats .= "📦 Delivered: <b>{$deliveredOrders}</b>\n";
             $stats .= "💰 Total Revenue: <b>৳" . number_format($totalSales, 2) . "</b>\n";
 
             telegramApiCall('sendMessage', [
@@ -191,8 +198,8 @@ try {
             exit;
         }
 
-        // Handle single command with ID: e.g. /confirm 102 or /confirm_102
-        if (preg_match('/^\/(confirm|ship|deliver|cancel|view)[_ ](\d+)$/i', $text, $matches)) {
+        // Handle single command with ID: e.g. /confirm 102 or /process 102 or /ship 102
+        if (preg_match('/^\/(confirm|process|ship|deliver|cancel|view)[_ ](\d+)$/i', $text, $matches)) {
             $cmd = strtolower($matches[1]);
             $ordId = (int)$matches[2];
 
@@ -209,13 +216,15 @@ try {
                 exit;
             }
 
+            $rawPhone = $order['customer_phone'] ?: ($order['phone'] ?: '');
+
             if ($cmd === 'view') {
                 $itemsStmt = $db->prepare("SELECT * FROM order_items WHERE order_id = ?");
                 $itemsStmt->execute([$ordId]);
                 $items = $itemsStmt->fetchAll();
 
                 $ordText = formatTelegramOrderMessage($order, $items, '🔍 ORDER DETAILS #' . ($order['order_number'] ?: $ordId));
-                $ordKb = getTelegramOrderInlineKeyboard($ordId, $order['status'], $cfg['site_url']);
+                $ordKb = getTelegramOrderInlineKeyboard($ordId, $order['status'], $cfg['site_url'], $rawPhone);
 
                 telegramApiCall('sendMessage', [
                     'chat_id' => $chatId,
@@ -228,6 +237,7 @@ try {
             } else {
                 $statusMap = [
                     'confirm' => 'confirmed',
+                    'process' => 'processing',
                     'ship'    => 'shipped',
                     'deliver' => 'delivered',
                     'cancel'  => 'cancelled',
@@ -242,7 +252,7 @@ try {
                 $items = $itemsStmt->fetchAll();
 
                 $ordText = formatTelegramOrderMessage($order, $items, '✓ ORDER #' . ($order['order_number'] ?: $ordId) . ' UPDATED TO ' . strtoupper($newStatus));
-                $ordKb = getTelegramOrderInlineKeyboard($ordId, $newStatus, $cfg['site_url']);
+                $ordKb = getTelegramOrderInlineKeyboard($ordId, $newStatus, $cfg['site_url'], $rawPhone);
 
                 telegramApiCall('sendMessage', [
                     'chat_id' => $chatId,

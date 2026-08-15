@@ -1,7 +1,7 @@
 <?php
 /**
  * OnlineBdMart - Telegram Bot Order Management & Notification Engine
- * Full support for instant alerts, inline keyboard action buttons, webhook callbacks, and bot commands.
+ * Full support for instant alerts, WhatsApp/Call customer buttons, Processing status, inline action buttons, and webhook.
  */
 
 if (!defined('ABSPATH')) {
@@ -38,7 +38,6 @@ function telegramApiCall($method, array $params = [], $token = null) {
 
     $url = "https://api.telegram.org/bot{$token}/{$method}";
 
-    // Use cURL if available, fallback to stream context
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -101,11 +100,28 @@ function getTelegramBotWebhookInfo($token = null) {
     return telegramApiCall('getWebhookInfo', [], $token);
 }
 
+function cleanBdPhoneNumber($phone) {
+    $digits = preg_replace('/[^0-9]/', '', (string)$phone);
+    if (str_starts_with($digits, '880')) {
+        return $digits;
+    }
+    if (str_starts_with($digits, '0')) {
+        return '88' . $digits;
+    }
+    if (str_starts_with($digits, '1') && strlen($digits) === 10) {
+        return '880' . $digits;
+    }
+    return $digits ? ('88' . $digits) : '8801775153740';
+}
+
 function formatTelegramOrderMessage($order, $items, $statusTitle = '🛍️ NEW ORDER RECEIVED!') {
     $orderNo = $order['order_number'] ?: ('OBM-' . $order['id']);
     $orderId = $order['id'];
     $name = htmlspecialchars($order['customer_name'] ?: 'Customer');
-    $phone = htmlspecialchars($order['customer_phone'] ?: ($order['phone'] ?: 'N/A'));
+    $rawPhone = $order['customer_phone'] ?: ($order['phone'] ?: 'N/A');
+    $phone = htmlspecialchars($rawPhone);
+    $waPhone = cleanBdPhoneNumber($rawPhone);
+
     $address = htmlspecialchars($order['delivery_address'] ?: ($order['address'] ?: 'N/A'));
     $district = htmlspecialchars($order['district_name'] ?: ($order['district'] ?: 'Bangladesh'));
     $upazila = htmlspecialchars($order['upazila'] ?? '');
@@ -160,6 +176,7 @@ function formatTelegramOrderMessage($order, $items, $statusTitle = '🛍️ NEW 
     $msg .= "👤 <b>CUSTOMER DETAILS</b>\n";
     $msg .= "• <b>Name:</b> {$name}\n";
     $msg .= "• <b>Phone:</b> <code>{$phone}</code>\n";
+    $msg .= "• <b>WhatsApp Chat:</b> <a href='https://wa.me/{$waPhone}'>Click to Chat on WhatsApp</a>\n";
     $msg .= "• <b>Address:</b> {$locationInfo}\n\n";
 
     $msg .= "📦 <b>ORDERED ITEMS ({$totalQty} pcs)</b>\n";
@@ -176,12 +193,12 @@ function formatTelegramOrderMessage($order, $items, $statusTitle = '🛍️ NEW 
     }
 
     $msg .= "━━━━━━━━━━━━━━━━━━━━\n";
-    $msg .= "⚡ <i>Tap an action button below to instantly update this order:</i>";
+    $msg .= "⚡ <i>Direct Contact & Order Actions:</i>";
 
     return $msg;
 }
 
-function getTelegramOrderInlineKeyboard($orderId, $status = 'pending', $siteUrl = '') {
+function getTelegramOrderInlineKeyboard($orderId, $status = 'pending', $siteUrl = '', $rawPhone = '') {
     if (!$siteUrl) {
         $cfg = getTelegramBotConfig();
         $siteUrl = $cfg['site_url'];
@@ -190,36 +207,48 @@ function getTelegramOrderInlineKeyboard($orderId, $status = 'pending', $siteUrl 
     $status = strtolower($status);
     $adminUrl = rtrim($siteUrl, '/') . "/admin-panel/order-detail.php?id={$orderId}";
 
+    // Clean Phone for WhatsApp
+    $waPhone = cleanBdPhoneNumber($rawPhone);
+    $waUrl = "https://wa.me/{$waPhone}?text=" . urlencode("Assalamu Alaikum, OnlineBdMart theke apnar Order #{$orderId} er bishoye jogajog korsi.");
+
     $buttons = [];
 
-    // Row 1: Primary Actions
-    $row1 = [];
-    if ($status !== 'confirmed' && $status !== 'completed' && $status !== 'delivered') {
-        $row1[] = ['text' => '✅ Confirm Order', 'callback_data' => "confirm_{$orderId}"];
-    }
-    if ($status !== 'shipped' && $status !== 'delivered') {
-        $row1[] = ['text' => '🚚 Mark Shipped', 'callback_data' => "ship_{$orderId}"];
-    }
-    if (!empty($row1)) {
-        $buttons[] = $row1;
-    }
+    // Row 1: Direct 1-Tap Customer Contact Buttons
+    $buttons[] = [
+        ['text' => '🟢 WhatsApp Customer', 'url' => $waUrl],
+        ['text' => '👁️ View in Admin', 'url' => $adminUrl]
+    ];
 
-    // Row 2: Secondary Actions
+    // Row 2: Workflow Status Actions (Confirm / Processing)
     $row2 = [];
-    if ($status !== 'delivered') {
-        $row2[] = ['text' => '📦 Mark Delivered', 'callback_data' => "deliver_{$orderId}"];
+    if ($status !== 'confirmed' && $status !== 'processing' && $status !== 'shipped' && $status !== 'delivered') {
+        $row2[] = ['text' => '✅ Confirm Order', 'callback_data' => "confirm_{$orderId}"];
     }
-    if ($status !== 'cancelled') {
-        $row2[] = ['text' => '❌ Cancel Order', 'callback_data' => "cancel_{$orderId}"];
+    if ($status !== 'processing' && $status !== 'shipped' && $status !== 'delivered') {
+        $row2[] = ['text' => '⚙️ Processing', 'callback_data' => "process_{$orderId}"];
     }
     if (!empty($row2)) {
         $buttons[] = $row2;
     }
 
-    // Row 3: Admin Web Direct Link
-    $buttons[] = [
-        ['text' => '👁️ View in Admin Panel', 'url' => $adminUrl]
-    ];
+    // Row 3: Shipping & Delivery
+    $row3 = [];
+    if ($status !== 'shipped' && $status !== 'delivered') {
+        $row3[] = ['text' => '🚚 Mark Shipped', 'callback_data' => "ship_{$orderId}"];
+    }
+    if ($status !== 'delivered') {
+        $row3[] = ['text' => '📦 Delivered', 'callback_data' => "deliver_{$orderId}"];
+    }
+    if (!empty($row3)) {
+        $buttons[] = $row3;
+    }
+
+    // Row 4: Cancel Option
+    if ($status !== 'cancelled') {
+        $buttons[] = [
+            ['text' => '❌ Cancel Order', 'callback_data' => "cancel_{$orderId}"]
+        ];
+    }
 
     return ['inline_keyboard' => $buttons];
 }
@@ -243,8 +272,9 @@ function sendTelegramOrderAlert($orderId) {
         $itemsStmt->execute([$orderId]);
         $items = $itemsStmt->fetchAll();
 
+        $rawPhone = $order['customer_phone'] ?: ($order['phone'] ?: '');
         $text = formatTelegramOrderMessage($order, $items, '🛍️ NEW ORDER RECEIVED!');
-        $keyboard = getTelegramOrderInlineKeyboard($order['id'], $order['status'] ?? 'pending', $cfg['site_url']);
+        $keyboard = getTelegramOrderInlineKeyboard($order['id'], $order['status'] ?? 'pending', $cfg['site_url'], $rawPhone);
 
         $params = [
             'chat_id' => $cfg['chat_id'],
@@ -304,7 +334,7 @@ function sendTelegramTestNotification() {
     ];
 
     $text = formatTelegramOrderMessage($sampleOrder, $sampleItems, '🚀 TELEGRAM BOT CONNECTION TEST');
-    $keyboard = getTelegramOrderInlineKeyboard(9999, 'pending', $cfg['site_url']);
+    $keyboard = getTelegramOrderInlineKeyboard(9999, 'pending', $cfg['site_url'], '01775153740');
 
     $params = [
         'chat_id' => $cfg['chat_id'],
