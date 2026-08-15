@@ -457,6 +457,20 @@ INSERT INTO `settings` (`key`, `setting_key`, `value`, `setting_value`) VALUES
 ('seo_meta_title', 'seo_meta_title', 'OnlineBdMart • Online Shopping BD - Wholesale & Retail', 'OnlineBdMart • Online Shopping BD - Wholesale & Retail'),
 ('seo_meta_description', 'seo_meta_description', 'Buy original luxury watches, leather wallets, handbags, and smart gadgets at best prices in Bangladesh with Cash on Delivery across 64 districts.', 'Buy original luxury watches, leather wallets, handbags, and smart gadgets at best prices in Bangladesh with Cash on Delivery across 64 districts.'),
 ('seo_meta_keywords', 'seo_meta_keywords', 'online shopping bd, onlinebdmart, wholesale bangladesh, watches bd, leather wallet, accessories bangladesh, cash on delivery', 'online shopping bd, onlinebdmart, wholesale bangladesh, watches bd, leather wallet, accessories bangladesh, cash on delivery'),
-('seo_og_image', 'seo_og_image', 'images/hero/hero-1.jpg', 'images/hero/hero-1.jpg');
+('seo_og_image', 'seo_og_image', 'images/hero/hero-1.jpg', 'images/hero/hero-1.jpg'),
+('telegram_bot_token', 'telegram_bot_token', '', ''),
+('telegram_chat_id', 'telegram_chat_id', '', ''),
+('telegram_alerts_enabled', 'telegram_alerts_enabled', '0', '0'),
+('smtp_host', 'smtp_host', 'mail.onlinebdmart.com', 'mail.onlinebdmart.com'),
+('smtp_port', 'smtp_port', '465', '465'),
+('smtp_username', 'smtp_username', 'info@onlinebdmart.com', 'info@onlinebdmart.com'),
+('smtp_password', 'smtp_password', '', ''),
+('smtp_encryption', 'smtp_encryption', 'ssl', 'ssl'),
+('smtp_from_address', 'smtp_from_address', 'info@onlinebdmart.com', 'info@onlinebdmart.com'),
+('smtp_from_name', 'smtp_from_name', 'OnlineBdMart', 'OnlineBdMart'),
+('notify_admin_email', 'notify_admin_email', 'admin@onlinebdmart.com', 'admin@onlinebdmart.com'),
+('notify_order_placed', 'notify_order_placed', '1', '1'),
+('notify_order_shipped', 'notify_order_shipped', '1', '1'),
+('notify_order_delivered', 'notify_order_delivered', '1', '1');
 
 SET FOREIGN_KEY_CHECKS = 1;

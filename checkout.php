@@ -92,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $postOffice = trim($_POST['post_office'] ?? '');
     $address = trim($_POST['delivery_address'] ?? '');
     $paymentMethod = trim($_POST['payment_method'] ?? 'cod');
+    $payNumber = trim($_POST['payment_number'] ?? '');
     $trxId = trim($_POST['transaction_id'] ?? '');
     $notes = trim($_POST['notes'] ?? '');
 
@@ -121,12 +122,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 order_number, customer_name, customer_email, customer_phone, phone, whatsapp, 
                 delivery_address, address, district_name, district, upazila, post_office, country,
                 subtotal, delivery_cost, delivery_charge, total_amount, grand_total, 
-                payment_method, transaction_id, status, notes, created_at, updated_at
+                payment_method, payment_number, transaction_id, status, notes, created_at, updated_at
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, 
                 ?, ?, ?, ?, ?, ?, 'Bangladesh',
                 ?, ?, ?, ?, ?, 
-                ?, ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                ?, ?, ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             )");
             
             $orderStmt->execute([
@@ -148,6 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $total,
                 $total,
                 $paymentMethod,
+                $payNumber,
                 $trxId,
                 $notes
             ]);
@@ -171,6 +173,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Mark any cart abandonment session as recovered
             $db->prepare("UPDATE cart_abandonments SET recovered = 1 WHERE session_id = ? OR customer_phone = ?")->execute([session_id(), $phone]);
+
+            // Trigger Realtime Telegram Push Notification with Interactive Action Buttons
+            require_once __DIR__ . '/includes/telegram_bot.php';
+            @sendTelegramOrderAlert($orderId);
+
+            // Trigger Automated SMTP Email Confirmation & Admin Invoice
+            require_once __DIR__ . '/includes/smtp_mailer.php';
+            @sendOrderEmailNotifications($orderId);
 
             // Clear Cart
             unset($_SESSION['cart']);
@@ -363,10 +373,16 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
                     </label>
 
                     <!-- TrxID / Deposit reference input box -->
-                    <div id="trxIdContainer" class="hidden p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                        <label class="block text-xs font-bold text-slate-700" id="trxLabel">Enter Transaction ID (TrxID) / Deposit Slip Reference *</label>
-                        <input type="text" name="transaction_id" id="trxInput" placeholder="e.g. 9J8A7D6F5E" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold outline-none uppercase bg-white">
-                        <p class="text-[10px] text-slate-500" id="trxHelp">We will verify the transaction reference before dispatching your parcel.</p>
+                    <div id="trxIdContainer" class="hidden p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1" id="senderPhoneLabel">Sender Mobile Number (যে নাম্বার থেকে টাকা পাঠিয়েছেন) *</label>
+                            <input type="tel" name="payment_number" id="payNumberInput" placeholder="017xxxxxxxx" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold outline-none bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1" id="trxLabel">Enter Transaction ID (TrxID) / Deposit Slip Reference *</label>
+                            <input type="text" name="transaction_id" id="trxInput" placeholder="e.g. 9J8A7D6F5E" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold outline-none uppercase bg-white">
+                            <p class="text-[10px] text-slate-500 mt-1" id="trxHelp">We will verify the transaction reference before dispatching your parcel.</p>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -16,11 +16,22 @@ $customerName = $_SESSION['user_name'] ?? ($_SESSION['customer_name'] ?? 'Accoun
 
 try {
     $db = getDB();
-    $categories = $db->query("SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id) as products_count FROM categories c")->fetchAll();
+    $categories = $db->query("SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id) as products_count FROM categories c WHERE c.is_active = 1 OR c.is_active IS NULL ORDER BY c.display_order ASC, c.id ASC")->fetchAll();
     $allProducts = $db->query("SELECT p.id, p.name, p.slug, p.price, p.sale_price, p.image_path, c.name as category FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1")->fetchAll();
 } catch (Exception $e) {
     $categories = [];
     $allProducts = [];
+}
+
+if (empty($categories)) {
+    $categories = [
+        ['id' => 1, 'name' => 'Watches', 'slug' => 'watches', 'emoji' => '⌚', 'icon' => 'fa-clock', 'products_count' => 12],
+        ['id' => 2, 'name' => 'Smart Gadgets', 'slug' => 'smart-gadgets', 'emoji' => '📱', 'icon' => 'fa-mobile-screen-button', 'products_count' => 8],
+        ['id' => 3, 'name' => 'Leather Wallets', 'slug' => 'leather-wallets', 'emoji' => '👛', 'icon' => 'fa-wallet', 'products_count' => 15],
+        ['id' => 4, 'name' => 'Luxury Bags', 'slug' => 'luxury-bags', 'emoji' => '👜', 'icon' => 'fa-bag-shopping', 'products_count' => 9],
+        ['id' => 5, 'name' => 'Sunglasses', 'slug' => 'sunglasses', 'emoji' => '🕶️', 'icon' => 'fa-glasses', 'products_count' => 7],
+        ['id' => 6, 'name' => 'Accessories & Belts', 'slug' => 'accessories-belts', 'emoji' => '👔', 'icon' => 'fa-gem', 'products_count' => 11],
+    ];
 }
 
 $cartItems = getCartItems();

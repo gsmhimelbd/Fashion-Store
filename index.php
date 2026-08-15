@@ -10,6 +10,122 @@ try {
     $banners = [];
     $featuredProducts = [];
 }
+
+// Fallback banners if database is empty
+if (empty($banners)) {
+    $banners = [
+        [
+            'title' => 'Exclusive Luxury Watches & Fashion Accessories',
+            'subtitle' => 'Genuine Chronograph watches, full-grain leather wallets and designer sunglasses with 100% authentic quality guarantee.',
+            'badge_text' => '✨ NEW ARRIVALS 2026',
+            'button_text' => 'Shop Collection',
+            'button_url' => 'shop.php',
+            'image_path' => 'images/hero/hero-1.jpg'
+        ],
+        [
+            'title' => 'B2B Wholesale Hub — Direct Factory Rates in Bangladesh',
+            'subtitle' => 'Low MOQ from 5 pieces. Dedicated support for retail shops, Facebook page sellers, and drop-shippers.',
+            'badge_text' => '📦 B2B WHOLESALE',
+            'button_text' => 'View Wholesale Rates',
+            'button_url' => 'wholesale.php',
+            'image_path' => 'images/hero/hero-2.jpg'
+        ]
+    ];
+}
+
+// Fallback products if database is empty
+if (empty($featuredProducts)) {
+    $featuredProducts = [
+        [
+            'id' => 1,
+            'name' => 'Naviforce Luxury Chronograph Quartz Watch',
+            'slug' => 'naviforce-luxury-chronograph',
+            'price' => 3200.00,
+            'sale_price' => 2450.00,
+            'category_name' => 'Watches',
+            'image_path' => 'images/products/watch-1.jpg',
+            'rating' => 4.9,
+            'reviews_count' => 48
+        ],
+        [
+            'id' => 2,
+            'name' => 'Automatic Mechanical Skeleton Steel Watch',
+            'slug' => 'automatic-mechanical-skeleton-steel-watch',
+            'price' => 4500.00,
+            'sale_price' => 3650.00,
+            'category_name' => 'Watches',
+            'image_path' => 'images/products/watch-2.jpg',
+            'rating' => 4.8,
+            'reviews_count' => 36
+        ],
+        [
+            'id' => 3,
+            'name' => 'Full Grain Cowhide Leather Long Bifold Wallet',
+            'slug' => 'full-grain-cowhide-leather-wallet',
+            'price' => 1200.00,
+            'sale_price' => 750.00,
+            'category_name' => 'Leather Wallets',
+            'image_path' => 'images/products/wallet-1.jpg',
+            'rating' => 5.0,
+            'reviews_count' => 52
+        ],
+        [
+            'id' => 4,
+            'name' => 'Executive Leather Handbag with Shoulder Strap',
+            'slug' => 'executive-leather-handbag',
+            'price' => 3800.00,
+            'sale_price' => 2890.00,
+            'category_name' => 'Luxury Bags',
+            'image_path' => 'images/products/bag-1.jpg',
+            'rating' => 4.9,
+            'reviews_count' => 29
+        ],
+        [
+            'id' => 5,
+            'name' => 'Polarized UV400 Retro Aviator Sunglasses',
+            'slug' => 'polarized-uv400-aviator-sunglasses',
+            'price' => 1500.00,
+            'sale_price' => 990.00,
+            'category_name' => 'Sunglasses',
+            'image_path' => 'images/products/sunglasses-1.jpg',
+            'rating' => 4.7,
+            'reviews_count' => 41
+        ],
+        [
+            'id' => 6,
+            'name' => 'Magnetic Wireless Fast Power Bank 10000mAh',
+            'slug' => 'magnetic-wireless-powerbank-10000mah',
+            'price' => 2400.00,
+            'sale_price' => 1850.00,
+            'category_name' => 'Smart Gadgets',
+            'image_path' => 'images/products/gadget-1.jpg',
+            'rating' => 4.9,
+            'reviews_count' => 64
+        ],
+        [
+            'id' => 7,
+            'name' => 'Automatic Buckle Genuine Cow Leather Belt',
+            'slug' => 'automatic-buckle-cow-leather-belt',
+            'price' => 1400.00,
+            'sale_price' => 890.00,
+            'category_name' => 'Accessories & Belts',
+            'image_path' => 'images/products/belt-1.jpg',
+            'rating' => 4.8,
+            'reviews_count' => 33
+        ],
+        [
+            'id' => 8,
+            'name' => 'True Wireless ANC Active Noise Cancelling Earbuds',
+            'slug' => 'true-wireless-anc-earbuds',
+            'price' => 2800.00,
+            'sale_price' => 1950.00,
+            'category_name' => 'Smart Gadgets',
+            'image_path' => 'images/products/gadget-2.jpg',
+            'rating' => 4.9,
+            'reviews_count' => 72
+        ]
+    ];
+}
 ?>
 
 <!-- 1. Animated Hero Carousel Slider (Rounded Corners & Spaced Sides) -->
@@ -23,7 +139,7 @@ try {
 
                 <div class="relative max-w-7xl mx-auto px-6 sm:px-12 py-12 sm:py-16 w-full">
                     <div class="max-w-2xl space-y-4 sm:space-y-5">
-                        <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-black tracking-widest uppercase animate-pulse">
+                        <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-black tracking-widest uppercase animate-pulse border border-indigo-500/30">
                             <?= htmlspecialchars($banner['badge_text'] ?: '✨ NEW ARRIVALS 2026') ?>
                         </span>
 
@@ -89,11 +205,11 @@ try {
 </section>
 
 <!-- 3. WHOLESALE / B2B SHOWCASE CARD -->
-<section class="py-8 bg-slate-50">
+<section class="py-4 bg-slate-50 mb-10">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 rounded-3xl p-8 sm:p-10 text-white shadow-xl border border-slate-800 flex flex-col lg:flex-row items-center justify-between gap-8 mb-14">
+        <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 rounded-3xl p-8 sm:p-10 text-white shadow-xl border border-slate-800 flex flex-col lg:flex-row items-center justify-between gap-8">
             <div class="space-y-3 max-w-xl text-center lg:text-left">
-                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-wider">
+                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-wider border border-amber-500/30">
                     <i class="fas fa-boxes-stacked"></i> Wholesale / B2B Portal
                 </span>
                 <h3 class="text-2xl sm:text-3xl font-extrabold font-serif">Bulk Prices for Retailers & Resellers</h3>
@@ -114,59 +230,86 @@ try {
     </div>
 </section>
 
-<!-- 4. Shop By Category Grid -->
-<section class="py-12 bg-slate-50">
+<!-- 4. Shop By Category Grid (Always Visible with Dynamic / Seed Categories) -->
+<section class="py-10 bg-slate-50 mb-10">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
             <div>
                 <span class="text-[11px] font-extrabold uppercase tracking-widest text-indigo-600">Shop By Category</span>
                 <h2 class="text-2xl sm:text-3xl font-extrabold font-serif text-slate-900 mt-1">Browse Top Categories</h2>
             </div>
-            <a href="categories.php" class="text-xs font-bold text-indigo-600 hover:underline">View All &rarr;</a>
+            <a href="categories.php" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1">
+                <span>View All Categories</span> &rarr;
+            </a>
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            <?php foreach ($categories as $cat): ?>
-            <a href="shop.php?category=<?= htmlspecialchars($cat['slug']) ?>" class="group bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-500 hover:shadow-xl transition flex flex-col items-center text-center">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-50 to-indigo-100 group-hover:from-indigo-600 group-hover:to-cyan-500 text-indigo-600 group-hover:text-white flex items-center justify-center text-2xl transition mb-3">
-                    <i class="fas <?= htmlspecialchars($cat['icon'] ?: 'fa-tag') ?>"></i>
+            <?php 
+            $displayCats = array_slice($categories, 0, 6);
+            foreach ($displayCats as $cat): 
+                $icon = !empty($cat['icon']) ? $cat['icon'] : 'fa-tag';
+                $pCount = $cat['products_count'] ?? 0;
+            ?>
+            <a href="shop.php?category=<?= htmlspecialchars($cat['slug']) ?>" class="group bg-white p-5 rounded-2xl border border-slate-200/80 hover:border-indigo-500 hover:shadow-xl transition-all duration-300 flex flex-col items-center text-center">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-50 to-indigo-100 group-hover:from-indigo-600 group-hover:to-cyan-500 text-indigo-600 group-hover:text-white flex items-center justify-center text-2xl transition-all duration-300 mb-3 shadow-sm">
+                    <i class="fas <?= htmlspecialchars($icon) ?>"></i>
                 </div>
-                <h3 class="text-xs font-extrabold text-slate-900 group-hover:text-indigo-600"><?= htmlspecialchars($cat['name']) ?></h3>
-                <span class="text-[10px] text-slate-400 font-semibold mt-0.5"><?= $cat['products_count'] ?> Items</span>
+                <h3 class="text-xs font-extrabold text-slate-900 group-hover:text-indigo-600 transition"><?= htmlspecialchars($cat['name']) ?></h3>
+                <span class="text-[10px] text-slate-400 font-semibold mt-0.5"><?= $pCount ?> Items</span>
             </a>
             <?php endforeach; ?>
         </div>
     </div>
 </section>
 
-<!-- 5. Flash Deals with Live Countdown -->
+<!-- 5. Flash Deals with Live Countdown (ROUNDED WITH SPACED SIDES) -->
 <?php if (($s['deals_enabled'] ?? '1') === '1'): 
     $dealEndTime = $s['deals_end_time'] ?? date('Y-m-d 23:59:59', strtotime('+3 days'));
 ?>
-<section class="py-12 bg-slate-950 text-white relative overflow-hidden">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-        <div class="space-y-4 max-w-xl">
-            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold uppercase tracking-widest"><?= htmlspecialchars($s['deals_badge_text'] ?? '% Limited Time Flash Sale') ?></span>
-            <h2 class="text-3xl sm:text-4xl font-extrabold font-serif leading-tight"><?= htmlspecialchars($s['deals_banner_title'] ?? 'Big Deals on Top Fashion Gadgets') ?></h2>
-            <p class="text-slate-300 text-xs sm:text-sm"><?= htmlspecialchars($s['deals_banner_subtitle'] ?? 'Grab luxury chronograph watches and leather wallets at unbeatable discount prices.') ?></p>
-            <div class="pt-2">
-                <a href="deals.php" class="px-7 py-3 bg-white text-slate-950 font-black text-xs rounded-xl inline-block shadow hover:bg-slate-100 transition">Shop Flash Deals &rarr;</a>
+<div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 my-10 sm:my-14">
+    <section class="relative bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 text-white overflow-hidden rounded-3xl sm:rounded-[2.5rem] shadow-2xl border border-slate-800/80 p-6 sm:p-10 lg:p-12">
+        <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+            <div class="space-y-4 max-w-xl">
+                <span class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-rose-500/20 text-rose-400 text-xs font-black uppercase tracking-widest border border-rose-500/30 animate-pulse">
+                    <?= htmlspecialchars($s['deals_badge_text'] ?? '% Limited Time Flash Sale') ?>
+                </span>
+                <h2 class="text-2xl sm:text-4xl font-extrabold font-serif leading-tight">
+                    <?= htmlspecialchars($s['deals_banner_title'] ?? 'Big Deals on Top Fashion Gadgets') ?>
+                </h2>
+                <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">
+                    <?= htmlspecialchars($s['deals_banner_subtitle'] ?? 'Grab luxury chronograph watches and leather wallets at unbeatable discount prices.') ?>
+                </p>
+                <div class="pt-2 flex flex-wrap items-center gap-3">
+                    <a href="deals.php" class="px-7 py-3 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white font-extrabold text-xs rounded-xl shadow-lg transition flex items-center gap-2">
+                        <span>Shop Flash Deals</span> <i class="fas fa-arrow-right text-xs"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Countdown Timer Box -->
+            <div class="bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-3xl p-6 sm:p-8 flex items-center justify-center gap-3 sm:gap-5 text-center shadow-xl">
+                <div>
+                    <div id="liveHours" class="w-16 sm:w-20 py-3 sm:py-4 bg-slate-950/80 border border-slate-800 rounded-2xl text-2xl sm:text-3xl font-black text-indigo-400 font-mono shadow-inner">12</div>
+                    <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mt-1 block">Hours</span>
+                </div>
+                <span class="text-2xl font-bold text-slate-600 -mt-4">:</span>
+                <div>
+                    <div id="liveMins" class="w-16 sm:w-20 py-3 sm:py-4 bg-slate-950/80 border border-slate-800 rounded-2xl text-2xl sm:text-3xl font-black text-emerald-400 font-mono shadow-inner">48</div>
+                    <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mt-1 block">Mins</span>
+                </div>
+                <span class="text-2xl font-bold text-slate-600 -mt-4">:</span>
+                <div>
+                    <div id="liveSecs" class="w-16 sm:w-20 py-3 sm:py-4 bg-slate-950/80 border border-slate-800 rounded-2xl text-2xl sm:text-3xl font-black text-amber-400 font-mono shadow-inner">26</div>
+                    <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mt-1 block">Secs</span>
+                </div>
             </div>
         </div>
-
-        <div class="bg-white/5 border border-white/10 rounded-3xl p-6 flex items-center justify-center gap-4 text-center">
-            <div><div id="liveHours" class="w-16 sm:w-20 py-3 bg-slate-900 rounded-2xl text-2xl sm:text-3xl font-black text-indigo-400 font-mono">12</div><span class="text-[10px] text-slate-400 uppercase font-bold">Hours</span></div>
-            <span class="text-2xl font-bold text-slate-600">:</span>
-            <div><div id="liveMins" class="w-16 sm:w-20 py-3 bg-slate-900 rounded-2xl text-2xl sm:text-3xl font-black text-emerald-400 font-mono">48</div><span class="text-[10px] text-slate-400 uppercase font-bold">Mins</span></div>
-            <span class="text-2xl font-bold text-slate-600">:</span>
-            <div><div id="liveSecs" class="w-16 sm:w-20 py-3 bg-slate-900 rounded-2xl text-2xl sm:text-3xl font-black text-amber-400 font-mono">26</div><span class="text-[10px] text-slate-400 uppercase font-bold">Secs</span></div>
-        </div>
-    </div>
-</section>
+    </section>
+</div>
 <?php endif; ?>
 
 <!-- 6. Best Sellers & Top Picks -->
-<section class="py-16 bg-white">
+<section class="py-12 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between mb-8">
             <div>
@@ -180,7 +323,7 @@ try {
             <?php foreach ($featuredProducts as $product): 
                 $price = ($product['sale_price'] && $product['sale_price'] > 0 && $product['sale_price'] < $product['price']) ? $product['sale_price'] : $product['price'];
             ?>
-            <div class="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl transition flex flex-col justify-between overflow-hidden relative">
+            <div class="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden relative">
                 <?php if ($product['sale_price'] && $product['sale_price'] < $product['price']): ?>
                 <span class="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white">Sale</span>
                 <?php endif; ?>

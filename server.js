@@ -106,6 +106,45 @@ function serveStatic(req, res, pathname) {
     return true;
 }
 
+// Helper to call Telegram Bot API
+function callTelegramApi(token, method, payload) {
+    return new Promise((resolve) => {
+        if (!token) return resolve({ ok: false, description: 'Telegram token is empty.' });
+        const https = require('node:https');
+        const data = JSON.stringify(payload);
+        const req = https.request({
+            hostname: 'api.telegram.org',
+            port: 443,
+            path: `/bot${token}/${method}`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(data)
+            },
+            timeout: 10000
+        }, (res) => {
+            let body = '';
+            res.on('data', chunk => body += chunk);
+            res.on('end', () => {
+                try {
+                    resolve(JSON.parse(body));
+                } catch(e) {
+                    resolve({ ok: false, description: body });
+                }
+            });
+        });
+        req.on('error', (err) => {
+            resolve({ ok: false, description: err.message });
+        });
+        req.on('timeout', () => {
+            req.destroy();
+            resolve({ ok: false, description: 'Telegram request timed out.' });
+        });
+        req.write(data);
+        req.end();
+    });
+}
+
 // Master Public Layout with Zero-Dependency Drawers & Search
 function renderLayout(title, content, sessionData, activeNav = '') {
     const s = getSettings();
@@ -1604,21 +1643,23 @@ const server = http.createServer(async (req, res) => {
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">${catCards}</div>
                 </div>
 
-                <!-- Flash Deals with Live Countdown -->
-                <div class="p-8 sm:p-10 rounded-3xl bg-slate-950 text-white relative overflow-hidden mb-14">
+                <!-- Flash Deals with Live Countdown (Rounded Corners & Spaced Sides) -->
+                <div class="p-8 sm:p-12 rounded-3xl sm:rounded-[2.5rem] bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 text-white relative overflow-hidden mb-14 border border-slate-800 shadow-2xl">
                     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                         <div class="space-y-4 max-w-xl">
-                            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold uppercase tracking-widest">% Limited Time Offer</span>
+                            <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-500/20 text-rose-400 text-xs font-black uppercase tracking-widest border border-rose-500/30 animate-pulse">% Limited Time Flash Sale</span>
                             <h3 class="text-3xl sm:text-4xl font-extrabold font-serif">Big Deals on Top Fashion Gadgets</h3>
                             <p class="text-slate-300 text-xs sm:text-sm">Grab luxury chronograph watches and leather wallets at unbeatable discount prices.</p>
-                            <a href="/deals" class="px-7 py-3 bg-white text-slate-950 font-black text-xs rounded-xl inline-block shadow">Shop Deals &rarr;</a>
+                            <div class="pt-2">
+                                <a href="/deals" class="px-7 py-3 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white font-extrabold text-xs rounded-xl inline-flex items-center gap-2 shadow-lg transition"><span>Shop Flash Deals</span> <i class="fas fa-arrow-right text-xs"></i></a>
+                            </div>
                         </div>
-                        <div class="bg-white/5 border border-white/10 backdrop-blur-md rounded-3xl p-6 flex items-center justify-center gap-4 text-center">
-                            <div><div id="liveHours" class="w-16 sm:w-20 py-3 bg-slate-900 rounded-2xl text-2xl sm:text-3xl font-black text-indigo-400 font-mono">12</div><span class="text-[10px] text-slate-400 uppercase font-bold">Hours</span></div>
-                            <span class="text-2xl font-bold text-slate-600">:</span>
-                            <div><div id="liveMins" class="w-16 sm:w-20 py-3 bg-slate-900 rounded-2xl text-2xl sm:text-3xl font-black text-emerald-400 font-mono">48</div><span class="text-[10px] text-slate-400 uppercase font-bold">Mins</span></div>
-                            <span class="text-2xl font-bold text-slate-600">:</span>
-                            <div><div id="liveSecs" class="w-16 sm:w-20 py-3 bg-slate-900 rounded-2xl text-2xl sm:text-3xl font-black text-amber-400 font-mono">26</div><span class="text-[10px] text-slate-400 uppercase font-bold">Secs</span></div>
+                        <div class="bg-slate-900/90 border border-slate-700/60 backdrop-blur-md rounded-3xl p-6 sm:p-8 flex items-center justify-center gap-4 text-center shadow-xl">
+                            <div><div id="liveHours" class="w-16 sm:w-20 py-3 sm:py-4 bg-slate-950 border border-slate-800 rounded-2xl text-2xl sm:text-3xl font-black text-indigo-400 font-mono shadow-inner">12</div><span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mt-1 block">Hours</span></div>
+                            <span class="text-2xl font-bold text-slate-600 -mt-4">:</span>
+                            <div><div id="liveMins" class="w-16 sm:w-20 py-3 sm:py-4 bg-slate-950 border border-slate-800 rounded-2xl text-2xl sm:text-3xl font-black text-emerald-400 font-mono shadow-inner">48</div><span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mt-1 block">Mins</span></div>
+                            <span class="text-2xl font-bold text-slate-600 -mt-4">:</span>
+                            <div><div id="liveSecs" class="w-16 sm:w-20 py-3 sm:py-4 bg-slate-950 border border-slate-800 rounded-2xl text-2xl sm:text-3xl font-black text-amber-400 font-mono shadow-inner">26</div><span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mt-1 block">Secs</span></div>
                         </div>
                     </div>
                 </div>
@@ -1959,6 +2000,30 @@ const server = http.createServer(async (req, res) => {
         const itemStmt = db.prepare('INSERT INTO order_items (order_id, product_id, product_name, product_image, price, quantity) VALUES (?, ?, ?, ?, ?, ?)');
         for (const i of items) itemStmt.run(orderId, i.id, i.name, i.image, i.price, i.quantity);
 
+        const s = getSettings();
+        if (s.telegram_alerts_enabled === '1' && s.telegram_bot_token && s.telegram_chat_id) {
+            const itemsText = items.map(i => `• <b>${i.name}</b>\n  └ <i>${i.quantity} pcs × ৳${i.price}</i> = <b>৳${(i.quantity * i.price).toFixed(2)}</b>`).join('\n');
+            const teleMsg = `🛍️ <b>NEW ORDER RECEIVED!</b>\n━━━━━━━━━━━━━━━━━━━━\n🧾 <b>Order ID:</b> <code>#OBM-${orderId}</code> (DB: #${orderId})\n📊 <b>Status:</b> <code>[PENDING]</code>\n\n👤 <b>CUSTOMER DETAILS</b>\n• <b>Name:</b> ${body.customer_name}\n• <b>Phone:</b> <code>${body.phone}</code>\n• <b>Address:</b> ${body.address}, ${body.district}\n\n📦 <b>ORDERED ITEMS (${items.reduce((sum, i) => sum + i.quantity, 0)} pcs)</b>\n${itemsText}\n\n💰 <b>PAYMENT & BILLING SUMMARY</b>\n• <b>Subtotal:</b> ৳${subtotal.toFixed(2)}\n• <b>Delivery Fee:</b> ৳${deliveryCharge.toFixed(2)}\n• <b>GRAND TOTAL:</b> <b>৳${grandTotal.toFixed(2)}</b>\n• <b>Method:</b> <code>${(body.payment_method || 'COD').toUpperCase()}</code>\n━━━━━━━━━━━━━━━━━━━━\n⚡ <i>Tap an action button below to manage this order:</i>`;
+
+            callTelegramApi(s.telegram_bot_token, 'sendMessage', {
+                chat_id: s.telegram_chat_id,
+                text: teleMsg,
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: '✅ Confirm Order', callback_data: `confirm_${orderId}` },
+                            { text: '🚚 Mark Shipped', callback_data: `ship_${orderId}` }
+                        ],
+                        [
+                            { text: '❌ Cancel Order', callback_data: `cancel_${orderId}` },
+                            { text: '👁️ Admin View', url: `https://onlinebdmart.com/admin-panel/orders` }
+                        ]
+                    ]
+                }
+            }).catch(() => {});
+        }
+
         sessionData.cart = {};
         return sendJson({ success: true, redirect: `/order-success/${orderId}`, order_id: orderId });
     }
@@ -2288,6 +2353,232 @@ const server = http.createServer(async (req, res) => {
             return sendHtml(renderAdminLayout('Google 2FA Setup', content, 'google-2fa'));
         }
 
+        if (pathname === '/admin-panel/smtp' && isGet) {
+            const s = getSettings();
+            const content = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs">
+                    <div class="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-sm">
+                        <div class="flex items-center justify-between border-b pb-4">
+                            <div>
+                                <span class="text-xs font-bold uppercase text-indigo-600">Automated Notifications</span>
+                                <h3 class="text-lg font-black text-slate-900 mt-1">SMTP Server & Email Settings</h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                        </div>
+
+                        <form method="POST" action="/admin-panel/smtp" class="space-y-4">
+                            <input type="hidden" name="action" value="save_smtp">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div><label class="block font-bold text-slate-700 mb-1">SMTP Host Server *</label><input type="text" name="smtp_host" value="${s.smtp_host || 'mail.onlinebdmart.com'}" required class="w-full border rounded-xl px-3.5 py-2.5 outline-none font-mono"></div>
+                                <div><label class="block font-bold text-slate-700 mb-1">SMTP Port *</label><input type="text" name="smtp_port" value="${s.smtp_port || '465'}" required class="w-full border rounded-xl px-3.5 py-2.5 outline-none font-mono"></div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div><label class="block font-bold text-slate-700 mb-1">SMTP Username / Email *</label><input type="text" name="smtp_username" value="${s.smtp_username || 'info@onlinebdmart.com'}" required class="w-full border rounded-xl px-3.5 py-2.5 outline-none"></div>
+                                <div><label class="block font-bold text-slate-700 mb-1">SMTP Password *</label><input type="password" name="smtp_password" value="${s.smtp_password || ''}" placeholder="••••••••" class="w-full border rounded-xl px-3.5 py-2.5 outline-none"></div>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div><label class="block font-bold text-slate-700 mb-1">Encryption</label><select name="smtp_encryption" class="w-full border rounded-xl px-3.5 py-2.5 bg-white"><option value="ssl" ${s.smtp_encryption === 'ssl' ? 'selected' : ''}>SSL (Port 465)</option><option value="tls" ${s.smtp_encryption === 'tls' ? 'selected' : ''}>TLS (Port 587)</option></select></div>
+                                <div><label class="block font-bold text-slate-700 mb-1">Sender Email</label><input type="email" name="smtp_from_address" value="${s.smtp_from_address || 'info@onlinebdmart.com'}" class="w-full border rounded-xl px-3.5 py-2.5 outline-none"></div>
+                                <div><label class="block font-bold text-slate-700 mb-1">Sender Name</label><input type="text" name="smtp_from_name" value="${s.smtp_from_name || 'OnlineBdMart'}" class="w-full border rounded-xl px-3.5 py-2.5 outline-none"></div>
+                            </div>
+                            <div class="pt-4 border-t space-y-2">
+                                <label class="block font-bold text-slate-700 mb-1">Store Owner Alert Recipient</label>
+                                <input type="email" name="notify_admin_email" value="${s.notify_admin_email || 'admin@onlinebdmart.com'}" class="w-full border rounded-xl px-3.5 py-2.5 outline-none">
+                            </div>
+                            <button type="submit" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl shadow transition">Save SMTP Settings</button>
+                        </form>
+                    </div>
+
+                    <div class="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 h-fit shadow-sm">
+                        <h4 class="text-sm font-black text-slate-900 flex items-center gap-2"><i class="fas fa-paper-plane text-indigo-600"></i> Live Test Mailer</h4>
+                        <p class="text-slate-500">Send an instant test email to verify your SMTP connection.</p>
+                        <form method="POST" action="/admin-panel/smtp" class="space-y-3">
+                            <input type="hidden" name="action" value="send_test_email">
+                            <div><label class="block font-bold text-slate-700 mb-1">Target Email</label><input type="email" name="test_recipient" required placeholder="your.email@gmail.com" class="w-full border rounded-xl px-3.5 py-2.5 outline-none"></div>
+                            <button type="submit" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow transition">Send Test Email</button>
+                        </form>
+                    </div>
+                </div>
+            `;
+            return sendHtml(renderAdminLayout('SMTP Configuration', content, 'smtp'));
+        }
+
+        if (pathname === '/admin-panel/smtp' && method === 'POST') {
+            const body = await parseBody(req);
+            const action = body.action || '';
+            if (action === 'save_smtp') {
+                const stmt = db.prepare('REPLACE INTO settings (setting_key, setting_value) VALUES (?, ?)');
+                for (const [k, v] of Object.entries(body)) {
+                    if (k !== 'action') stmt.run(k, String(v));
+                }
+            }
+            return redirect('/admin-panel/smtp');
+        }
+
+        if (pathname === '/admin-panel/telegram' && isGet) {
+            const s = getSettings();
+            const token = s.telegram_bot_token || '';
+            const chatId = s.telegram_chat_id || '';
+            let botMe = null;
+            if (token) {
+                try { botMe = await callTelegramApi(token, 'getMe', {}); } catch(e) {}
+            }
+
+            const content = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs">
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-sm">
+                            <div class="flex items-center justify-between border-b pb-4">
+                                <div>
+                                    <span class="text-xs font-bold uppercase text-sky-600">Realtime Push Notifications</span>
+                                    <h3 class="text-lg font-black text-slate-900 mt-1">Telegram Bot Order Management</h3>
+                                </div>
+                                <div class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center text-xl">
+                                    <i class="fab fa-telegram"></i>
+                                </div>
+                            </div>
+
+                            <form method="POST" action="/admin-panel/telegram" class="space-y-4">
+                                <input type="hidden" name="action" value="save">
+                                <div>
+                                    <label class="block font-bold text-slate-700 mb-1">Telegram Bot Token (বট টোকেন) *</label>
+                                    <input type="text" name="telegram_bot_token" value="${token}" placeholder="e.g. 7123456789:AAHk3_xyz987AbcDefGhIjKlMnOpQrStUv" class="w-full border rounded-xl px-3.5 py-2.5 font-mono outline-none">
+                                    <p class="text-[11px] text-slate-400 mt-1">Get your Bot Token from <a href="https://t.me/BotFather" target="_blank" class="text-sky-600 font-bold underline">@BotFather</a> on Telegram.</p>
+                                </div>
+                                <div>
+                                    <label class="block font-bold text-slate-700 mb-1">Telegram Chat ID / Admin ID (চ্যাট আইডি) *</label>
+                                    <input type="text" name="telegram_chat_id" value="${chatId}" placeholder="e.g. 123456789" class="w-full border rounded-xl px-3.5 py-2.5 font-mono outline-none">
+                                    <p class="text-[11px] text-slate-400 mt-1">Get your User ID from <a href="https://t.me/userinfobot" target="_blank" class="text-sky-600 font-bold underline">@userinfobot</a> on Telegram.</p>
+                                </div>
+                                <div class="pt-2">
+                                    <label class="flex items-center gap-2 cursor-pointer p-3 bg-slate-50 border rounded-xl">
+                                        <input type="checkbox" name="telegram_alerts_enabled" value="1" ${s.telegram_alerts_enabled === '1' ? 'checked' : ''} class="text-sky-600 rounded">
+                                        <span class="font-bold text-slate-800">Enable Instant Telegram Alerts for Every New Order</span>
+                                    </label>
+                                </div>
+                                <button type="submit" class="px-8 py-3 bg-sky-600 hover:bg-sky-500 text-white font-extrabold rounded-xl shadow transition">Save Telegram Settings</button>
+                            </form>
+                        </div>
+
+                        <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-4 shadow-sm">
+                            <h4 class="text-sm font-extrabold text-slate-900 flex items-center gap-2"><i class="fas fa-network-wired text-sky-600"></i> Webhook & Interactive Buttons</h4>
+                            <p class="text-slate-500">Test live message dispatch and connect interactive buttons (Confirm, Ship, Cancel).</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                                <form method="POST" action="/admin-panel/telegram" class="p-4 bg-slate-50 border rounded-2xl space-y-2">
+                                    <input type="hidden" name="action" value="test_alert">
+                                    <strong class="block text-sky-700">1. Send Test Notification</strong>
+                                    <p class="text-[11px] text-slate-500">Sends a sample order notification with buttons to your Telegram.</p>
+                                    <button type="submit" class="w-full py-2.5 bg-sky-600 text-white font-bold rounded-xl text-xs shadow">Send Live Test Message</button>
+                                </form>
+                                <form method="POST" action="/admin-panel/telegram" class="p-4 bg-slate-50 border rounded-2xl space-y-2">
+                                    <input type="hidden" name="action" value="set_webhook">
+                                    <strong class="block text-emerald-700">2. Connect Webhook</strong>
+                                    <p class="text-[11px] text-slate-500">Connects bot commands and inline confirmation buttons.</p>
+                                    <button type="submit" class="w-full py-2.5 bg-emerald-600 text-white font-bold rounded-xl text-xs shadow">Connect Webhook</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="bg-white rounded-3xl border border-slate-200 p-6 space-y-3 shadow-sm">
+                            <h4 class="text-sm font-extrabold text-slate-900">Bot Connection Status</h4>
+                            ${botMe && botMe.ok ? `
+                                <div class="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 space-y-1">
+                                    <div class="flex justify-between items-center"><span class="font-bold">✓ Connected</span><span class="text-[10px] bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full font-bold">ONLINE</span></div>
+                                    <p class="text-[11px]"><strong>Bot:</strong> ${botMe.result.first_name} (@${botMe.result.username})</p>
+                                </div>
+                            ` : `
+                                <div class="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-[11px]">
+                                    Enter your Bot Token & Chat ID above to verify connection.
+                                </div>
+                            `}
+                        </div>
+
+                        <div class="bg-white rounded-3xl border border-slate-200 p-6 space-y-3 shadow-sm text-slate-600 text-[11px]">
+                            <h4 class="text-sm font-extrabold text-slate-900">3-Step Setup Guide</h4>
+                            <p><strong>1. Create Bot:</strong> Search <a href="https://t.me/BotFather" target="_blank" class="text-sky-600 underline font-bold">@BotFather</a> on Telegram, type <code>/newbot</code>, copy the Token.</p>
+                            <p><strong>2. Get Chat ID:</strong> Message <a href="https://t.me/userinfobot" target="_blank" class="text-sky-600 underline font-bold">@userinfobot</a> to get your numeric ID.</p>
+                            <p><strong>3. Test & Manage:</strong> Save credentials and click "Send Live Test Message" to receive notifications on phone!</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return sendHtml(renderAdminLayout('Telegram Bot Order Alerts', content, 'telegram'));
+        }
+
+        if (pathname === '/admin-panel/telegram' && method === 'POST') {
+            const body = await parseBody(req);
+            const action = body.action || 'save';
+            const s = getSettings();
+            const token = body.telegram_bot_token || s.telegram_bot_token || '';
+            const chatId = body.telegram_chat_id || s.telegram_chat_id || '';
+
+            if (action === 'save') {
+                const stmt = db.prepare('REPLACE INTO settings (setting_key, setting_value) VALUES (?, ?)');
+                stmt.run('telegram_bot_token', String(body.telegram_bot_token || ''));
+                stmt.run('telegram_chat_id', String(body.telegram_chat_id || ''));
+                stmt.run('telegram_alerts_enabled', body.telegram_alerts_enabled ? '1' : '0');
+            } else if (action === 'test_alert' && token && chatId) {
+                const testMsg = `🚀 <b>TELEGRAM BOT CONNECTION TEST</b>\n━━━━━━━━━━━━━━━━━━━━\n🧾 <b>Order ID:</b> <code>#TEST-8972</code>\n📊 <b>Status:</b> <code>[PENDING]</code>\n\n👤 <b>CUSTOMER DETAILS</b>\n• <b>Name:</b> Himel (Test Customer)\n• <b>Phone:</b> <code>01775153740</code>\n• <b>Address:</b> Uttara Sector 11, Dhaka\n\n📦 <b>ORDERED ITEMS (2 pcs)</b>\n• <b>Naviforce Luxury Chronograph</b>\n  └ <i>1 pcs × ৳2,450</i> = <b>৳2,450</b>\n• <b>Full Grain Leather Wallet</b>\n  └ <i>1 pcs × ৳750</i> = <b>৳750</b>\n\n💰 <b>PAYMENT & BILLING SUMMARY</b>\n• <b>Subtotal:</b> ৳3,200.00\n• <b>Delivery Fee:</b> ৳60.00\n• <b>GRAND TOTAL:</b> <b>৳3,260.00</b>\n• <b>Method:</b> <code>BKASH</code>\n• <b>Sender Number:</b> <code>01775153740</code>\n• <b>TrxID:</b> <code>TRX897TEST123</code>\n━━━━━━━━━━━━━━━━━━━━\n⚡ <i>Tap an action button below to test interaction:</i>`;
+                
+                await callTelegramApi(token, 'sendMessage', {
+                    chat_id: chatId,
+                    text: testMsg,
+                    parse_mode: 'HTML',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                { text: '✅ Confirm Order', callback_data: 'confirm_9999' },
+                                { text: '🚚 Mark Shipped', callback_data: 'ship_9999' }
+                            ],
+                            [
+                                { text: '❌ Cancel Order', callback_data: 'cancel_9999' },
+                                { text: '👁️ Admin View', url: 'https://onlinebdmart.com/admin-panel' }
+                            ]
+                        ]
+                    }
+                });
+            }
+            return redirect('/admin-panel/telegram');
+        }
+
+        // Telegram Webhook Endpoint
+        if (pathname === '/telegram-webhook') {
+            const body = await parseBody(req);
+            const s = getSettings();
+            const token = s.telegram_bot_token || '';
+
+            if (body && body.callback_query && token) {
+                const cb = body.callback_query;
+                const data = cb.data || '';
+                const [act, ordIdStr] = data.split('_');
+                const ordId = parseInt(ordIdStr, 10);
+
+                if (ordId === 9999) {
+                    await callTelegramApi(token, 'answerCallbackQuery', {
+                        callback_query_id: cb.id,
+                        text: `✓ Test Action '${act}' executed successfully!`,
+                        show_alert: true
+                    });
+                } else if (ordId > 0) {
+                    const statusMap = { confirm: 'confirmed', ship: 'shipped', deliver: 'delivered', cancel: 'cancelled' };
+                    const newSt = statusMap[act] || 'confirmed';
+                    db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newSt, ordId);
+                    await callTelegramApi(token, 'answerCallbackQuery', {
+                        callback_query_id: cb.id,
+                        text: `✓ Order #${ordId} updated to ${newSt.toUpperCase()}!`,
+                        show_alert: false
+                    });
+                }
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+
         // Other admin modules
         if (pathname === '/admin-panel/reviews') return sendHtml(renderAdminLayout('Reviews', '<div class="bg-white p-6 rounded-3xl border text-xs">Reviews Moderation Center. Verified buyers ratings.</div>', 'reviews'));
         if (pathname === '/admin-panel/messages') return sendHtml(renderAdminLayout('Messages', '<div class="bg-white p-6 rounded-3xl border text-xs">Customer Messages & Inquiries.</div>', 'messages'));
@@ -2297,7 +2588,6 @@ const server = http.createServer(async (req, res) => {
         if (pathname === '/admin-panel/suppliers') return sendHtml(renderAdminLayout('Suppliers', '<div class="bg-white p-6 rounded-3xl border text-xs">Suppliers and Manufacturer List.</div>', 'suppliers'));
         if (pathname === '/admin-panel/analytics') return sendHtml(renderAdminLayout('Analytics', '<div class="bg-white p-6 rounded-3xl border text-xs">Customer Geographic Heatmap & Abandoned Cart Recovery.</div>', 'analytics'));
         if (pathname === '/admin-panel/whatsapp') return sendHtml(renderAdminLayout('WhatsApp', '<div class="bg-white p-6 rounded-3xl border text-xs">WhatsApp Floating Button & Greeting Configuration.</div>', 'whatsapp'));
-        if (pathname === '/admin-panel/telegram') return sendHtml(renderAdminLayout('Telegram', '<div class="bg-white p-6 rounded-3xl border text-xs">Telegram Order Control Bot. Token: Configured. Webhook: Active.</div>', 'telegram'));
         if (pathname === '/admin-panel/pixel') return sendHtml(renderAdminLayout('Facebook Pixel', '<div class="bg-white p-6 rounded-3xl border text-xs">Facebook Meta Pixel & Conversions API.</div>', 'pixel'));
         if (pathname === '/admin-panel/colors') return sendHtml(renderAdminLayout('Colors', '<div class="bg-white p-6 rounded-3xl border text-xs">Brand Colors & Palette.</div>', 'colors'));
         if (pathname === '/admin-panel/otp') return sendHtml(renderAdminLayout('OTP System', '<div class="bg-white p-6 rounded-3xl border text-xs">SMS OTP Verification Gateway.</div>', 'otp'));

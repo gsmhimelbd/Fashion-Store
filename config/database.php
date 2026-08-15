@@ -585,6 +585,8 @@ function ensureTablesExist($pdo) {
         addColumnIfNotExists($pdo, 'suppliers', 'photo', $isSqlite ? "TEXT DEFAULT 'uploads/suppliers/supplier-default.jpg'" : "VARCHAR(255) DEFAULT 'uploads/suppliers/supplier-default.jpg'");
         addColumnIfNotExists($pdo, 'suppliers', 'supply_products', $isSqlite ? 'TEXT' : 'TEXT NULL');
 
+        addColumnIfNotExists($pdo, 'orders', 'payment_number', $isSqlite ? 'TEXT' : 'VARCHAR(100) NULL');
+        addColumnIfNotExists($pdo, 'orders', 'transaction_id', $isSqlite ? 'TEXT' : 'VARCHAR(100) NULL');
         addColumnIfNotExists($pdo, 'orders', 'upazila', $isSqlite ? "TEXT DEFAULT ''" : "VARCHAR(100) DEFAULT ''");
         addColumnIfNotExists($pdo, 'orders', 'post_office', $isSqlite ? "TEXT DEFAULT ''" : "VARCHAR(100) DEFAULT ''");
         addColumnIfNotExists($pdo, 'orders', 'country', $isSqlite ? "TEXT DEFAULT 'Bangladesh'" : "VARCHAR(100) DEFAULT 'Bangladesh'");
@@ -595,6 +597,27 @@ function ensureTablesExist($pdo) {
         addColumnIfNotExists($pdo, 'users', 'address', $isSqlite ? 'TEXT' : 'TEXT NULL');
         addColumnIfNotExists($pdo, 'users', 'district', $isSqlite ? "TEXT DEFAULT 'Dhaka'" : "VARCHAR(100) DEFAULT 'Dhaka'");
         addColumnIfNotExists($pdo, 'users', 'is_active', $isSqlite ? 'INTEGER DEFAULT 1' : 'TINYINT(1) DEFAULT 1');
+
+        // Seed default categories if empty
+        $catCount = (int)$pdo->query("SELECT COUNT(*) FROM categories")->fetchColumn();
+        if ($catCount === 0) {
+            $categoriesData = [
+                [1, null, 'Watches', 'watches', '⌚', 'fa-clock', 1],
+                [2, null, 'Smart Gadgets', 'smart-gadgets', '📱', 'fa-mobile-screen-button', 2],
+                [3, null, 'Leather Wallets', 'leather-wallets', '👛', 'fa-wallet', 3],
+                [4, null, 'Luxury Bags', 'luxury-bags', '👜', 'fa-bag-shopping', 4],
+                [5, null, 'Sunglasses', 'sunglasses', '🕶️', 'fa-glasses', 5],
+                [6, null, 'Accessories & Belts', 'accessories-belts', '👔', 'fa-gem', 6],
+                [7, 1, 'Chronograph Watches', 'chronograph-watches', '⏱️', 'fa-clock', 1],
+                [8, 1, 'Automatic Mechanical', 'automatic-mechanical', '⚙️', 'fa-gear', 2],
+                [9, 3, 'Full Grain Leather Wallets', 'full-grain-wallets', '💼', 'fa-wallet', 1],
+                [10, 4, 'Executive Handbags', 'executive-handbags', '👝', 'fa-briefcase', 1],
+            ];
+            $cStmt = $pdo->prepare("INSERT INTO categories (id, parent_id, name, slug, emoji, icon, display_order) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            foreach ($categoriesData as $c) {
+                $cStmt->execute($c);
+            }
+        }
 
         // Seed 64 districts if empty
         $distCount = (int)$pdo->query("SELECT COUNT(*) FROM districts")->fetchColumn();
