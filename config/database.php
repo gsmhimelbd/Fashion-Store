@@ -549,8 +549,8 @@ function ensureTablesExist($pdo) {
         // Add dynamic columns if existing tables lack them
         addColumnIfNotExists($pdo, 'categories', 'parent_id', $isSqlite ? 'INTEGER' : 'INT NULL');
         addColumnIfNotExists($pdo, 'categories', 'emoji', $isSqlite ? "TEXT DEFAULT '🛍️'" : "VARCHAR(50) DEFAULT '🛍️'");
-        addColumnIfNotExists($pdo, 'categories', 'icon', $isSqlite ? "TEXT DEFAULT 'fa-tag'" : "VARCHAR(100) DEFAULT 'fa-tag'");
-        addColumnIfNotExists($pdo, 'categories', 'image_path', $isSqlite ? "TEXT NULL" : "VARCHAR(255) NULL");
+        addColumnIfNotExists($pdo, 'categories', 'show_on_homepage', $isSqlite ? 'INTEGER DEFAULT 1' : 'TINYINT(1) DEFAULT 1');
+        addColumnIfNotExists($pdo, 'categories', 'is_featured', $isSqlite ? 'INTEGER DEFAULT 1' : 'TINYINT(1) DEFAULT 1');
         addColumnIfNotExists($pdo, 'categories', 'display_order', $isSqlite ? 'INTEGER DEFAULT 1' : 'INT DEFAULT 1');
         addColumnIfNotExists($pdo, 'categories', 'is_active', $isSqlite ? 'INTEGER DEFAULT 1' : 'TINYINT(1) DEFAULT 1');
 

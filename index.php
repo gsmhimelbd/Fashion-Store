@@ -245,9 +245,18 @@ if (empty($featuredProducts)) {
 
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             <?php 
+            // Filter Top Categories selected from Admin Panel to show on Homepage
             $displayCats = array_filter($categories, function($c) {
-                return empty($c['parent_id']) || $c['parent_id'] == 0;
+                $isHome = isset($c['show_on_homepage']) ? ($c['show_on_homepage'] == 1) : (isset($c['is_featured']) ? ($c['is_featured'] == 1) : true);
+                $isParent = empty($c['parent_id']) || $c['parent_id'] == 0;
+                return $isHome && $isParent;
             });
+
+            if (empty($displayCats)) {
+                $displayCats = array_filter($categories, function($c) {
+                    return empty($c['parent_id']) || $c['parent_id'] == 0;
+                });
+            }
             if (empty($displayCats)) {
                 $displayCats = $categories;
             }
@@ -255,18 +264,12 @@ if (empty($featuredProducts)) {
 
             foreach ($displayCats as $cat): 
                 $pCount = $cat['products_count'] ?? 0;
-                $emoji = trim((string)($cat['emoji'] ?? ''));
-                $icon = trim((string)($cat['icon'] ?? ''));
+                $emoji = trim((string)($cat['emoji'] ?? '🛍️'));
+                if (empty($emoji)) $emoji = '🛍️';
             ?>
             <a href="shop.php?category=<?= htmlspecialchars($cat['slug']) ?>" class="group bg-white p-5 rounded-2xl border border-slate-200/80 hover:border-indigo-500 hover:shadow-xl transition-all duration-300 flex flex-col items-center text-center">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-50 to-indigo-100 group-hover:from-indigo-600 group-hover:to-cyan-500 text-indigo-600 group-hover:text-white flex items-center justify-center text-2xl transition-all duration-300 mb-3 shadow-sm overflow-hidden shrink-0">
-                    <?php if (!empty($emoji) && mb_strlen($emoji) <= 8 && !str_starts_with($emoji, 'fa-')): ?>
-                        <span class="text-2xl sm:text-3xl leading-none select-none inline-block transform group-hover:scale-110 transition-transform"><?= htmlspecialchars($emoji) ?></span>
-                    <?php elseif (!empty($icon) && (str_starts_with($icon, 'fa-') || str_starts_with($icon, 'fa '))): ?>
-                        <i class="fas <?= htmlspecialchars(ltrim($icon, 'fas ')) ?> text-xl group-hover:scale-110 transition-transform"></i>
-                    <?php else: ?>
-                        <span class="text-2xl sm:text-3xl leading-none select-none inline-block transform group-hover:scale-110 transition-transform"><?= htmlspecialchars($emoji ?: '🛍️') ?></span>
-                    <?php endif; ?>
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-50 to-indigo-100 group-hover:from-indigo-600 group-hover:to-cyan-500 text-indigo-600 group-hover:text-white flex items-center justify-center text-3xl transition-all duration-300 mb-3 shadow-sm overflow-hidden shrink-0">
+                    <span class="select-none inline-block transform group-hover:scale-110 transition-transform"><?= htmlspecialchars($emoji) ?></span>
                 </div>
                 <h3 class="text-xs font-extrabold text-slate-900 group-hover:text-indigo-600 transition truncate w-full"><?= htmlspecialchars($cat['name']) ?></h3>
                 <span class="text-[10px] text-slate-400 font-semibold mt-0.5"><?= $pCount ?> Items</span>

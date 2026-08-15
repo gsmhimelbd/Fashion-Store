@@ -34,6 +34,8 @@ CREATE TABLE `categories` (
   `icon` varchar(100) DEFAULT 'fa-tag',
   `image_path` varchar(255) DEFAULT NULL,
   `description` text DEFAULT NULL,
+  `show_on_homepage` tinyint(1) DEFAULT 1,
+  `is_featured` tinyint(1) DEFAULT 1,
   `is_active` tinyint(1) DEFAULT 1,
   `display_order` int(11) DEFAULT 0,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,

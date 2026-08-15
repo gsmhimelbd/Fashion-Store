@@ -21,6 +21,9 @@ fs.mkdirSync(path.join(__dirname, 'public', 'images'), { recursive: true });
 
 const db = new DatabaseSync(DB_PATH);
 
+try { db.exec("ALTER TABLE categories ADD COLUMN show_on_homepage INTEGER DEFAULT 1"); } catch(e) {}
+try { db.exec("ALTER TABLE categories ADD COLUMN is_featured INTEGER DEFAULT 1"); } catch(e) {}
+
 // Helper to get settings
 function getSettings() {
     const rows = db.prepare('SELECT setting_key, setting_value FROM settings').all();
@@ -1574,21 +1577,15 @@ const server = http.createServer(async (req, res) => {
             </div>
         `;
 
-        const catCards = categories.map(c => {
-            const emoji = (c.emoji || '').trim();
-            const icon = (c.icon || '').trim();
-            let iconHtml = `<span class="text-2xl select-none">${emoji || '🛍️'}</span>`;
-            if (emoji && emoji.length <= 4 && !emoji.startsWith('fa-')) {
-                iconHtml = `<span class="text-2xl select-none">${emoji}</span>`;
-            } else if (icon && (icon.startsWith('fa-') || icon.startsWith('fa '))) {
-                iconHtml = `<i class="fas ${icon.replace(/^fas\s+/, '')} text-xl"></i>`;
-            }
+        const topCategories = db.prepare('SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id) as products_count FROM categories c WHERE (c.parent_id IS NULL OR c.parent_id = 0) ORDER BY c.display_order ASC, c.id ASC').all();
+        const catCards = topCategories.map(c => {
+            const emoji = (c.emoji || '').trim() || '🛍️';
             return `
                 <a href="/shop?category=${c.slug}" class="group bg-white p-5 rounded-2xl border border-slate-200/80 hover:border-indigo-500 hover:shadow-xl transition flex flex-col items-center text-center">
-                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-50 to-indigo-100 group-hover:from-indigo-600 group-hover:to-cyan-500 text-indigo-600 group-hover:text-white flex items-center justify-center text-2xl transition mb-3 overflow-hidden">
-                        ${iconHtml}
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-50 to-indigo-100 group-hover:from-indigo-600 group-hover:to-cyan-500 text-indigo-600 group-hover:text-white flex items-center justify-center text-3xl transition mb-3 overflow-hidden shadow-sm">
+                        <span class="select-none inline-block group-hover:scale-110 transition-transform">${emoji}</span>
                     </div>
-                    <h3 class="text-xs font-bold text-slate-900 group-hover:text-indigo-600">${c.name}</h3>
+                    <h3 class="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition truncate w-full">${c.name}</h3>
                     <span class="text-[10px] text-slate-400 font-semibold mt-0.5">${c.products_count} Items</span>
                 </a>
             `;
