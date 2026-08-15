@@ -44,10 +44,10 @@ try {
         if ($username && $email) {
             if (!empty($newPass)) {
                 $hashed = password_hash($newPass, PASSWORD_BCRYPT);
-                $stmt = $db->prepare("UPDATE admins SET name = ?, username = ?, email = ?, password = ?, profile_photo = ?, updated_at = NOW() WHERE id = ?");
+                $stmt = $db->prepare("UPDATE admins SET name = ?, username = ?, email = ?, password = ?, profile_photo = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
                 $stmt->execute([$name, $username, $email, $hashed, $photoPath, $adminId]);
             } else {
-                $stmt = $db->prepare("UPDATE admins SET name = ?, username = ?, email = ?, profile_photo = ?, updated_at = NOW() WHERE id = ?");
+                $stmt = $db->prepare("UPDATE admins SET name = ?, username = ?, email = ?, profile_photo = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
                 $stmt->execute([$name, $username, $email, $photoPath, $adminId]);
             }
             $_SESSION['admin_username'] = $username;

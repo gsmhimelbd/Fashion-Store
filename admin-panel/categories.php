@@ -22,7 +22,7 @@ try {
             $displayOrder = (int)($_POST['display_order'] ?? 1);
 
             if ($action === 'create') {
-                $stmt = $db->prepare("INSERT INTO categories (name, slug, parent_id, emoji, icon, description, display_order, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW())");
+                $stmt = $db->prepare("INSERT INTO categories (name, slug, parent_id, emoji, icon, description, display_order, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)");
                 $stmt->execute([$name, $slug, $parentId, $emoji, $icon, $desc, $displayOrder]);
                 $msg = $parentId ? 'Subcategory created successfully!' : 'Category created successfully!';
             } else {

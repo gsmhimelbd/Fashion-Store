@@ -50,7 +50,7 @@ try {
             }
 
             if ($action === 'create') {
-                $stmt = $db->prepare("INSERT INTO blog_posts (title, slug, category, author, summary, content, image_path, meta_title, meta_description, meta_keywords, is_published, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())");
+                $stmt = $db->prepare("INSERT INTO blog_posts (title, slug, category, author, summary, content, image_path, meta_title, meta_description, meta_keywords, is_published, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)");
                 $stmt->execute([$title, $slug, $category, $author, $summary, $content, $imagePath, $metaTitle, $metaDesc, $metaKeywords]);
                 $msg = 'Blog article published with cover picture & SEO metadata!';
             } else {

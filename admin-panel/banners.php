@@ -47,7 +47,7 @@ try {
             }
 
             if ($action === 'create') {
-                $stmt = $db->prepare("INSERT INTO banners (title, subtitle, badge_text, button_text, button_url, image_path, display_order, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+                $stmt = $db->prepare("INSERT INTO banners (title, subtitle, badge_text, button_text, button_url, image_path, display_order, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
                 $stmt->execute([$title, $subtitle, $badge, $btnText, $btnUrl, $imagePath, $displayOrder, $isActive]);
                 $msg = 'Banner slide added successfully!';
             } else {

@@ -88,9 +88,11 @@ try {
                                     <span class="text-[10px] font-bold uppercase text-slate-400"><?= htmlspecialchars($p['category_name'] ?? 'Accessories') ?></span>
                                     <a href="product.php?slug=<?= htmlspecialchars($p['slug']) ?>" class="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition line-clamp-2 block mt-0.5"><?= htmlspecialchars($p['name']) ?></a>
                                 </div>
-                                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                                    <span class="text-sm sm:text-base font-extrabold text-indigo-600">৳<?= number_format($price, 2) ?></span>
-                                    <button type="button" onclick="addToCart(<?= $p['id'] ?>)" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow transition"><i class="fas fa-bag-shopping mr-1"></i> Add</button>
+                                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                                    <span class="text-sm sm:text-base font-black text-indigo-600">৳<?= number_format($price, 2) ?></span>
+                                    <button type="button" onclick="addToCart(<?= $p['id'] ?>)" class="px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs font-black rounded-xl shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/40 transition flex items-center gap-1.5 shrink-0">
+                                        <i class="fas fa-bag-shopping text-xs"></i> <span>Add to Bag</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>

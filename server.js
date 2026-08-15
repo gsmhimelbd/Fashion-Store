@@ -2215,6 +2215,19 @@ const server = http.createServer(async (req, res) => {
             return sendHtml(renderAdminLayout('Blog Manager', content, 'blogs'));
         }
 
+        if (pathname === '/admin-panel/deals') {
+            const dealProducts = db.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1 AND p.sale_price IS NOT NULL AND p.sale_price < p.price').all();
+            const s = getSettings();
+            const content = `
+                <div class="bg-white p-6 rounded-3xl border shadow-sm space-y-4 text-xs">
+                    <h3 class="font-bold text-sm uppercase text-rose-600">Flash Deals & Promotions (${dealProducts.length})</h3>
+                    <p class="text-slate-400">Countdown Timer Target: <strong>${s.deals_end_time || 'Active'}</strong></p>
+                    <div class="divide-y">${dealProducts.map(p => `<div class="py-2.5 flex justify-between items-center"><div><strong class="text-slate-900">${p.name}</strong><span class="block text-slate-400 text-[10px]">Regular: ৳${p.price}</span></div><span class="font-black text-rose-600 text-sm">Deal: ৳${p.sale_price}</span></div>`).join('')}</div>
+                </div>
+            `;
+            return sendHtml(renderAdminLayout('Flash Deals', content, 'deals'));
+        }
+
         // Other admin modules
         if (pathname === '/admin-panel/reviews') return sendHtml(renderAdminLayout('Reviews', '<div class="bg-white p-6 rounded-3xl border text-xs">Reviews Moderation Center. Verified buyers ratings.</div>', 'reviews'));
         if (pathname === '/admin-panel/messages') return sendHtml(renderAdminLayout('Messages', '<div class="bg-white p-6 rounded-3xl border text-xs">Customer Messages & Inquiries.</div>', 'messages'));

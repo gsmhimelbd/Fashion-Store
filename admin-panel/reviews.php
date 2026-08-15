@@ -14,7 +14,7 @@ try {
             $review = trim($_POST['review_text']);
             $district = trim($_POST['district_name'] ?? 'Dhaka');
 
-            $stmt = $db->prepare("INSERT INTO reviews (author_name, rating, review_text, district_name, is_approved, created_at) VALUES (?, ?, ?, ?, 1, NOW())");
+            $stmt = $db->prepare("INSERT INTO reviews (author_name, rating, review_text, district_name, is_approved, created_at) VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP)");
             $stmt->execute([$name, $rating, $review, $district]);
             $msg = 'Review published!';
         } elseif ($action === 'delete') {

@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($name && $message) {
         try {
             $db = getDB();
-            $stmt = $db->prepare("INSERT INTO messages (name, email, phone, message, is_read, created_at) VALUES (?, ?, ?, ?, 0, NOW())");
+            $stmt = $db->prepare("INSERT INTO messages (name, email, phone, message, is_read, created_at) VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)");
             $stmt->execute([$name, $email, $phone, $message]);
             $success = true;
         } catch (Exception $e) {

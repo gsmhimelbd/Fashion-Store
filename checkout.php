@@ -21,7 +21,7 @@ try {
     $ref = $_SERVER['HTTP_REFERER'] ?? 'Direct';
     $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'Mobile';
     $dev = (str_contains(strtolower($ua), 'mobile') || str_contains(strtolower($ua), 'android') || str_contains(strtolower($ua), 'iphone')) ? 'Mobile' : 'Desktop';
-    $db->prepare("INSERT INTO customer_visits (ip_address, session_id, district, referrer, page_url, user_agent, device_type, visited_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())")->execute([$ip, session_id(), 'Checkout', $ref, $page, $ua, $dev]);
+    $db->prepare("INSERT INTO customer_visits (ip_address, session_id, district, referrer, page_url, user_agent, device_type, visited_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)")->execute([$ip, session_id(), 'Checkout', $ref, $page, $ua, $dev]);
 } catch (Exception $e) {
     $districts = [];
     $settings = [];
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $total = $subtotal + $deliveryCost;
             $orderNumber = 'OBM-' . strtoupper(bin2hex(random_bytes(4)));
 
-            $orderStmt = $db->prepare("INSERT INTO orders (order_number, customer_name, customer_email, customer_phone, delivery_address, district_name, subtotal, delivery_cost, total_amount, payment_method, transaction_id, status, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW(), NOW())");
+            $orderStmt = $db->prepare("INSERT INTO orders (order_number, customer_name, customer_email, customer_phone, delivery_address, district_name, subtotal, delivery_cost, total_amount, payment_method, transaction_id, status, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
             
             $orderStmt->execute([
                 $orderNumber,
@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $orderId = $db->lastInsertId();
 
             // Insert items with picture
-            $itemStmt = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, product_image, price, quantity, total_price, is_wholesale, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+            $itemStmt = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, product_image, price, quantity, total_price, is_wholesale, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
             foreach ($cart as $item) {
                 $itemStmt->execute([
                     $orderId,

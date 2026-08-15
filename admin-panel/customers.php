@@ -22,11 +22,11 @@ try {
 
             if ($newPassword) {
                 $hashed = password_hash($newPassword, PASSWORD_BCRYPT);
-                $stmt = $db->prepare("UPDATE users SET name = ?, phone = ?, email = ?, address = ?, district = ?, password = ?, updated_at = NOW() WHERE id = ?");
+                $stmt = $db->prepare("UPDATE users SET name = ?, phone = ?, email = ?, address = ?, district = ?, password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
                 $stmt->execute([$name, $phone, $email, $address, $district, $hashed, $userId]);
                 $msg = "Customer updated and password reset successfully!";
             } else {
-                $stmt = $db->prepare("UPDATE users SET name = ?, phone = ?, email = ?, address = ?, district = ?, updated_at = NOW() WHERE id = ?");
+                $stmt = $db->prepare("UPDATE users SET name = ?, phone = ?, email = ?, address = ?, district = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
                 $stmt->execute([$name, $phone, $email, $address, $district, $userId]);
                 $msg = "Customer details updated successfully!";
             }
@@ -39,7 +39,7 @@ try {
             $district = trim($_POST['district'] ?? 'Dhaka');
 
             $hashed = password_hash($password, PASSWORD_BCRYPT);
-            $stmt = $db->prepare("INSERT INTO users (name, phone, email, password, address, district, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())");
+            $stmt = $db->prepare("INSERT INTO users (name, phone, email, password, address, district, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
             $stmt->execute([$name, $phone, $email, $hashed, $address, $district]);
             $msg = "New customer account created!";
         } elseif ($action === 'delete_customer') {

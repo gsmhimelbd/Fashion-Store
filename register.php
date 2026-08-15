@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $db = getDB();
             $hashed = password_hash($password, PASSWORD_BCRYPT);
-            $stmt = $db->prepare("INSERT INTO users (name, email, phone, password, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())");
+            $stmt = $db->prepare("INSERT INTO users (name, email, phone, password, created_at, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
             $stmt->execute([$name, $email, $phone, $hashed]);
 
             $_SESSION['user_logged_in'] = true;

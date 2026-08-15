@@ -2,7 +2,7 @@
 /**
  * OnlineBdMart - Universal Database Configuration
  * Auto-detects MySQL from .env or config, with SQLite fallback
- * Self-healing schema: auto-creates missing tables and columns on the fly
+ * Self-healing schema: auto-creates missing tables, columns, and SQLite NOW() function
  */
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -659,7 +659,7 @@ function ensureTablesExist($pdo) {
     } catch (Exception $e) {}
 }
 
-// 2. Universal PDO Database Connection
+// 2. Universal PDO Database Connection with SQLite NOW() support
 function getDB() {
     static $pdo = null;
     if ($pdo !== null) return $pdo;
@@ -689,6 +689,14 @@ function getDB() {
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             ]);
+
+            // Register NOW() function in SQLite so any NOW() call works natively
+            if (method_exists($pdo, 'sqliteCreateFunction')) {
+                $pdo->sqliteCreateFunction('NOW', function() {
+                    return date('Y-m-d H:i:s');
+                });
+            }
+
             ensureTablesExist($pdo);
             return $pdo;
         } catch (Exception $ex) {
@@ -717,14 +725,15 @@ function saveSetting($key, $value) {
     try {
         $db = getDB();
         $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $now = date('Y-m-d H:i:s');
         if ($driver === 'sqlite') {
             $stmt = $db->prepare("DELETE FROM settings WHERE `key` = ? OR setting_key = ?");
             $stmt->execute([$key, $key]);
-            $ins = $db->prepare("INSERT INTO settings (`key`, setting_key, `value`, setting_value, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)");
-            $ins->execute([$key, $key, $value, $value]);
+            $ins = $db->prepare("INSERT INTO settings (`key`, setting_key, `value`, setting_value, updated_at) VALUES (?, ?, ?, ?, ?)");
+            $ins->execute([$key, $key, $value, $value, $now]);
         } else {
-            $stmt = $db->prepare("INSERT INTO settings (`key`, setting_key, `value`, setting_value, updated_at) VALUES (?, ?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`), setting_value = VALUES(setting_value), updated_at = NOW()");
-            $stmt->execute([$key, $key, $value, $value]);
+            $stmt = $db->prepare("INSERT INTO settings (`key`, setting_key, `value`, setting_value, updated_at) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`), setting_value = VALUES(setting_value), updated_at = VALUES(updated_at)");
+            $stmt->execute([$key, $key, $value, $value, $now]);
         }
         return true;
     } catch (Exception $e) {

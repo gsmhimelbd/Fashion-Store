@@ -62,6 +62,7 @@ try {
                     <a href="messages.php" class="flex items-center justify-between px-3 py-2 rounded-xl transition <?= $activePage === 'messages.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><div class="flex items-center gap-3"><i class="fas fa-envelope w-4"></i> Messages</div><?php if ($unreadMessagesCount > 0): ?><span class="bg-indigo-500 text-white text-[10px] px-2 py-0.5 rounded-full"><?= $unreadMessagesCount ?></span><?php endif; ?></a>
                     <a href="analytics.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'analytics.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-chart-line w-4 text-pink-400"></i> Analytics & Behavior</a>
                     <a href="categories.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'categories.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-folder-tree w-4"></i> Categories & Sub</a>
+                    <a href="deals.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'deals.php' ? 'bg-rose-600 text-white' : 'text-rose-400 hover:bg-slate-800' ?>"><i class="fas fa-fire w-4"></i> Flash Deals %</a>
                     <a href="blog.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'blog.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-newspaper w-4"></i> Blog & SEO</a>
                     <a href="reviews.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'reviews.php' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800' ?>"><i class="fas fa-star w-4 text-amber-400"></i> Reviews</a>
                     <a href="whatsapp.php" class="flex items-center gap-3 px-3 py-2 rounded-xl transition <?= $activePage === 'whatsapp.php' ? 'bg-emerald-600 text-white' : 'text-emerald-400 hover:bg-slate-800' ?>"><i class="fab fa-whatsapp w-4"></i> WhatsApp</a>
@@ -147,6 +148,9 @@ try {
                 <a href="categories.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'categories.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-folder-tree w-4"></i> <span>Categories & Sub</span>
                 </a>
+                <a href="deals.php" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition <?= $activePage === 'deals.php' ? 'bg-rose-600 text-white font-bold shadow-lg' : 'text-rose-400 hover:text-white hover:bg-slate-800/60' ?>">
+                    <i class="fas fa-fire w-4"></i> <span>Flash Deals %</span>
+                </a>
                 <a href="blog.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'blog.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-newspaper w-4"></i> <span>Blog & SEO</span>
                 </a>
@@ -165,7 +169,7 @@ try {
                 <a href="colors.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'colors.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-palette w-4"></i> <span>Colors & Theme</span>
                 </a>
-                <a href="smtp.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'smtp.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">
+                <a href="smtp.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'smtp.php' ? 'bg-indigo-600 text-white font-bold' : 'text-indigo-400 hover:text-white hover:bg-slate-800/60' ?>">
                     <i class="fas fa-at w-4 text-indigo-400"></i> <span>SMTP Emailer</span>
                 </a>
                 <a href="settings.php" class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition <?= $activePage === 'settings.php' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white hover:bg-slate-800/60' ?>">

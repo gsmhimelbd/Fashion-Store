@@ -11,7 +11,7 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $newStatus = trim($_POST['status'] ?? '');
         if ($newStatus) {
-            $stmt = $db->prepare("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?");
+            $stmt = $db->prepare("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
             $stmt->execute([$newStatus, $orderId]);
             $msg = "Order #{$orderId} status successfully updated to " . strtoupper($newStatus) . "!";
         }

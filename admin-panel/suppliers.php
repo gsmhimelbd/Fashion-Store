@@ -47,7 +47,7 @@ try {
             }
 
             if ($action === 'create') {
-                $stmt = $db->prepare("INSERT INTO suppliers (name, contact_person, phone, email, address, photo, supply_products, category, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+                $stmt = $db->prepare("INSERT INTO suppliers (name, contact_person, phone, email, address, photo, supply_products, category, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
                 $stmt->execute([$name, $contact, $phone, $email, $address, $photoPath, $supplyProducts, $category]);
                 $msg = 'Supplier added with profile picture and product list!';
             } else {

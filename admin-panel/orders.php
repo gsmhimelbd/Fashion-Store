@@ -12,7 +12,7 @@ try {
             $orderId = (int)$_POST['order_id'];
             $newStatus = trim($_POST['status']);
 
-            $stmt = $db->prepare("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?");
+            $stmt = $db->prepare("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
             $stmt->execute([$newStatus, $orderId]);
             $msg = "Order #{$orderId} updated to {$newStatus}!";
         }

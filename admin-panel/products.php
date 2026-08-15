@@ -83,12 +83,12 @@ try {
             $galleryStr = implode(',', array_unique($galleryArr));
 
             if ($action === 'create') {
-                $stmt = $db->prepare("INSERT INTO products (name, slug, sku, category_id, subcategory_id, price, sale_price, is_wholesale, wholesale_price, wholesale_moq, wholesale_min_qty, stock, stock_quantity, is_featured, is_active, image_path, gallery_images, short_description, description, specifications, why_buy_from_us, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
+                $stmt = $db->prepare("INSERT INTO products (name, slug, sku, category_id, subcategory_id, price, sale_price, is_wholesale, wholesale_price, wholesale_moq, wholesale_min_qty, stock, stock_quantity, is_featured, is_active, image_path, gallery_images, short_description, description, specifications, why_buy_from_us, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
                 $stmt->execute([$name, $slug, $sku, $catId, $subcatId, $price, $salePrice, $isWholesale, $wholesalePrice, $wholesaleMoq, $wholesaleMoq, $stock, $stock, $isFeatured, $isActive, $imagePath, $galleryStr, $shortDesc, $desc, $specs, $whyBuy]);
                 $msg = 'Product added successfully with uploaded photos and specifications!';
             } else {
                 $id = (int)$_POST['product_id'];
-                $stmt = $db->prepare("UPDATE products SET name = ?, slug = ?, sku = ?, category_id = ?, subcategory_id = ?, price = ?, sale_price = ?, is_wholesale = ?, wholesale_price = ?, wholesale_moq = ?, wholesale_min_qty = ?, stock = ?, stock_quantity = ?, is_featured = ?, is_active = ?, image_path = ?, gallery_images = ?, short_description = ?, description = ?, specifications = ?, why_buy_from_us = ?, updated_at = NOW() WHERE id = ?");
+                $stmt = $db->prepare("UPDATE products SET name = ?, slug = ?, sku = ?, category_id = ?, subcategory_id = ?, price = ?, sale_price = ?, is_wholesale = ?, wholesale_price = ?, wholesale_moq = ?, wholesale_min_qty = ?, stock = ?, stock_quantity = ?, is_featured = ?, is_active = ?, image_path = ?, gallery_images = ?, short_description = ?, description = ?, specifications = ?, why_buy_from_us = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
                 $stmt->execute([$name, $slug, $sku, $catId, $subcatId, $price, $salePrice, $isWholesale, $wholesalePrice, $wholesaleMoq, $wholesaleMoq, $stock, $stock, $isFeatured, $isActive, $imagePath, $galleryStr, $shortDesc, $desc, $specs, $whyBuy, $id]);
                 $msg = 'Product updated successfully!';
             }

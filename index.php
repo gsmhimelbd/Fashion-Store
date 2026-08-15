@@ -138,14 +138,17 @@ try {
 </section>
 
 <!-- 5. Flash Deals with Live Countdown -->
+<?php if (($s['deals_enabled'] ?? '1') === '1'): 
+    $dealEndTime = $s['deals_end_time'] ?? date('Y-m-d 23:59:59', strtotime('+3 days'));
+?>
 <section class="py-12 bg-slate-950 text-white relative overflow-hidden">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
         <div class="space-y-4 max-w-xl">
-            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold uppercase tracking-widest">% Limited Time Offer</span>
-            <h2 class="text-3xl sm:text-4xl font-extrabold font-serif leading-tight">Big Deals on Top Fashion Gadgets</h2>
-            <p class="text-slate-300 text-xs sm:text-sm">Grab luxury chronograph watches and leather wallets at unbeatable discount prices.</p>
+            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold uppercase tracking-widest"><?= htmlspecialchars($s['deals_badge_text'] ?? '% Limited Time Flash Sale') ?></span>
+            <h2 class="text-3xl sm:text-4xl font-extrabold font-serif leading-tight"><?= htmlspecialchars($s['deals_banner_title'] ?? 'Big Deals on Top Fashion Gadgets') ?></h2>
+            <p class="text-slate-300 text-xs sm:text-sm"><?= htmlspecialchars($s['deals_banner_subtitle'] ?? 'Grab luxury chronograph watches and leather wallets at unbeatable discount prices.') ?></p>
             <div class="pt-2">
-                <a href="deals.php" class="px-7 py-3 bg-white text-slate-950 font-black text-xs rounded-xl inline-block shadow">Shop Deals &rarr;</a>
+                <a href="deals.php" class="px-7 py-3 bg-white text-slate-950 font-black text-xs rounded-xl inline-block shadow hover:bg-slate-100 transition">Shop Flash Deals &rarr;</a>
             </div>
         </div>
 
@@ -158,6 +161,7 @@ try {
         </div>
     </div>
 </section>
+<?php endif; ?>
 
 <!-- 6. Best Sellers & Top Picks -->
 <section class="py-16 bg-white">
@@ -201,7 +205,9 @@ try {
                             <span class="text-[11px] text-slate-400 line-through">৳<?= number_format($product['price'], 2) ?></span>
                             <?php endif; ?>
                         </div>
-                        <button type="button" onclick="addToCart(<?= $product['id'] ?>)" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow"><i class="fas fa-bag-shopping mr-1"></i> Add to Cart</button>
+                        <button type="button" onclick="addToCart(<?= $product['id'] ?>)" class="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs font-extrabold rounded-xl shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/40 transition-all flex items-center justify-center gap-2 group-hover:scale-[1.02]">
+                            <i class="fas fa-bag-shopping text-xs"></i> <span>Add to Bag</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -300,21 +306,36 @@ try {
     function goToHeroSlide(idx) { showHeroSlide(idx); }
     setInterval(nextHeroSlide, 5000);
 
-    let h = 12, m = 48, sec = 26;
-    setInterval(() => {
-        if (sec > 0) sec--;
-        else {
-            sec = 59;
-            if (m > 0) m--;
-            else { m = 59; if (h > 0) h--; }
-        }
+    // Dynamic Deals Countdown Engine
+    const targetDealDate = new Date("<?= addslashes($s['deals_end_time'] ?? date('Y-m-d 23:59:59', strtotime('+3 days'))) ?>").getTime();
+
+    function updateLiveDealsTimer() {
+        const now = new Date().getTime();
+        const dist = targetDealDate - now;
+
         const elH = document.getElementById('liveHours');
         const elM = document.getElementById('liveMins');
         const elS = document.getElementById('liveSecs');
-        if (elH) elH.textContent = String(h).padStart(2, '0');
-        if (elM) elM.textContent = String(m).padStart(2, '0');
-        if (elS) elS.textContent = String(sec).padStart(2, '0');
-    }, 1000);
+        if (!elH || !elM || !elS) return;
+
+        if (dist <= 0) {
+            elH.textContent = '00';
+            elM.textContent = '00';
+            elS.textContent = '00';
+            return;
+        }
+
+        const h = Math.floor((dist % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((dist % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((dist % (1000 * 60)) / 1000);
+
+        elH.textContent = String(h).padStart(2, '0');
+        elM.textContent = String(m).padStart(2, '0');
+        elS.textContent = String(s).padStart(2, '0');
+    }
+
+    setInterval(updateLiveDealsTimer, 1000);
+    updateLiveDealsTimer();
 </script>
 
 <?php require_once 'includes/footer.php'; ?>

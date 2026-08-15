@@ -220,6 +220,11 @@ if ($uri === '/admin-panel/categories' || $uri === '/admin-panel/categories.php'
     exit;
 }
 
+if ($uri === '/admin-panel/deals' || $uri === '/admin-panel/deals.php') {
+    require __DIR__ . '/../admin-panel/deals.php';
+    exit;
+}
+
 if ($uri === '/admin-panel/blog' || $uri === '/admin-panel/blog.php' || $uri === '/admin-panel/blogs') {
     require __DIR__ . '/../admin-panel/blog.php';
     exit;
