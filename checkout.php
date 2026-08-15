@@ -2,53 +2,86 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-require_once __DIR__ . '/config/database.php';
+require_once 'config/database.php';
 
-$cart = getCartItems();
+$cart = $_SESSION['cart'] ?? [];
 if (empty($cart)) {
     header('Location: shop.php');
     exit;
 }
 
-$s = getAllSettings();
-$subtotal = 0;
+try {
+    $db = getDB();
+    $districts = $db->query("SELECT * FROM districts ORDER BY division_name ASC, name ASC")->fetchAll();
+    $settings = getAllSettings();
+
+    // Auto-fill logged-in customer info
+    $custName = '';
+    $custPhone = '';
+    $custEmail = '';
+    $custDistrict = 'Dhaka';
+    $custUpazila = '';
+    $custPostOffice = '';
+    $custAddress = '';
+    $isLoggedIn = !empty($_SESSION['user_id']) || !empty($_SESSION['user_logged_in']) || !empty($_SESSION['customer_id']);
+
+    if ($isLoggedIn) {
+        $uId = $_SESSION['user_id'] ?? ($_SESSION['customer_id'] ?? 0);
+        $uEmail = $_SESSION['user_email'] ?? '';
+        $uPhone = $_SESSION['user_phone'] ?? '';
+
+        $uStmt = $db->prepare("SELECT * FROM users WHERE id = ? OR (email != '' AND email = ?) OR (phone != '' AND phone = ?) LIMIT 1");
+        $uStmt->execute([$uId, $uEmail, $uPhone]);
+        $loggedUser = $uStmt->fetch();
+
+        // Fallback to recent order history if profile fields are empty
+        if (!$loggedUser && $uPhone) {
+            $lastOrd = $db->prepare("SELECT customer_name as name, COALESCE(customer_phone, phone) as phone, customer_email as email, COALESCE(district_name, district) as district, upazila, post_office, COALESCE(delivery_address, address) as address FROM orders WHERE customer_phone = ? OR phone = ? ORDER BY id DESC LIMIT 1");
+            $lastOrd->execute([$uPhone, $uPhone]);
+            $loggedUser = $lastOrd->fetch();
+        }
+
+        if ($loggedUser) {
+            $custName = $loggedUser['name'] ?? ($_SESSION['user_name'] ?? '');
+            $custPhone = $loggedUser['phone'] ?? ($_SESSION['user_phone'] ?? '');
+            $custEmail = $loggedUser['email'] ?? ($_SESSION['user_email'] ?? '');
+            $custDistrict = !empty($loggedUser['district']) ? $loggedUser['district'] : 'Dhaka';
+            $custUpazila = $loggedUser['upazila'] ?? '';
+            $custPostOffice = $loggedUser['post_office'] ?? '';
+            $custAddress = $loggedUser['address'] ?? '';
+        } else {
+            $custName = $_SESSION['user_name'] ?? '';
+            $custEmail = $_SESSION['user_email'] ?? '';
+            $custPhone = $_SESSION['user_phone'] ?? '';
+        }
+    }
+
+    // Record visitor behavior in customer_visits
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+    $page = $_SERVER['REQUEST_URI'] ?? '/checkout.php';
+    $ref = $_SERVER['HTTP_REFERER'] ?? 'Direct';
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'Mobile';
+    $dev = (str_contains(strtolower($ua), 'mobile') || str_contains(strtolower($ua), 'android') || str_contains(strtolower($ua), 'iphone')) ? 'Mobile' : 'Desktop';
+    $db->prepare("INSERT INTO customer_visits (ip_address, session_id, district, referrer, page_url, user_agent, device_type, visited_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)")->execute([$ip, session_id(), $custDistrict, $ref, $page, $ua, $dev]);
+} catch (Exception $e) {
+    $districts = [];
+    $settings = [];
+    $custName = '';
+    $custPhone = '';
+    $custEmail = '';
+    $custDistrict = 'Dhaka';
+    $custUpazila = '';
+    $custPostOffice = '';
+    $custAddress = '';
+    $isLoggedIn = false;
+}
+
+$subtotal = 0.0;
 foreach ($cart as $item) {
-    $subtotal += ($item['price'] * $item['quantity']);
+    $subtotal += $item['price'] * $item['quantity'];
 }
 
 $error = '';
-$custDistrict = 'Dhaka';
-$custName = '';
-$custPhone = '';
-$custEmail = '';
-$custUpazila = '';
-$custPostOffice = '';
-$custAddress = '';
-
-try {
-    $db = getDB();
-    $districts = $db->query("SELECT * FROM districts WHERE is_active = 1 ORDER BY name ASC")->fetchAll();
-    
-    // Auto-fill logged-in customer info
-    if (!empty($_SESSION['user_id']) || !empty($_SESSION['customer_id'])) {
-        $uid = $_SESSION['user_id'] ?? $_SESSION['customer_id'];
-        $uStmt = $db->prepare("SELECT * FROM users WHERE id = ? LIMIT 1");
-        $uStmt->execute([$uid]);
-        $u = $uStmt->fetch();
-        if ($u) {
-            $custName = $u['name'] ?? '';
-            $custPhone = $u['phone'] ?? '';
-            $custEmail = $u['email'] ?? '';
-            $custDistrict = $u['district'] ?? 'Dhaka';
-            $custUpazila = $u['upazila'] ?? '';
-            $custPostOffice = $u['post_office'] ?? '';
-            $custAddress = $u['address'] ?? '';
-        }
-    }
-} catch (Exception $e) {
-    $districts = [];
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['customer_name'] ?? '');
     $phone = trim($_POST['customer_phone'] ?? '');
@@ -67,15 +100,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Please fill out all required fields (Name, Phone, and Delivery Address).';
     } else {
         try {
+            $db = getDB();
+            
+            // Get delivery cost from district
             $deliveryCost = 120.0;
-            try {
-                $distStmt = $db->prepare("SELECT * FROM districts WHERE name = ? LIMIT 1");
-                $distStmt->execute([$districtName]);
-                $distRow = $distStmt->fetch();
-                if ($distRow) {
-                    $deliveryCost = (float)$distRow['delivery_fee'];
-                }
-            } catch (Exception $ex) {}
+            $distStmt = $db->prepare("SELECT * FROM districts WHERE name = ? LIMIT 1");
+            $distStmt->execute([$districtName]);
+            $distRow = $distStmt->fetch();
+            if ($distRow) {
+                $deliveryCost = (float)$distRow['delivery_fee'];
+            }
 
             if ($subtotal >= 2000) {
                 $deliveryCost = 0.0;
@@ -97,24 +131,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             )");
             
             $orderStmt->execute([
-                $orderNumber, $name, $email, $phone, $phone, $phone,
-                $address, $address, $districtName, $districtName, $upazila, $postOffice,
-                $subtotal, $deliveryCost, $deliveryCost, $total, $total,
-                $paymentMethod, $payNumber, $trxId, $notes
+                $orderNumber,
+                $name,
+                $email,
+                $phone,
+                $phone,
+                $phone,
+                $address,
+                $address,
+                $districtName,
+                $districtName,
+                $upazila,
+                $postOffice,
+                $subtotal,
+                $deliveryCost,
+                $deliveryCost,
+                $total,
+                $total,
+                $paymentMethod,
+                $payNumber,
+                $trxId,
+                $notes
             ]);
 
             $orderId = $db->lastInsertId();
 
-            // Auto-heal order_items schema if columns were missing
+            // Auto-heal missing order_items columns for legacy MySQL tables
             try {
-                $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
-                if ($driver === 'mysql') {
-                    @$db->exec("ALTER TABLE `order_items` ADD COLUMN `product_image` varchar(255) DEFAULT NULL");
-                    @$db->exec("ALTER TABLE `order_items` ADD COLUMN `total_price` decimal(10,2) DEFAULT NULL");
-                    @$db->exec("ALTER TABLE `order_items` ADD COLUMN `is_wholesale` tinyint(1) DEFAULT 0");
-                }
+                @$db->exec("ALTER TABLE `order_items` ADD COLUMN `total_price` decimal(10,2) DEFAULT NULL");
+                @$db->exec("ALTER TABLE `order_items` ADD COLUMN `product_image` varchar(255) DEFAULT NULL");
+                @$db->exec("ALTER TABLE `order_items` ADD COLUMN `is_wholesale` tinyint(1) DEFAULT 0");
             } catch (Exception $ex) {}
 
+            // Insert items safely
             foreach ($cart as $item) {
                 $itemTotal = (float)($item['price'] * $item['quantity']);
                 $isWholesale = !empty($item['is_wholesale']) ? 1 : 0;
@@ -131,14 +180,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
+            // Mark any cart abandonment session as recovered
             try {
                 $db->prepare("UPDATE cart_abandonments SET recovered = 1 WHERE session_id = ? OR customer_phone = ?")->execute([session_id(), $phone]);
             } catch (Exception $ex) {}
 
-            // Send Telegram Push Notification & Email confirmation
+            // Trigger Realtime Telegram Push Notification with Interactive Action Buttons
             require_once __DIR__ . '/includes/telegram_bot.php';
             @sendTelegramOrderAlert($orderId);
 
+            // Trigger Automated SMTP Email Confirmation & Admin Invoice
             require_once __DIR__ . '/includes/smtp_mailer.php';
             @sendOrderEmailNotifications($orderId);
 
@@ -156,56 +207,87 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $pageTitle = 'Express Checkout - OnlineBdMart';
 require_once 'includes/header.php';
 
-$bkashNum = $s['payment_bkash_number'] ?? '01775153740';
-$nagadNum = $s['payment_nagad_number'] ?? '01775153740';
-$rocketNum = $s['payment_rocket_number'] ?? '01775153740';
-$bankName = $s['payment_bank_name'] ?? 'Islami Bank Bangladesh Ltd';
-$bankAcc = $s['payment_bank_acc_no'] ?? '2050123456789012';
-$bankTitle = $s['payment_bank_acc_name'] ?? 'OnlineBdMart Enterprise';
+$bkashNum = $settings['payment_bkash_number'] ?? '01775153740';
+$nagadNum = $settings['payment_nagad_number'] ?? '01775153740';
+$rocketNum = $settings['payment_rocket_number'] ?? '01775153740';
+$bankName = $settings['payment_bank_name'] ?? 'Islami Bank Bangladesh Ltd';
+$bankAcc = $settings['payment_bank_acc_no'] ?? '2050123456789012';
+$bankTitle = $settings['payment_bank_acc_name'] ?? 'OnlineBdMart Enterprise';
+$bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
 ?>
 
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
     <div class="mb-8">
         <h1 class="text-2xl sm:text-3xl font-extrabold font-serif text-slate-900">Complete Your Order</h1>
-        <p class="text-xs text-slate-500 mt-1">Cash on delivery available across all 64 districts with digital payment options.</p>
+        <p class="text-xs text-slate-500 mt-1">Cash on delivery available across all 64 districts with digital & bank payment options.</p>
     </div>
 
     <?php if ($error): ?>
-    <div class="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
-        <i class="fas fa-circle-exclamation text-base"></i> <span><?= htmlspecialchars($error) ?></span>
+    <div class="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold">
+        <i class="fas fa-circle-exclamation mr-1"></i> <?= htmlspecialchars($error) ?>
     </div>
     <?php endif; ?>
 
-    <form method="POST" action="checkout.php" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        <!-- Left: Customer Details & Shipping Form (7 cols) -->
-        <div class="lg:col-span-7 space-y-6">
+    <form method="POST" action="checkout.php" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Customer Info & Shipping Address -->
+        <div class="lg:col-span-2 space-y-6">
             <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-sm">
-                <div class="border-b pb-3">
+                <div class="border-b pb-3 flex items-center justify-between">
                     <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
                         <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">1</span>
-                        Customer & Delivery Information
+                        Shipping & Customer Details
                     </h2>
                 </div>
 
+                <!-- 2 Options for Logged in Customers vs Sign in Banner for Guests -->
+                <?php if ($isLoggedIn): ?>
+                <div class="p-4 bg-indigo-50/70 border border-indigo-100 rounded-2xl space-y-3 text-xs">
+                    <span class="font-extrabold text-indigo-950 uppercase tracking-wider text-[10px] block">Choose Delivery Address Option:</span>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <label class="flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-indigo-600 shadow-sm ring-1 ring-indigo-600/20" id="optSavedLabel">
+                            <input type="radio" name="address_choice" value="saved" checked onchange="toggleAddressChoice('saved')" class="text-indigo-600">
+                            <div>
+                                <span class="font-bold text-slate-900 block">✓ Use Saved Account Profile</span>
+                                <span class="text-[11px] text-slate-500"><?= htmlspecialchars($custDistrict) ?> • <?= htmlspecialchars($custPhone ?: 'Auto-filled') ?></span>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-slate-200 hover:border-indigo-400" id="optNewLabel">
+                            <input type="radio" name="address_choice" value="new" onchange="toggleAddressChoice('new')" class="text-indigo-600">
+                            <div>
+                                <span class="font-bold text-slate-900 block">Ship to a Different Address</span>
+                                <span class="text-[11px] text-slate-500">For friend, office or gift</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <?php else: ?>
+                <div class="p-3.5 bg-indigo-50/80 border border-indigo-100 rounded-2xl flex items-center justify-between text-xs text-indigo-900">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-user-circle text-indigo-600 text-base"></i>
+                        <span>Have an account? <a href="login.php?redirect=checkout.php" class="font-extrabold text-indigo-600 underline">Sign In</a> to auto-fill your saved address.</span>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Form Fields (Auto-filled when logged in) -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Full Name (গ্রাহকের নাম) *</label>
-                        <input type="text" name="customer_name" value="<?= htmlspecialchars($custName) ?>" required placeholder="e.g. Arif Hossain" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <input type="text" name="customer_name" id="inCustomerName" value="<?= htmlspecialchars($custName) ?>" required placeholder="e.g. Arif Hossain" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Mobile Phone (মোবাইল নাম্বার) *</label>
-                        <input type="tel" name="customer_phone" value="<?= htmlspecialchars($custPhone) ?>" required placeholder="017xxxxxxxx" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none font-mono">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Mobile Phone Number (সচল মোবাইল নাম্বার) *</label>
+                        <input type="tel" name="customer_phone" id="inCustomerPhone" value="<?= htmlspecialchars($custPhone) ?>" required placeholder="017xxxxxxxx" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none font-mono">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Email Address (ঐচ্ছিক)</label>
-                        <input type="email" name="customer_email" value="<?= htmlspecialchars($custEmail) ?>" placeholder="yourname@gmail.com" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Email Address (ইমেইল - optional)</label>
+                        <input type="email" name="customer_email" id="inCustomerEmail" value="<?= htmlspecialchars($custEmail) ?>" placeholder="arif@example.com" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Delivery District (জেলা) *</label>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Select Delivery District (জেলা) *</label>
                         <select name="district" id="districtSelect" onchange="updateDeliveryFee()" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50">
                             <?php foreach ($districts as $d): ?>
                             <option value="<?= htmlspecialchars($d['name']) ?>" data-fee="<?= $d['delivery_fee'] ?>" data-time="<?= htmlspecialchars($d['estimated_days'] ?? '2-4 days') ?>" <?= ($d['name'] === $custDistrict) ? 'selected' : '' ?>>
@@ -216,29 +298,34 @@ $bankTitle = $s['payment_bank_acc_name'] ?? 'OnlineBdMart Enterprise';
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Upazila, Post Office, Country -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Upazila / Thana (উপজেলা / থানা) *</label>
-                        <input type="text" name="upazila" value="<?= htmlspecialchars($custUpazila) ?>" placeholder="e.g. Tangail Sadar / Mirpur" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <input type="text" name="upazila" id="inCustomerUpazila" value="<?= htmlspecialchars($custUpazila) ?>" placeholder="e.g. Tangail Sadar / Mirpur" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Post Office / Zip Code (ডাকঘর)</label>
-                        <input type="text" name="post_office" value="<?= htmlspecialchars($custPostOffice) ?>" placeholder="e.g. 1900" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <input type="text" name="post_office" id="inCustomerPostOffice" value="<?= htmlspecialchars($custPostOffice) ?>" placeholder="e.g. Tangail 1900" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Country (দেশ)</label>
+                        <input type="text" name="country" value="Bangladesh" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 outline-none" readonly>
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Full Street Address (বাড়ি / গ্রাম / রোড নং) *</label>
-                    <textarea name="delivery_address" rows="2" required placeholder="House/Flat No, Road Name, Area/Thana, Landmark..." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none"><?= htmlspecialchars($custAddress) ?></textarea>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Full Street Address / Village / Landmark (বাড়ি / গ্রাম / রোড নং) *</label>
+                    <textarea name="delivery_address" id="inCustomerAddress" rows="2" required placeholder="House/Flat No, Road Name, Area/Thana, Landmark..." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none"><?= htmlspecialchars($custAddress) ?></textarea>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Delivery Notes (ঐচ্ছিক)</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Delivery Instructions / Notes (Optional)</label>
                     <input type="text" name="notes" placeholder="e.g. Call before delivery, deliver after 2 PM" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
             </div>
 
-            <!-- Payment Methods -->
+            <!-- Payment Method Selection -->
             <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-4 shadow-sm">
                 <h2 class="text-base font-extrabold text-slate-900 border-b pb-3 flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">2</span>
@@ -251,7 +338,7 @@ $bankTitle = $s['payment_bank_acc_name'] ?? 'OnlineBdMart Enterprise';
                         <input type="radio" name="payment_method" value="cod" checked onchange="togglePaymentInputs('cod')" class="text-indigo-600 focus:ring-indigo-500">
                         <div class="flex-1">
                             <span class="font-extrabold text-slate-900 block">Cash on Delivery (COD)</span>
-                            <span class="text-slate-500 text-[11px]">Pay cash to courier upon doorstep delivery.</span>
+                            <span class="text-slate-500 text-[11px]">Pay cash to the courier rider upon delivery at your doorstep.</span>
                         </div>
                         <i class="fas fa-hand-holding-dollar text-2xl text-emerald-600"></i>
                     </label>
@@ -260,8 +347,8 @@ $bankTitle = $s['payment_bank_acc_name'] ?? 'OnlineBdMart Enterprise';
                     <label class="flex items-center gap-3 p-4 rounded-2xl border border-slate-200 hover:border-pink-500 cursor-pointer">
                         <input type="radio" name="payment_method" value="bkash" onchange="togglePaymentInputs('bkash')" class="text-pink-600 focus:ring-pink-500">
                         <div class="flex-1">
-                            <span class="font-extrabold text-pink-600 block">bKash Online / Personal</span>
-                            <span class="text-slate-500 text-[11px]">Send money to <strong><?= htmlspecialchars($bkashNum) ?></strong></span>
+                            <span class="font-extrabold text-pink-600 block">bKash (Merchant / Personal)</span>
+                            <span class="text-slate-500 text-[11px]">Send money to <strong><?= htmlspecialchars($bkashNum) ?></strong> and enter TrxID below.</span>
                         </div>
                         <span class="font-black text-pink-600 text-base">bKash</span>
                     </label>
@@ -271,7 +358,7 @@ $bankTitle = $s['payment_bank_acc_name'] ?? 'OnlineBdMart Enterprise';
                         <input type="radio" name="payment_method" value="nagad" onchange="togglePaymentInputs('nagad')" class="text-orange-600 focus:ring-orange-500">
                         <div class="flex-1">
                             <span class="font-extrabold text-orange-600 block">Nagad Personal</span>
-                            <span class="text-slate-500 text-[11px]">Send money to <strong><?= htmlspecialchars($nagadNum) ?></strong></span>
+                            <span class="text-slate-500 text-[11px]">Send money to <strong><?= htmlspecialchars($nagadNum) ?></strong> and enter TrxID below.</span>
                         </div>
                         <span class="font-black text-orange-600 text-base">Nagad</span>
                     </label>
@@ -281,7 +368,7 @@ $bankTitle = $s['payment_bank_acc_name'] ?? 'OnlineBdMart Enterprise';
                         <input type="radio" name="payment_method" value="rocket" onchange="togglePaymentInputs('rocket')" class="text-purple-600 focus:ring-purple-500">
                         <div class="flex-1">
                             <span class="font-extrabold text-purple-600 block">Rocket (DBBL)</span>
-                            <span class="text-slate-500 text-[11px]">Send money to <strong><?= htmlspecialchars($rocketNum) ?></strong></span>
+                            <span class="text-slate-500 text-[11px]">Send money to <strong><?= htmlspecialchars($rocketNum) ?></strong> and enter TrxID below.</span>
                         </div>
                         <span class="font-black text-purple-600 text-base">Rocket</span>
                     </label>
@@ -290,38 +377,36 @@ $bankTitle = $s['payment_bank_acc_name'] ?? 'OnlineBdMart Enterprise';
                     <label class="flex items-center gap-3 p-4 rounded-2xl border border-slate-200 hover:border-cyan-500 cursor-pointer">
                         <input type="radio" name="payment_method" value="bank" onchange="togglePaymentInputs('bank')" class="text-cyan-600 focus:ring-cyan-500">
                         <div class="flex-1">
-                            <span class="font-extrabold text-cyan-700 block">Bank Deposit</span>
-                            <span class="text-slate-500 text-[11px]"><?= htmlspecialchars($bankName) ?> (Acc: <?= htmlspecialchars($bankAcc) ?>)</span>
+                            <span class="font-extrabold text-cyan-700 block">Manual Bank Deposit</span>
+                            <span class="text-slate-500 text-[11px]"><?= htmlspecialchars($bankName) ?> (Acc: <?= htmlspecialchars($bankAcc) ?>).</span>
                         </div>
                         <i class="fas fa-building-columns text-xl text-cyan-600"></i>
                     </label>
 
-                    <!-- TrxID Container -->
+                    <!-- TrxID / Deposit reference input box -->
                     <div id="trxIdContainer" class="hidden p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 mb-1">Sender Mobile Number (যে নাম্বার থেকে টাকা পাঠিয়েছেন) *</label>
                             <input type="tel" name="payment_number" placeholder="017xxxxxxxx" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold outline-none bg-white">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Transaction ID (TrxID) / Deposit Ref *</label>
-                            <input type="text" name="transaction_id" placeholder="e.g. 9J8A7D6F5E" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold outline-none uppercase bg-white">
+                            <label class="block text-xs font-bold text-slate-700 mb-1" id="trxLabel">Enter Transaction ID (TrxID) / Deposit Slip Reference *</label>
+                            <input type="text" name="transaction_id" id="trxInput" placeholder="e.g. 9J8A7D6F5E" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold outline-none uppercase bg-white">
+                            <p class="text-[10px] text-slate-500 mt-1" id="trxHelp">We will verify the transaction reference before dispatching your parcel.</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Right: Order Summary & Place Order Action Button (5 cols) -->
-        <div class="lg:col-span-5 space-y-6">
-            <div class="bg-white rounded-3xl border border-slate-200 p-6 space-y-6 shadow-sm sticky top-24">
-                <div class="border-b pb-3 flex items-center justify-between">
-                    <h3 class="text-base font-extrabold text-slate-900">Your Items (<?= count($cart) ?>)</h3>
-                    <a href="cart.php" class="text-xs text-indigo-600 font-bold hover:underline">Edit Bag</a>
-                </div>
+        <!-- Order Summary & Place Button -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-3xl border border-slate-200 p-6 space-y-6 shadow-sm">
+                <h3 class="text-base font-extrabold text-slate-900 border-b pb-3">Your Items (<?= count($cart) ?>)</h3>
                 
-                <div class="space-y-3 max-h-64 overflow-y-auto pr-1 divide-y divide-slate-100">
+                <div class="space-y-3 max-h-64 overflow-y-auto pr-1">
                     <?php foreach ($cart as $it): ?>
-                    <div class="pt-2 flex items-center justify-between text-xs gap-3">
+                    <div class="flex items-center justify-between text-xs gap-3">
                         <div class="flex items-center gap-2.5 min-w-0">
                             <img src="/<?= ltrim($it['image'], '/') ?>" class="w-12 h-12 object-cover rounded-xl bg-slate-50 border shrink-0">
                             <div class="min-w-0">
@@ -353,46 +438,96 @@ $bankTitle = $s['payment_bank_acc_name'] ?? 'OnlineBdMart Enterprise';
                     </div>
                 </div>
 
-                <!-- Big Confirm & Place Order Button -->
-                <button type="submit" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-sm rounded-2xl shadow-xl shadow-indigo-600/30 transition flex items-center justify-center gap-2">
-                    <i class="fas fa-lock"></i> <span>Confirm & Place Order</span>
+                <button type="submit" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-2xl shadow-xl transition flex items-center justify-center gap-2">
+                    <i class="fas fa-lock"></i> Confirm & Place Order
                 </button>
 
-                <p class="text-[10px] text-center text-slate-400">100% Secure Checkout with Free Nationwide Replacement Guarantee.</p>
+                <p class="text-[10px] text-center text-slate-400">By placing this order, you agree to OnlineBdMart's terms & return policy.</p>
             </div>
         </div>
-
     </form>
 </div>
 
 <script>
-    const subtotal = <?= (float)$subtotal ?>;
+    const subtotal = <?= $subtotal ?>;
+    const savedData = {
+        name: <?= json_encode($custName) ?>,
+        phone: <?= json_encode($custPhone) ?>,
+        email: <?= json_encode($custEmail) ?>,
+        district: <?= json_encode($custDistrict) ?>,
+        upazila: <?= json_encode($custUpazila) ?>,
+        post_office: <?= json_encode($custPostOffice) ?>,
+        address: <?= json_encode($custAddress) ?>
+    };
+
+    function toggleAddressChoice(choice) {
+        const inName = document.getElementById('inCustomerName');
+        const inPhone = document.getElementById('inCustomerPhone');
+        const inEmail = document.getElementById('inCustomerEmail');
+        const inUpazila = document.getElementById('inCustomerUpazila');
+        const inPost = document.getElementById('inCustomerPostOffice');
+        const inAddr = document.getElementById('inCustomerAddress');
+        const selDist = document.getElementById('districtSelect');
+        const optSaved = document.getElementById('optSavedLabel');
+        const optNew = document.getElementById('optNewLabel');
+
+        if (choice === 'saved') {
+            if (inName) inName.value = savedData.name || '';
+            if (inPhone) inPhone.value = savedData.phone || '';
+            if (inEmail) inEmail.value = savedData.email || '';
+            if (inUpazila) inUpazila.value = savedData.upazila || '';
+            if (inPost) inPost.value = savedData.post_office || '';
+            if (inAddr) inAddr.value = savedData.address || '';
+            if (selDist && savedData.district) selDist.value = savedData.district;
+            
+            if (optSaved) { optSaved.className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-indigo-600 shadow-sm ring-1 ring-indigo-600/20'; }
+            if (optNew) { optNew.className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-slate-200 hover:border-indigo-400'; }
+        } else {
+            if (inName) inName.value = '';
+            if (inPhone) inPhone.value = '';
+            if (inUpazila) inUpazila.value = '';
+            if (inPost) inPost.value = '';
+            if (inAddr) inAddr.value = '';
+
+            if (optSaved) { optSaved.className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-slate-200 hover:border-indigo-400'; }
+            if (optNew) { optNew.className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-indigo-600 shadow-sm ring-1 ring-indigo-600/20'; }
+        }
+        updateDeliveryFee();
+    }
 
     function updateDeliveryFee() {
-        const select = document.getElementById('districtSelect');
-        if (!select || select.selectedIndex < 0) return;
-        const selected = select.options[select.selectedIndex];
-        let fee = parseFloat(selected.getAttribute('data-fee')) || 80;
-        const estTime = selected.getAttribute('data-time') || '2-4 days';
+        const sel = document.getElementById('districtSelect');
+        if (!sel || sel.selectedIndex < 0) return;
+        const opt = sel.options[sel.selectedIndex];
+        let fee = parseFloat(opt.getAttribute('data-fee') || 80);
+        const days = opt.getAttribute('data-time') || '1-2 days';
 
         if (subtotal >= 2000) {
             fee = 0;
-            document.getElementById('checkoutDeliveryFee').innerHTML = '<span class="text-emerald-600 font-extrabold">FREE</span>';
+            document.getElementById('checkoutDeliveryFee').textContent = 'FREE';
         } else {
             document.getElementById('checkoutDeliveryFee').textContent = '৳' + fee.toFixed(2);
         }
 
-        document.getElementById('checkoutEstDays').textContent = estTime;
+        document.getElementById('checkoutEstDays').textContent = days;
         document.getElementById('checkoutTotalAmount').textContent = '৳' + (subtotal + fee).toFixed(2);
     }
 
     function togglePaymentInputs(method) {
-        const c = document.getElementById('trxIdContainer');
-        if (!c) return;
-        if (['bkash', 'nagad', 'rocket', 'bank'].includes(method)) {
-            c.classList.remove('hidden');
+        const box = document.getElementById('trxIdContainer');
+        const label = document.getElementById('trxLabel');
+        const help = document.getElementById('trxHelp');
+
+        if (method === 'cod') {
+            box.classList.add('hidden');
+        } else if (method === 'bank') {
+            box.classList.remove('hidden');
+            label.textContent = 'Enter Bank Deposit Slip Number / Ref No *';
+            help.textContent = 'Bank: <?= addslashes($bankName) ?> | Acc No: <?= addslashes($bankAcc) ?> (<?= addslashes($bankTitle) ?>)';
         } else {
-            c.classList.add('hidden');
+            box.classList.remove('hidden');
+            label.textContent = 'Enter ' + method.toUpperCase() + ' Transaction ID (TrxID) *';
+            help.textContent = 'Enter the 10-character transaction reference code from your SMS.';
         }
     }
 
