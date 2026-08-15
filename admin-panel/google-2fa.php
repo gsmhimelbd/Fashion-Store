@@ -118,6 +118,8 @@ try {
             $code = trim($_POST['verify_code'] ?? '');
             if (GoogleAuthenticator::verifyCode($secret, $code) || $code === '123456' || $code === ($admin['two_factor_pin'] ?? '123456')) {
                 $db->prepare("UPDATE admins SET google_2fa_enabled = 1, two_factor_enabled = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?")->execute([$adminId]);
+                saveSetting('admin_2fa_enabled', '1');
+                saveSetting('admin_google_2fa_enabled', '1');
                 $is2faActive = true;
                 $msg = '🎉 Google Authenticator (Google 2FA) has been successfully activated for your account!';
             } else {
@@ -125,6 +127,8 @@ try {
             }
         } elseif ($action === 'disable_google_2fa') {
             $db->prepare("UPDATE admins SET google_2fa_enabled = 0, two_factor_enabled = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?")->execute([$adminId]);
+            saveSetting('admin_2fa_enabled', '0');
+            saveSetting('admin_google_2fa_enabled', '0');
             $is2faActive = false;
             $msg = 'Google Authenticator (2FA) has been disabled for your account.';
         } elseif ($action === 'generate_new_secret') {

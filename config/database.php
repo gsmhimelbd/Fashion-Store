@@ -857,3 +857,80 @@ function trackCustomerVisit() {
         $stmt->execute([$ip, $sessId, $district, $ref, $page, $ua, $dev, $now]);
     } catch (Exception $e) {}
 }
+
+// 7. Universal Pure PHP Google Authenticator (TOTP RFC 6238 Engine)
+if (!class_exists('GoogleAuthenticator')) {
+    class GoogleAuthenticator {
+        private static $base32Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+        public static function generateSecret($length = 16) {
+            $secret = '';
+            for ($i = 0; $i < $length; $i++) {
+                $secret .= self::$base32Chars[random_int(0, 31)];
+            }
+            return $secret;
+        }
+
+        public static function getCode($secret, $timeSlice = null) {
+            if ($timeSlice === null) {
+                $timeSlice = floor(time() / 30);
+            }
+            $secretKey = self::base32Decode($secret);
+            if (empty($secretKey)) return '000000';
+            $time = chr(0).chr(0).chr(0).chr(0).pack('N*', $timeSlice);
+            $hmac = hash_hmac('sha1', $time, $secretKey, true);
+            $offset = ord(substr($hmac, -1)) & 0x0F;
+            $hashpart = substr($hmac, $offset, 4);
+            $value = unpack('N', $hashpart);
+            $value = $value[1] & 0x7FFFFFFF;
+            $modulo = pow(10, 6);
+            return str_pad($value % $modulo, 6, '0', STR_PAD_LEFT);
+        }
+
+        public static function verifyCode($secret, $code, $discrepancy = 2) {
+            $code = trim((string)$code);
+            if (strlen($code) !== 6 && strlen($code) !== 4) return false;
+            
+            $currentTimeSlice = floor(time() / 30);
+            for ($i = -$discrepancy; $i <= $discrepancy; $i++) {
+                $calculatedCode = self::getCode($secret, $currentTimeSlice + $i);
+                if (hash_equals((string)$calculatedCode, (string)$code)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public static function getQrCodeUrl($name, $secret, $issuer = 'OnlineBdMart') {
+            $encodedIssuer = rawurlencode($issuer);
+            $encodedName = rawurlencode($name);
+            $otpauth = "otpauth://totp/{$encodedIssuer}:{$encodedName}?secret={$secret}&issuer={$encodedIssuer}";
+            return "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" . urlencode($otpauth);
+        }
+
+        private static function base32Decode($secret) {
+            if (empty($secret)) return '';
+            $base32chars = self::$base32Chars;
+            $base32charsFlipped = array_flip(str_split($base32chars));
+            $secret = strtoupper(str_replace('=', '', $secret));
+            $secret = str_split($secret);
+            $binaryString = '';
+            for ($i = 0; $i < count($secret); $i = $i + 8) {
+                $x = '';
+                if (!isset($base32charsFlipped[$secret[$i]])) return false;
+                for ($j = 0; $j < 8; $j++) {
+                    if (isset($secret[$i + $j]) && isset($base32charsFlipped[$secret[$i + $j]])) {
+                        $x .= str_pad(base_convert($base32charsFlipped[$secret[$i + $j]], 10, 2), 5, '0', STR_PAD_LEFT);
+                    }
+                }
+                $eightBits = str_split($x, 8);
+                for ($z = 0; $z < count($eightBits); $z++) {
+                    if (strlen($eightBits[$z]) === 8) {
+                        $binaryString .= chr(base_convert($eightBits[$z], 2, 10));
+                    }
+                }
+            }
+            return $binaryString;
+        }
+    }
+}
