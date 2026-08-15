@@ -1574,15 +1574,25 @@ const server = http.createServer(async (req, res) => {
             </div>
         `;
 
-        const catCards = categories.map(c => `
-            <a href="/shop?category=${c.slug}" class="group bg-white p-5 rounded-2xl border border-slate-200/80 hover:border-indigo-500 hover:shadow-xl transition flex flex-col items-center text-center">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-50 to-indigo-100 group-hover:from-indigo-600 group-hover:to-cyan-500 text-indigo-600 group-hover:text-white flex items-center justify-center text-2xl transition mb-3">
-                    <i class="fas ${c.icon || 'fa-tag'}"></i>
-                </div>
-                <h3 class="text-xs font-bold text-slate-900 group-hover:text-indigo-600">${c.name}</h3>
-                <span class="text-[10px] text-slate-400 font-semibold mt-0.5">${c.products_count} Items</span>
-            </a>
-        `).join('');
+        const catCards = categories.map(c => {
+            const emoji = (c.emoji || '').trim();
+            const icon = (c.icon || '').trim();
+            let iconHtml = `<span class="text-2xl select-none">${emoji || '🛍️'}</span>`;
+            if (emoji && emoji.length <= 4 && !emoji.startsWith('fa-')) {
+                iconHtml = `<span class="text-2xl select-none">${emoji}</span>`;
+            } else if (icon && (icon.startsWith('fa-') || icon.startsWith('fa '))) {
+                iconHtml = `<i class="fas ${icon.replace(/^fas\s+/, '')} text-xl"></i>`;
+            }
+            return `
+                <a href="/shop?category=${c.slug}" class="group bg-white p-5 rounded-2xl border border-slate-200/80 hover:border-indigo-500 hover:shadow-xl transition flex flex-col items-center text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-50 to-indigo-100 group-hover:from-indigo-600 group-hover:to-cyan-500 text-indigo-600 group-hover:text-white flex items-center justify-center text-2xl transition mb-3 overflow-hidden">
+                        ${iconHtml}
+                    </div>
+                    <h3 class="text-xs font-bold text-slate-900 group-hover:text-indigo-600">${c.name}</h3>
+                    <span class="text-[10px] text-slate-400 font-semibold mt-0.5">${c.products_count} Items</span>
+                </a>
+            `;
+        }).join('');
 
         const productCards = featured.map(p => `
             <div class="group bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:shadow-xl transition flex flex-col justify-between overflow-hidden relative">

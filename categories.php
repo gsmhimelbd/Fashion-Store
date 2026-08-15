@@ -45,12 +45,19 @@ if (empty($categories)) {
         <?php foreach ($categories as $cat): 
             $catIcon = !empty($cat['icon']) ? $cat['icon'] : 'fa-tag';
             $pCount = $cat['products_count'] ?? 0;
-            $emoji = $cat['emoji'] ?? '🛍️';
+            $emoji = trim($cat['emoji'] ?? '🛍️');
+            $icon = trim($cat['icon'] ?? '');
         ?>
         <a href="shop.php?category=<?= htmlspecialchars($cat['slug']) ?>" class="group bg-white p-6 rounded-3xl border border-slate-200 hover:border-indigo-500 hover:shadow-2xl transition-all duration-300 flex flex-col justify-between space-y-5">
             <div class="flex items-start justify-between gap-4">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-50 to-indigo-100 group-hover:from-indigo-600 group-hover:to-cyan-500 text-indigo-600 group-hover:text-white flex items-center justify-center text-2xl shadow-sm transition-all duration-300 shrink-0">
-                    <i class="fas <?= htmlspecialchars($catIcon) ?>"></i>
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-50 to-indigo-100 group-hover:from-indigo-600 group-hover:to-cyan-500 text-indigo-600 group-hover:text-white flex items-center justify-center text-2xl shadow-sm transition-all duration-300 shrink-0 overflow-hidden">
+                    <?php if (!empty($emoji) && mb_strlen($emoji) <= 4 && !str_starts_with($emoji, 'fa-')): ?>
+                        <span class="text-2xl select-none group-hover:scale-110 transition-transform"><?= htmlspecialchars($emoji) ?></span>
+                    <?php elseif (!empty($icon) && (str_starts_with($icon, 'fa-') || str_starts_with($icon, 'fa '))): ?>
+                        <i class="fas <?= htmlspecialchars(ltrim($icon, 'fas ')) ?> text-xl group-hover:scale-110 transition-transform"></i>
+                    <?php else: ?>
+                        <span class="text-2xl select-none group-hover:scale-110 transition-transform"><?= htmlspecialchars($emoji ?: '🛍️') ?></span>
+                    <?php endif; ?>
                 </div>
                 <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-indigo-50 text-indigo-700 group-hover:bg-indigo-600 group-hover:text-white transition">
                     <?= $pCount ?> Products
@@ -58,9 +65,8 @@ if (empty($categories)) {
             </div>
 
             <div>
-                <h3 class="text-base font-black text-slate-900 group-hover:text-indigo-600 transition flex items-center gap-1.5">
-                    <span><?= htmlspecialchars($cat['name']) ?></span>
-                    <span class="text-sm"><?= $emoji ?></span>
+                <h3 class="text-base font-black text-slate-900 group-hover:text-indigo-600 transition">
+                    <?= htmlspecialchars($cat['name']) ?>
                 </h3>
                 <p class="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
                     <?= htmlspecialchars($cat['description'] ?? ('Premium ' . strtolower($cat['name']) . ' collection with warranty and fast delivery across BD.')) ?>
