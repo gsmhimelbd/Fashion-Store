@@ -53,7 +53,19 @@ try {
 
         foreach ($catRows as $crow) {
             $crow['products_count'] = $counts[$crow['id']] ?? 0;
-            if (empty($crow['emoji'])) $crow['emoji'] = '🛍️';
+            if (empty($crow['emoji'])) {
+                $slug = strtolower($crow['slug'] ?? ($crow['name'] ?? ''));
+                if (str_contains($slug, 'watch') || str_contains($slug, 'tech') || str_contains($slug, 'clock')) $crow['emoji'] = '⌚';
+                elseif (str_contains($slug, 'gadget') || str_contains($slug, 'phone') || str_contains($slug, 'smart')) $crow['emoji'] = '📱';
+                elseif (str_contains($slug, 'wallet') || str_contains($slug, 'leather') || str_contains($slug, 'belt')) $crow['emoji'] = '👛';
+                elseif (str_contains($slug, 'bag') || str_contains($slug, 'handbag')) $crow['emoji'] = '👜';
+                elseif (str_contains($slug, 'glass') || str_contains($slug, 'sunglass')) $crow['emoji'] = '🕶️';
+                elseif (str_contains($slug, 'men') || str_contains($slug, 'man')) $crow['emoji'] = '👔';
+                elseif (str_contains($slug, 'women') || str_contains($slug, 'lady')) $crow['emoji'] = '👗';
+                elseif (str_contains($slug, 'jewel') || str_contains($slug, 'ring') || str_contains($slug, 'diamond') || str_contains($slug, 'fragrance')) $crow['emoji'] = '💍';
+                elseif (str_contains($slug, 'new') || str_contains($slug, 'arrival')) $crow['emoji'] = '✨';
+                else $crow['emoji'] = '🛍️';
+            }
             $categories[] = $crow;
         }
     }
