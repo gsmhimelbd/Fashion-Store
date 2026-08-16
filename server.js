@@ -2097,6 +2097,24 @@ const server = http.createServer(async (req, res) => {
         return sendHtml(renderLayout('Shop', content, sessionData, 'shop'));
     }
 
+    if (pathname === '/review/submit' && method === 'POST') {
+        const body = await parseBody(req);
+        const prodId = parseInt(body.product_id || 0, 10);
+        const name = body.author_name || 'Customer';
+        const rating = parseInt(body.rating || 5, 10);
+        const reviewText = body.review_text || '';
+        const district = body.district_name || 'Dhaka';
+        
+        if (prodId > 0 && reviewText) {
+            try {
+                db.prepare('INSERT INTO reviews (product_id, author_name, rating, review_text, district_name, is_approved) VALUES (?, ?, ?, ?, ?, 0)').run(
+                    prodId, name, rating, reviewText, district
+                );
+            } catch (e) {}
+        }
+        return redirect(body.redirect_url || '/');
+    }
+
     if (pathname.startsWith('/product/') && isGet) {
         const slug = pathname.replace('/product/', '');
         const p = db.prepare('SELECT p.*, c.name as category_name, c.slug as category_slug FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.slug = ?').get(slug);
@@ -3049,7 +3067,137 @@ const server = http.createServer(async (req, res) => {
         }
 
         // Other admin modules
-        if (pathname === '/admin-panel/reviews') return sendHtml(renderAdminLayout('Reviews', '<div class="bg-white p-6 rounded-3xl border text-xs">Reviews Moderation Center. Verified buyers ratings.</div>', 'reviews'));
+        if (pathname === '/admin-panel/reviews') {
+            if (method === 'POST') {
+                const body = await parseBody(req);
+                const action = body.action || '';
+                if (action === 'approve') {
+                    db.prepare('UPDATE reviews SET is_approved = 1 WHERE id = ?').run(parseInt(body.review_id, 10));
+                } else if (action === 'unapprove') {
+                    db.prepare('UPDATE reviews SET is_approved = 0 WHERE id = ?').run(parseInt(body.review_id, 10));
+                } else if (action === 'delete') {
+                    db.prepare('DELETE FROM reviews WHERE id = ?').run(parseInt(body.review_id, 10));
+                } else if (action === 'create_admin') {
+                    const prodId = body.product_id ? parseInt(body.product_id, 10) : null;
+                    db.prepare('INSERT INTO reviews (product_id, author_name, rating, review_text, district_name, is_approved) VALUES (?, ?, ?, ?, ?, 1)').run(
+                        prodId, body.author_name || 'Customer', parseInt(body.rating || 5, 10), body.review_text || '', body.district_name || 'Dhaka'
+                    );
+                }
+                return redirect('/admin-panel/reviews');
+            }
+
+            const reviewsList = db.prepare('SELECT r.*, p.name as product_name, p.slug as product_slug FROM reviews r LEFT JOIN products p ON r.product_id = p.id ORDER BY r.id DESC').all();
+            const prods = db.prepare('SELECT id, name FROM products WHERE is_active = 1 ORDER BY name ASC').all();
+            const pending = reviewsList.filter(r => !r.is_approved).length;
+            const approved = reviewsList.filter(r => r.is_approved).length;
+
+            const content = `
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                    <div class="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-1">
+                        <span class="text-[10px] font-black uppercase text-amber-400">Pending Approval</span>
+                        <div class="text-2xl font-black text-white">${pending}</div>
+                    </div>
+                    <div class="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-1">
+                        <span class="text-[10px] font-black uppercase text-emerald-400">Live & Approved</span>
+                        <div class="text-2xl font-black text-white">${approved}</div>
+                    </div>
+                    <div class="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-1">
+                        <span class="text-[10px] font-black uppercase text-indigo-400">Total Reviews</span>
+                        <div class="text-2xl font-black text-white">${reviewsList.length}</div>
+                    </div>
+                    <div class="p-5 rounded-3xl bg-slate-900 border border-slate-800 space-y-1">
+                        <span class="text-[10px] font-black uppercase text-rose-400">Store Rating</span>
+                        <div class="text-2xl font-black text-amber-400">4.9 ★</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-sm space-y-4 h-fit">
+                        <h3 class="text-sm font-black text-white">Add Verified Review</h3>
+                        <form method="POST" action="/admin-panel/reviews" class="space-y-3 text-xs">
+                            <input type="hidden" name="action" value="create_admin">
+                            <div>
+                                <label class="block text-slate-300 font-bold mb-1">Target Product</label>
+                                <select name="product_id" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none">
+                                    <option value="">General Store Review</option>
+                                    ${prods.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-300 font-bold mb-1">Customer Name</label>
+                                <input type="text" name="author_name" required placeholder="e.g. Tanvir Ahmed" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-slate-300 font-bold mb-1">District</label>
+                                    <input type="text" name="district_name" value="Dhaka" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-300 font-bold mb-1">Rating</label>
+                                    <select name="rating" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-amber-400 font-bold outline-none">
+                                        <option value="5">★★★★★ (5.0)</option>
+                                        <option value="4">★★★★☆ (4.0)</option>
+                                        <option value="3">★★★☆☆ (3.0)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-slate-300 font-bold mb-1">Review Feedback</label>
+                                <textarea name="review_text" rows="3" required placeholder="Very satisfied with quality..." class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none"></textarea>
+                            </div>
+                            <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl shadow">+ Publish Review</button>
+                        </form>
+                    </div>
+
+                    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+                        <h3 class="text-sm font-black text-white">Customer Reviews Moderation (${reviewsList.length})</h3>
+                        ${reviewsList.length > 0 ? `
+                            <div class="space-y-3">
+                                ${reviewsList.map(r => `
+                                    <div class="p-4 rounded-2xl bg-slate-950 border ${r.is_approved ? 'border-slate-800' : 'border-amber-500/40 bg-amber-500/[0.04]'} space-y-2 text-xs">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-2">
+                                                <strong class="text-white">${r.author_name}</strong>
+                                                <span class="text-amber-400 font-mono">${'★'.repeat(r.rating || 5)}</span>
+                                                <span class="text-slate-400 text-[10px]">(${r.district_name || 'Dhaka'})</span>
+                                            </div>
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black ${r.is_approved ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-300'}">
+                                                ${r.is_approved ? 'Live on Product' : 'Pending Approval'}
+                                            </span>
+                                        </div>
+                                        ${r.product_name ? `<p class="text-[10px] text-indigo-400 font-semibold">Product: <a href="/product/${r.product_slug}" target="_blank" class="hover:underline">${r.product_name}</a></p>` : ''}
+                                        <p class="text-slate-300 italic">"${r.review_text}"</p>
+                                        <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+                                            <div>
+                                                ${!r.is_approved ? `
+                                                    <form method="POST" action="/admin-panel/reviews" class="inline">
+                                                        <input type="hidden" name="action" value="approve">
+                                                        <input type="hidden" name="review_id" value="${r.id}">
+                                                        <button type="submit" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[11px]">✓ Approve</button>
+                                                    </form>
+                                                ` : `
+                                                    <form method="POST" action="/admin-panel/reviews" class="inline">
+                                                        <input type="hidden" name="action" value="unapprove">
+                                                        <input type="hidden" name="review_id" value="${r.id}">
+                                                        <button type="submit" class="px-3 py-1 bg-slate-800 text-slate-400 hover:text-white font-bold rounded-lg text-[11px]">Hide</button>
+                                                    </form>
+                                                `}
+                                            </div>
+                                            <form method="POST" action="/admin-panel/reviews" class="inline">
+                                                <input type="hidden" name="action" value="delete">
+                                                <input type="hidden" name="review_id" value="${r.id}">
+                                                <button type="submit" class="p-1.5 text-rose-400 hover:text-rose-600"><i class="fas fa-trash-can"></i></button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<p class="text-xs text-slate-400 p-4">No reviews submitted yet.</p>'}
+                    </div>
+                </div>
+            `;
+            return sendHtml(renderAdminLayout('Reviews', content, 'reviews'));
+        }
         if (pathname === '/admin-panel/messages') return sendHtml(renderAdminLayout('Messages', '<div class="bg-white p-6 rounded-3xl border text-xs">Customer Messages & Inquiries.</div>', 'messages'));
         if (pathname === '/admin-panel/payments') return sendHtml(renderAdminLayout('Payments', '<div class="bg-white p-6 rounded-3xl border text-xs">bKash, Nagad, Rocket, COD Configuration.</div>', 'payments'));
         if (pathname === '/admin-panel/delivery') return sendHtml(renderAdminLayout('Delivery', '<div class="bg-white p-6 rounded-3xl border text-xs">Bangladesh All 64 Districts Delivery Zones.</div>', 'delivery'));
