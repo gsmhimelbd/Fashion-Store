@@ -2099,29 +2099,151 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname.startsWith('/product/') && isGet) {
         const slug = pathname.replace('/product/', '');
-        const p = db.prepare('SELECT * FROM products WHERE slug = ?').get(slug);
+        const p = db.prepare('SELECT p.*, c.name as category_name, c.slug as category_slug FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.slug = ?').get(slug);
         if (!p) return sendHtml(renderLayout('Not Found', '<h1>Product Not Found</h1>', sessionData), 404);
 
+        let relatedProducts = [];
+        try {
+            if (p.category_id) {
+                relatedProducts = db.prepare('SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.category_id = ? AND p.id != ? AND p.is_active = 1 ORDER BY p.id DESC LIMIT 4').all(p.category_id, p.id);
+            }
+            if (relatedProducts.length < 4) {
+                const limit = 4 - relatedProducts.length;
+                const fallback = db.prepare(`SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.id != ? AND p.is_active = 1 ORDER BY p.id DESC LIMIT ${limit}`).all(p.id);
+                relatedProducts.push(...fallback);
+            }
+        } catch (e) {
+            relatedProducts = [];
+        }
+
+        const price = (p.sale_price && p.sale_price > 0 && p.sale_price < p.price) ? p.sale_price : p.price;
+
         const content = `
-            <div class="max-w-7xl mx-auto px-4 py-10">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                    <div class="aspect-square bg-slate-100 rounded-3xl overflow-hidden border"><img src="/${p.image_path}" class="w-full h-full object-cover"></div>
-                    <div class="space-y-6">
-                        <div><h1 class="text-2xl sm:text-3xl font-extrabold font-serif text-slate-900">${p.name}</h1><span class="text-emerald-600 font-bold text-xs block mt-2">● In Stock (${p.stock} pcs)</span></div>
-                        <div class="text-3xl font-black text-indigo-600">৳${(p.sale_price || p.price).toFixed(2)}</div>
-                        <p class="text-xs sm:text-sm text-slate-600">${p.description || p.short_description || ''}</p>
-                        <div class="flex items-center gap-3">
-                            <div class="h-12 flex items-center border rounded-2xl bg-white px-1">
-                                <button type="button" onclick="let input=document.getElementById('detailQty'); if(parseInt(input.value)>1) input.value=parseInt(input.value)-1;" class="w-9 h-9 font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition">-</button>
-                                <input type="number" id="detailQty" value="1" class="w-10 text-center font-black outline-none border-none">
-                                <button type="button" onclick="let input=document.getElementById('detailQty'); input.value=parseInt(input.value)+1;" class="w-9 h-9 font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition">+</button>
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+                <!-- Breadcrumb -->
+                <nav class="flex items-center gap-2 text-xs text-slate-500 mb-8 overflow-x-auto whitespace-nowrap">
+                    <a href="/" class="hover:text-indigo-600 font-medium">Home</a>
+                    <span>/</span>
+                    <a href="/shop" class="hover:text-indigo-600 font-medium">Shop</a>
+                    <span>/</span>
+                    <a href="/shop?category=${p.category_slug || ''}" class="hover:text-indigo-600 font-medium">${p.category_name || 'Accessories'}</a>
+                    <span>/</span>
+                    <span class="text-slate-900 font-bold truncate max-w-xs">${p.name}</span>
+                </nav>
+
+                <!-- Main Presentation Box -->
+                <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-10 shadow-sm mb-12">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                        <div class="space-y-4">
+                            <div class="aspect-square bg-slate-100 rounded-3xl overflow-hidden border relative">
+                                <img src="/${(p.image_path || 'uploads/luxury-watch.svg').replace(/^\//, '')}" class="w-full h-full object-cover">
+                                ${p.sale_price && p.sale_price < p.price ? `<span class="absolute top-4 right-4 z-10 px-3 py-1 bg-rose-500 text-white rounded-full text-xs font-black shadow-lg">${Math.round(((p.price - p.sale_price) / p.price) * 100)}% OFF</span>` : ''}
                             </div>
-                            <button type="button" onclick="addToCart(${p.id}, parseInt(document.getElementById('detailQty').value))" class="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-black rounded-2xl text-xs sm:text-sm shadow-lg shadow-indigo-600/25 transition flex items-center justify-center gap-2">
-                                <i class="fas fa-bag-shopping text-sm"></i> <span>Add to Bag</span>
-                            </button>
+                        </div>
+                        <div class="flex flex-col justify-between space-y-6">
+                            <div class="space-y-4">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">${p.category_name || 'Accessories'}</span>
+                                    <span class="text-xs text-emerald-600 font-bold bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">● In Stock (${p.stock || 50} pcs)</span>
+                                </div>
+                                <h1 class="text-2xl sm:text-3xl font-extrabold font-serif text-slate-900 leading-snug">${p.name}</h1>
+                                
+                                <div class="flex items-baseline gap-3 pt-2">
+                                    <span class="text-3xl sm:text-4xl font-black text-indigo-600">৳${price.toFixed(2)}</span>
+                                    ${p.sale_price && p.sale_price < p.price ? `<span class="text-lg text-slate-400 line-through">৳${p.price.toFixed(2)}</span>` : ''}
+                                </div>
+
+                                ${p.short_description ? `
+                                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+                                        ${p.short_description}
+                                    </div>
+                                ` : ''}
+                            </div>
+
+                            <div class="pt-6 border-t border-slate-200 space-y-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="h-12 flex items-center border border-slate-200 rounded-2xl bg-slate-50 px-1 shrink-0">
+                                        <button type="button" onclick="let input=document.getElementById('detailQty'); if(parseInt(input.value)>1) input.value=parseInt(input.value)-1;" class="w-9 h-9 font-bold text-slate-700 hover:bg-slate-200 rounded-xl transition text-base">-</button>
+                                        <input type="number" id="detailQty" value="1" min="1" class="w-10 sm:w-12 text-center bg-transparent font-black text-sm outline-none">
+                                        <button type="button" onclick="let input=document.getElementById('detailQty'); input.value=parseInt(input.value)+1;" class="w-9 h-9 font-bold text-slate-700 hover:bg-slate-200 rounded-xl transition text-base">+</button>
+                                    </div>
+                                    <button type="button" onclick="addToCart(${p.id}, parseInt(document.getElementById('detailQty').value))" class="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 transition flex items-center justify-center gap-2">
+                                        <i class="fas fa-bag-shopping text-sm"></i> <span>Add to Bag</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Full Detailed Description & Specifications -->
+                    <div class="mt-12 pt-10 border-t border-slate-200 space-y-8">
+                        <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
+                            <div class="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+                                <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-base">
+                                    <i class="fas fa-file-lines"></i>
+                                </div>
+                                <h3 class="text-base sm:text-lg font-black text-slate-900">Full Detailed Description & Features (সম্পূর্ণ বিবরণ)</h3>
+                            </div>
+                            <div class="text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                                ${p.description || p.short_description || 'Explore the authentic quality product at OnlineBdMart with official warranty and fast home delivery in Bangladesh.'}
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="bg-slate-50 p-6 sm:p-8 rounded-3xl border border-slate-200 space-y-4">
+                                <h3 class="text-sm font-extrabold uppercase text-slate-900 flex items-center gap-2"><i class="fas fa-list-check text-cyan-600"></i> Technical Specifications</h3>
+                                <div class="text-xs text-slate-700 space-y-2 whitespace-pre-line font-medium leading-relaxed">
+                                    ${p.specifications || "Material: Premium High-Grade Build\nWarranty: 1 Year Official Warranty\nDelivery: Cash On Delivery in All 64 Districts"}
+                                </div>
+                            </div>
+
+                            <div class="bg-gradient-to-tr from-indigo-950 to-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-md space-y-4">
+                                <h3 class="text-sm font-extrabold uppercase text-amber-400 flex items-center gap-2"><i class="fas fa-shield-halved"></i> Why Buy from OnlineBdMart?</h3>
+                                <div class="text-xs text-slate-200 space-y-3 leading-relaxed whitespace-pre-line">
+                                    ${p.why_buy_from_us || "✓ 100% Original Authentic Quality Guarantee\n✓ 7-Day Easy Return & Replacement Policy\n✓ Open Parcel Before Payment with Delivery Rider\n✓ Fast Nationwide Delivery Across 64 Districts"}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Related Products -->
+                ${relatedProducts.length > 0 ? `
+                    <div class="space-y-6 mt-12">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-indigo-600">Recommendations</span>
+                                <h2 class="text-xl sm:text-2xl font-extrabold font-serif text-slate-900">You May Also Like (সম্পর্কিত প্রোডাক্ট)</h2>
+                            </div>
+                            <a href="/shop" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"><span>View More</span> &rarr;</a>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+                            ${relatedProducts.map(rp => {
+                                const rpPrice = (rp.sale_price && rp.sale_price > 0 && rp.sale_price < rp.price) ? rp.sale_price : rp.price;
+                                return `
+                                    <div class="group bg-white rounded-3xl border border-slate-200 p-4 shadow-sm hover:shadow-xl hover:border-indigo-500/50 transition flex flex-col justify-between overflow-hidden relative">
+                                        ${rp.sale_price && rp.sale_price < rp.price ? `<span class="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow">Sale</span>` : ''}
+                                        <a href="/product/${rp.slug}" class="aspect-square bg-slate-100 rounded-2xl overflow-hidden mb-3 block">
+                                            <img src="/${(rp.image_path || 'uploads/luxury-watch.svg').replace(/^\//, '')}" alt="${rp.name}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                                        </a>
+                                        <div class="flex-1 flex flex-col justify-between space-y-2">
+                                            <div>
+                                                <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 block truncate">${rp.category_name || 'Accessories'}</span>
+                                                <a href="/product/${rp.slug}" class="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition line-clamp-2 block mt-0.5">${rp.name}</a>
+                                            </div>
+                                            <div class="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                                <span class="text-sm font-black text-slate-900">৳${rpPrice.toFixed(2)}</span>
+                                                <button type="button" onclick="addToCart(${rp.id})" class="w-full sm:w-auto px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs font-black rounded-xl shadow transition flex items-center justify-center gap-1.5">
+                                                    <i class="fas fa-bag-shopping text-xs"></i> <span>Add</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                ` : ''}
             </div>
         `;
         return sendHtml(renderLayout(p.name, content, sessionData, 'shop'));
