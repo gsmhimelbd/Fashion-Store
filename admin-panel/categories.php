@@ -8,16 +8,17 @@ $error = '';
 try {
     $db = getDB();
 
-    // Auto-heal categories schema if missing show_on_homepage or emoji columns
+    // Auto-heal categories schema in MySQL
     try {
-        $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
-        if ($driver === 'mysql') {
-            @$db->exec("ALTER TABLE `categories` ADD COLUMN `show_on_homepage` tinyint(1) DEFAULT 1");
-            @$db->exec("ALTER TABLE `categories` ADD COLUMN `is_featured` tinyint(1) DEFAULT 1");
-            @$db->exec("ALTER TABLE `categories` ADD COLUMN `emoji` varchar(50) DEFAULT '🛍️'");
-            @$db->exec("ALTER TABLE `categories` ADD COLUMN `parent_id` int(11) DEFAULT NULL");
-            @$db->exec("ALTER TABLE `categories` ADD COLUMN `display_order` int(11) DEFAULT 1");
-        }
+        @$db->exec("ALTER TABLE `categories` ADD COLUMN `parent_id` int(11) DEFAULT NULL");
+        @$db->exec("ALTER TABLE `categories` ADD COLUMN `emoji` varchar(50) DEFAULT '🛍️'");
+        @$db->exec("ALTER TABLE `categories` ADD COLUMN `icon` varchar(100) DEFAULT 'fa-tag'");
+        @$db->exec("ALTER TABLE `categories` ADD COLUMN `image_path` varchar(255) DEFAULT NULL");
+        @$db->exec("ALTER TABLE `categories` ADD COLUMN `description` text DEFAULT NULL");
+        @$db->exec("ALTER TABLE `categories` ADD COLUMN `display_order` int(11) DEFAULT 1");
+        @$db->exec("ALTER TABLE `categories` ADD COLUMN `show_on_homepage` tinyint(1) DEFAULT 1");
+        @$db->exec("ALTER TABLE `categories` ADD COLUMN `is_featured` tinyint(1) DEFAULT 1");
+        @$db->exec("ALTER TABLE `categories` ADD COLUMN `is_active` tinyint(1) DEFAULT 1");
     } catch (Exception $ex) {}
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -37,32 +38,30 @@ try {
 
             if ($action === 'create') {
                 try {
-                    $stmt = $db->prepare("INSERT INTO categories (name, slug, parent_id, emoji, description, display_order, show_on_homepage, is_featured, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
+                    $stmt = $db->prepare("INSERT INTO categories (`name`, `slug`, `parent_id`, `emoji`, `description`, `display_order`, `show_on_homepage`, `is_featured`, `is_active`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
                     $stmt->execute([$name, $slug, $parentId, $emoji, $desc, $displayOrder, $showOnHome, $showOnHome, $isActive]);
                 } catch (Exception $e1) {
                     try {
-                        @$db->exec("ALTER TABLE `categories` ADD COLUMN `show_on_homepage` tinyint(1) DEFAULT 1");
-                        $stmt = $db->prepare("INSERT INTO categories (name, slug, parent_id, emoji, description, display_order, show_on_homepage, is_featured, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                        $stmt->execute([$name, $slug, $parentId, $emoji, $desc, $displayOrder, $showOnHome, $showOnHome, $isActive]);
-                    } catch (Exception $e2) {
-                        $stmt = $db->prepare("INSERT INTO categories (name, slug, parent_id, emoji, description, display_order) VALUES (?, ?, ?, ?, ?, ?)");
+                        $stmt = $db->prepare("INSERT INTO categories (`name`, `slug`, `parent_id`, `emoji`, `description`, `display_order`) VALUES (?, ?, ?, ?, ?, ?)");
                         $stmt->execute([$name, $slug, $parentId, $emoji, $desc, $displayOrder]);
+                    } catch (Exception $e2) {
+                        $stmt = $db->prepare("INSERT INTO categories (`name`, `slug`, `emoji`) VALUES (?, ?, ?)");
+                        $stmt->execute([$name, $slug, $emoji]);
                     }
                 }
-                $msg = $parentId ? '✓ Subcategory created successfully!' : '✓ Category created and saved!';
+                $msg = $parentId ? '✓ Subcategory created successfully!' : '✓ Category created and added to Home Screen!';
             } else {
                 $id = (int)$_POST['category_id'];
                 try {
-                    $stmt = $db->prepare("UPDATE categories SET name = ?, slug = ?, parent_id = ?, emoji = ?, description = ?, display_order = ?, show_on_homepage = ?, is_featured = ? WHERE id = ?");
+                    $stmt = $db->prepare("UPDATE categories SET `name` = ?, `slug` = ?, `parent_id` = ?, `emoji` = ?, `description` = ?, `display_order` = ?, `show_on_homepage` = ?, `is_featured` = ? WHERE `id` = ?");
                     $stmt->execute([$name, $slug, $parentId, $emoji, $desc, $displayOrder, $showOnHome, $showOnHome, $id]);
                 } catch (Exception $e1) {
                     try {
-                        @$db->exec("ALTER TABLE `categories` ADD COLUMN `show_on_homepage` tinyint(1) DEFAULT 1");
-                        $stmt = $db->prepare("UPDATE categories SET name = ?, slug = ?, parent_id = ?, emoji = ?, description = ?, display_order = ?, show_on_homepage = ? WHERE id = ?");
-                        $stmt->execute([$name, $slug, $parentId, $emoji, $desc, $displayOrder, $showOnHome, $id]);
-                    } catch (Exception $e2) {
-                        $stmt = $db->prepare("UPDATE categories SET name = ?, slug = ?, parent_id = ?, emoji = ?, description = ?, display_order = ? WHERE id = ?");
+                        $stmt = $db->prepare("UPDATE categories SET `name` = ?, `slug` = ?, `parent_id` = ?, `emoji` = ?, `description` = ?, `display_order` = ? WHERE `id` = ?");
                         $stmt->execute([$name, $slug, $parentId, $emoji, $desc, $displayOrder, $id]);
+                    } catch (Exception $e2) {
+                        $stmt = $db->prepare("UPDATE categories SET `name` = ?, `slug` = ?, `emoji` = ? WHERE `id` = ?");
+                        $stmt->execute([$name, $slug, $emoji, $id]);
                     }
                 }
                 $msg = '✓ Category updated successfully!';
@@ -72,23 +71,32 @@ try {
             $current = (int)$_POST['current_status'];
             $newStatus = $current === 1 ? 0 : 1;
             try {
-                @$db->exec("ALTER TABLE `categories` ADD COLUMN `show_on_homepage` tinyint(1) DEFAULT 1");
-                $db->prepare("UPDATE categories SET show_on_homepage = ?, is_featured = ? WHERE id = ?")->execute([$newStatus, $newStatus, $id]);
+                $db->prepare("UPDATE categories SET `show_on_homepage` = ?, `is_featured` = ? WHERE `id` = ?")->execute([$newStatus, $newStatus, $id]);
             } catch (Exception $ex) {
                 try {
-                    $db->prepare("UPDATE categories SET show_on_homepage = ? WHERE id = ?")->execute([$newStatus, $id]);
+                    $db->prepare("UPDATE categories SET `show_on_homepage` = ? WHERE `id` = ?")->execute([$newStatus, $id]);
                 } catch (Exception $ex2) {}
             }
             $msg = $newStatus === 1 ? '✓ Category enabled on Home Screen!' : '✓ Category hidden from Home Screen.';
         } elseif ($action === 'delete') {
             $id = (int)$_POST['category_id'];
-            $db->prepare("DELETE FROM categories WHERE id = ? OR parent_id = ?")->execute([$id, $id]);
+            $db->prepare("DELETE FROM categories WHERE `id` = ? OR `parent_id` = ?")->execute([$id, $id]);
             $msg = '✓ Category deleted successfully!';
         }
     }
 
-    $parentCategories = $db->query("SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id) as products_count FROM categories c WHERE c.parent_id IS NULL OR c.parent_id = 0 ORDER BY c.display_order ASC, c.id ASC")->fetchAll();
-    $subCategories = $db->query("SELECT sc.*, p.name as parent_name, (SELECT COUNT(*) FROM products WHERE subcategory_id = sc.id) as products_count FROM categories sc LEFT JOIN categories p ON sc.parent_id = p.id WHERE sc.parent_id IS NOT NULL AND sc.parent_id > 0 ORDER BY sc.display_order ASC, sc.name ASC")->fetchAll();
+    try {
+        $parentCategories = $db->query("SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id) as products_count FROM categories c WHERE c.parent_id IS NULL OR c.parent_id = 0 ORDER BY c.display_order ASC, c.id ASC")->fetchAll();
+    } catch (Exception $pe) {
+        $parentCategories = $db->query("SELECT * FROM categories ORDER BY id ASC")->fetchAll();
+    }
+
+    try {
+        $subCategories = $db->query("SELECT sc.*, p.name as parent_name, (SELECT COUNT(*) FROM products WHERE subcategory_id = sc.id) as products_count FROM categories sc LEFT JOIN categories p ON sc.parent_id = p.id WHERE sc.parent_id IS NOT NULL AND sc.parent_id > 0 ORDER BY sc.display_order ASC, sc.name ASC")->fetchAll();
+    } catch (Exception $se) {
+        $subCategories = [];
+    }
+
 } catch (Exception $e) {
     $error = $e->getMessage();
     $parentCategories = [];
@@ -108,13 +116,12 @@ try {
 <?php endif; ?>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    
     <!-- Category Add & Edit Form Card -->
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-5 h-fit">
         <div class="border-b border-slate-800 pb-3">
             <span class="text-xs font-bold uppercase text-indigo-400">Home Screen & Catalog</span>
             <h3 class="text-lg font-black text-white mt-1" id="formHeaderTitle">Add Category</h3>
-            <p class="text-xs text-slate-400">Manage categories and choose exactly which ones to show in the <strong>"Browse Top Categories"</strong> section on the Home Page.</p>
+            <p class="text-xs text-slate-400">Categories added here will appear in the <strong>"Browse Top Categories"</strong> section on the Homepage and throughout the store.</p>
         </div>
 
         <form method="POST" action="categories.php" id="categoryForm" class="space-y-4 text-xs">
@@ -138,10 +145,10 @@ try {
 
             <!-- Emoji Selection & Palette -->
             <div>
-                <label class="block text-slate-300 font-bold mb-1">Category Logo / Emoji Icon (ইমোজি আইকন) *</label>
+                <label class="block text-slate-300 font-bold mb-1">Category Emoji Icon (ইমোজি আইকন) *</label>
                 <div class="flex items-center gap-2">
                     <input type="text" name="emoji" id="formEmoji" value="⌚" required class="w-20 px-3 py-2 bg-slate-950 border-2 border-indigo-500 rounded-xl text-white text-center text-2xl outline-none font-sans font-bold shadow-inner">
-                    <span class="text-slate-400 text-[11px]">Click an emoji below to select:</span>
+                    <span class="text-slate-400 text-[11px]">Click an emoji below to set:</span>
                 </div>
                 
                 <div class="flex flex-wrap gap-1.5 p-3 bg-slate-950 rounded-2xl border border-slate-800 text-xl mt-2">
@@ -187,7 +194,6 @@ try {
 
     <!-- Main Categories List & Homepage Feature Manager -->
     <div class="lg:col-span-2 space-y-6">
-        
         <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-5">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
                 <div>
@@ -201,6 +207,7 @@ try {
                 </a>
             </div>
 
+            <?php if (!empty($parentCategories)): ?>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <?php foreach ($parentCategories as $cat): 
                     $emoji = !empty($cat['emoji']) ? $cat['emoji'] : '🛍️';
@@ -210,13 +217,12 @@ try {
                     
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3 min-w-0">
-                            <!-- Category Emoji Logo Box -->
                             <div class="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-2xl shrink-0 shadow-inner">
                                 <span class="select-none"><?= htmlspecialchars($emoji) ?></span>
                             </div>
                             <div class="min-w-0">
                                 <h4 class="font-extrabold text-white truncate text-sm"><?= htmlspecialchars($cat['name']) ?></h4>
-                                <span class="text-slate-400 text-[11px]"><?= $cat['products_count'] ?> Products • Order: #<?= $cat['display_order'] ?></span>
+                                <span class="text-slate-400 text-[11px]"><?= $cat['products_count'] ?? 0 ?> Products • Order: #<?= $cat['display_order'] ?? 1 ?></span>
                             </div>
                         </div>
 
@@ -230,8 +236,8 @@ try {
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="category_id" value="<?= $cat['id'] ?>">
                                 <button type="submit" class="p-2 bg-rose-500/20 text-rose-400 hover:bg-rose-500/40 rounded-xl" title="Delete">
-                                <i class="fas fa-trash-can"></i>
-                            </button>
+                                    <i class="fas fa-trash-can"></i>
+                                </button>
                             </form>
                         </div>
                     </div>
@@ -253,6 +259,13 @@ try {
                 </div>
                 <?php endforeach; ?>
             </div>
+            <?php else: ?>
+            <div class="p-8 text-center bg-slate-950 rounded-2xl border border-slate-800 text-slate-400 space-y-2">
+                <i class="fas fa-layer-group text-2xl text-slate-600"></i>
+                <p class="font-bold text-slate-300">No Categories in Database Yet</p>
+                <p class="text-[11px]">Use the form on the left to add your first category!</p>
+            </div>
+            <?php endif; ?>
         </div>
 
         <!-- Subcategories List -->
