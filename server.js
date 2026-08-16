@@ -2324,18 +2324,35 @@ const server = http.createServer(async (req, res) => {
         const isWholesale = Boolean(body.is_wholesale || (body.type === 'wholesale'));
         const minQty = isWholesale ? (p.wholesale_min_qty || 5) : 1;
         const qty = Math.max(minQty, parseInt(body.quantity || minQty, 10));
+        const color = (body.color || '').trim();
+        const size = (body.size || '').trim();
+        const customPrice = body.custom_price ? parseFloat(body.custom_price) : null;
 
-        const unitPrice = isWholesale || qty >= (p.wholesale_min_qty || 5)
-            ? (p.wholesale_price || (p.price * 0.75))
-            : (p.sale_price || p.price);
+        let unitPrice = customPrice && customPrice > 0 ? customPrice : (
+            isWholesale || qty >= (p.wholesale_min_qty || 5)
+                ? (p.wholesale_price || (p.price * 0.75))
+                : (p.sale_price || p.price)
+        );
 
-        if (!sessionData.cart[pid]) {
-            sessionData.cart[pid] = { id: p.id, name: p.name, slug: p.slug, price: unitPrice, image: p.image_path, quantity: qty, is_wholesale: isWholesale };
+        const cartKey = `${pid}_${color}_${size}_${isWholesale ? 'ws' : 'reg'}`;
+
+        if (!sessionData.cart[cartKey]) {
+            sessionData.cart[cartKey] = { 
+                cart_key: cartKey,
+                id: p.id, 
+                name: p.name, 
+                slug: p.slug, 
+                price: unitPrice, 
+                image: p.image_path, 
+                quantity: qty, 
+                color: color,
+                size: size,
+                is_wholesale: isWholesale 
+            };
         } else {
-            sessionData.cart[pid].quantity += qty;
-            if (sessionData.cart[pid].quantity >= (p.wholesale_min_qty || 5)) {
-                sessionData.cart[pid].price = p.wholesale_price || (p.price * 0.75);
-                sessionData.cart[pid].is_wholesale = true;
+            sessionData.cart[cartKey].quantity += qty;
+            if (customPrice && customPrice > 0) {
+                sessionData.cart[cartKey].price = customPrice;
             }
         }
 
@@ -2351,11 +2368,11 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/cart/update' && method === 'POST') {
         const body = await parseBody(req);
-        const pid = parseInt(body.product_id || 0, 10);
+        const cartKey = body.cart_key || String(body.product_id);
         const qty = parseInt(body.quantity || 0, 10);
-        if (sessionData.cart[pid]) {
-            if (qty > 0) sessionData.cart[pid].quantity = qty;
-            else delete sessionData.cart[pid];
+        if (sessionData.cart[cartKey]) {
+            if (qty > 0) sessionData.cart[cartKey].quantity = qty;
+            else delete sessionData.cart[cartKey];
         }
         const items = Object.values(sessionData.cart);
         return sendJson({ success: true, count: items.reduce((s, i) => s + i.quantity, 0), subtotal: items.reduce((s, i) => s + (i.price * i.quantity), 0), items });
@@ -2363,7 +2380,8 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/cart/remove' && method === 'POST') {
         const body = await parseBody(req);
-        delete sessionData.cart[parseInt(body.product_id || 0, 10)];
+        const cartKey = body.cart_key || String(body.product_id);
+        delete sessionData.cart[cartKey];
         const items = Object.values(sessionData.cart);
         return sendJson({ success: true, count: items.reduce((s, i) => s + i.quantity, 0), subtotal: items.reduce((s, i) => s + (i.price * i.quantity), 0) });
     }
@@ -2466,8 +2484,11 @@ const server = http.createServer(async (req, res) => {
             body.customer_name, body.phone, body.phone, body.district, body.district, body.address, '', body.payment_method || 'cod', subtotal, deliveryCharge, grandTotal, 'pending'
         );
         const orderId = orderRes.lastInsertRowid;
-        const itemStmt = db.prepare('INSERT INTO order_items (order_id, product_id, product_name, product_image, price, quantity) VALUES (?, ?, ?, ?, ?, ?)');
-        for (const i of items) itemStmt.run(orderId, i.id, i.name, i.image, i.price, i.quantity);
+        try { db.exec("ALTER TABLE order_items ADD COLUMN color TEXT"); } catch (e) {}
+        try { db.exec("ALTER TABLE order_items ADD COLUMN size TEXT"); } catch (e) {}
+
+        const itemStmt = db.prepare('INSERT INTO order_items (order_id, product_id, product_name, product_image, price, quantity, color, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        for (const i of items) itemStmt.run(orderId, i.id, i.name, i.image, i.price, i.quantity, i.color || null, i.size || null);
 
         const s = getSettings();
         if (s.telegram_alerts_enabled === '1' && s.telegram_bot_token && s.telegram_chat_id) {
@@ -2476,7 +2497,13 @@ const server = http.createServer(async (req, res) => {
             const waPhone = digits.startsWith('880') ? digits : (digits.startsWith('0') ? '88' + digits : (digits.startsWith('1') && digits.length === 10 ? '880' + digits : (digits ? '88' + digits : '8801775153740')));
             const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(`Assalamu Alaikum, OnlineBdMart theke apnar Order #${orderId} er bishoye jogajog korsi.`)}`;
 
-            const itemsText = items.map(i => `• <b>${i.name}</b>\n  └ <i>${i.quantity} pcs × ৳${i.price}</i> = <b>৳${(i.quantity * i.price).toFixed(2)}</b>`).join('\n');
+            const itemsText = items.map(i => {
+                let varText = '';
+                if (i.color || i.size) {
+                    varText = ` [${i.color ? 'Color: ' + i.color : ''}${i.color && i.size ? ' | ' : ''}${i.size ? 'Size: ' + i.size : ''}]`;
+                }
+                return `• <b>${i.name}</b>${varText}\n  └ <i>${i.quantity} pcs × ৳${i.price}</i> = <b>৳${(i.quantity * i.price).toFixed(2)}</b>`;
+            }).join('\n');
             const teleMsg = `🛍️ <b>NEW ORDER RECEIVED!</b>\n━━━━━━━━━━━━━━━━━━━━\n🧾 <b>Order ID:</b> <code>#OBM-${orderId}</code> (DB: #${orderId})\n📊 <b>Status:</b> <code>[PENDING]</code>\n\n👤 <b>CUSTOMER DETAILS</b>\n• <b>Name:</b> ${body.customer_name}\n• <b>Phone:</b> <code>${body.phone}</code>\n• <b>WhatsApp:</b> <a href="${waUrl}">Chat on WhatsApp</a>\n• <b>Address:</b> ${body.address}, ${body.district}\n\n📦 <b>ORDERED ITEMS (${items.reduce((sum, i) => sum + i.quantity, 0)} pcs)</b>\n${itemsText}\n\n💰 <b>PAYMENT & BILLING SUMMARY</b>\n• <b>Subtotal:</b> ৳${subtotal.toFixed(2)}\n• <b>Delivery Fee:</b> ৳${deliveryCharge.toFixed(2)}\n• <b>GRAND TOTAL:</b> <b>৳${grandTotal.toFixed(2)}</b>\n• <b>Method:</b> <code>${(body.payment_method || 'COD').toUpperCase()}</code>\n━━━━━━━━━━━━━━━━━━━━\n⚡ <i>Direct Contact & Order Actions:</i>`;
 
             callTelegramApi(s.telegram_bot_token, 'sendMessage', {

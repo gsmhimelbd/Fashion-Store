@@ -290,26 +290,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['coupon_action'])) {
                 @$db->exec("ALTER TABLE `order_items` ADD COLUMN `size` varchar(100) DEFAULT NULL");
             } catch (Exception $ex) {}
 
-            // Insert items safely
+            // Insert items safely preserving color and size
             foreach ($cart as $item) {
                 $itemTotal = (float)($item['price'] * $item['quantity']);
                 $isWholesale = !empty($item['is_wholesale']) ? 1 : 0;
                 $img = $item['image'] ?? '';
-                $itemColor = $item['color'] ?? null;
-                $itemSize = $item['size'] ?? null;
+                $itemColor = !empty($item['color']) ? $item['color'] : null;
+                $itemSize = !empty($item['size']) ? $item['size'] : null;
 
                 try {
                     $itemStmt = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, product_image, price, quantity, total_price, is_wholesale, color, size, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
                     $itemStmt->execute([$orderId, $item['id'], $item['name'], $img, $item['price'], $item['quantity'], $itemTotal, $isWholesale, $itemColor, $itemSize]);
                 } catch (Exception $e1) {
                     try {
-                        $itemStmt2 = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, product_image, price, quantity, total_price, is_wholesale) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                        $itemStmt2->execute([$orderId, $item['id'], $item['name'], $img, $item['price'], $item['quantity'], $itemTotal, $isWholesale]);
+                        $itemStmt2 = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, product_image, price, quantity, total_price, is_wholesale, color, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        $itemStmt2->execute([$orderId, $item['id'], $item['name'], $img, $item['price'], $item['quantity'], $itemTotal, $isWholesale, $itemColor, $itemSize]);
                     } catch (Exception $e2) {
                         try {
-                            $itemStmt3 = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, price, quantity) VALUES (?, ?, ?, ?, ?)");
-                            $itemStmt3->execute([$orderId, $item['id'], $item['name'], $item['price'], $item['quantity']]);
-                        } catch (Exception $e3) {}
+                            $itemStmt3 = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, price, quantity, total_price, color, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                            $itemStmt3->execute([$orderId, $item['id'], $item['name'], $item['price'], $item['quantity'], $itemTotal, $itemColor, $itemSize]);
+                        } catch (Exception $e3) {
+                            try {
+                                $itemStmt4 = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, price, quantity, color, size) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                                $itemStmt4->execute([$orderId, $item['id'], $item['name'], $item['price'], $item['quantity'], $itemColor, $itemSize]);
+                            } catch (Exception $e4) {
+                                try {
+                                    $itemStmt5 = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, price, quantity) VALUES (?, ?, ?, ?, ?)");
+                                    $itemStmt5->execute([$orderId, $item['id'], $item['name'], $item['price'], $item['quantity']]);
+                                } catch (Exception $e5) {}
+                            }
+                        }
                     }
                 }
             }

@@ -75,9 +75,21 @@ require_once 'includes/header.php';
                 <span class="text-slate-400 block text-[10px] uppercase font-bold mb-2">Ordered Items</span>
                 <div class="space-y-1.5">
                     <?php foreach ($items as $item): ?>
-                    <div class="flex justify-between font-medium">
-                        <span><?= htmlspecialchars($item['product_name']) ?> &times; <?= $item['quantity'] ?></span>
-                        <span class="font-bold">৳<?= number_format($item['total_price'], 2) ?></span>
+                    <div class="flex justify-between items-center font-medium">
+                        <div>
+                            <span class="font-bold text-slate-800"><?= htmlspecialchars($item['product_name']) ?> &times; <?= $item['quantity'] ?></span>
+                            <?php if (!empty($item['color']) || !empty($item['size'])): ?>
+                            <div class="flex items-center gap-1.5 mt-0.5">
+                                <?php if (!empty($item['color'])): ?>
+                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700">Color: <?= htmlspecialchars($item['color']) ?></span>
+                                <?php endif; ?>
+                                <?php if (!empty($item['size'])): ?>
+                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-800">Size: <?= htmlspecialchars($item['size']) ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                        <span class="font-bold text-indigo-600">৳<?= number_format($item['total_price'] ?: ($item['price'] * $item['quantity']), 2) ?></span>
                     </div>
                     <?php endforeach; ?>
                 </div>

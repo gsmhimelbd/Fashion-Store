@@ -7,6 +7,9 @@ require_once 'config/database.php';
 // Handle AJAX cart mutations
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
+    if (!$input && !empty($_POST)) {
+        $input = $_POST;
+    }
     if ($input) {
         $action = $input['action'] ?? '';
         $productId = (int)($input['product_id'] ?? 0);
@@ -44,6 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     if (isset($_SESSION['cart'][$cartKey])) {
                         $_SESSION['cart'][$cartKey]['quantity'] += $qty;
+                        if ($customPrice !== null && $customPrice > 0) {
+                            $_SESSION['cart'][$cartKey]['price'] = $itemPrice;
+                        }
                     } else {
                         $pImg = !empty($p['image_path']) ? $p['image_path'] : ($p['image'] ?? 'images/products/watch-1.jpg');
                         $_SESSION['cart'][$cartKey] = [
