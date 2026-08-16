@@ -1,8 +1,11 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once 'config/database.php';
 
 $slug = trim($_GET['slug'] ?? '');
-if (!$slug) {
+if (empty($slug)) {
     header('Location: shop.php');
     exit;
 }
@@ -19,22 +22,22 @@ try {
     try { $db->exec("ALTER TABLE `reviews` ADD `product_id` int(11) DEFAULT NULL"); } catch (Exception $ex) {}
     try { $db->exec("ALTER TABLE `reviews` ADD `is_approved` tinyint(1) DEFAULT 0"); } catch (Exception $ex) {}
 
-    // Handle Customer Review Submission
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review'])) {
+    // Handle Review Submission
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'submit_review') {
+        $productId = (int)($_POST['product_id'] ?? 0);
         $authorName = trim($_POST['author_name'] ?? '');
-        $rating = max(1, min(5, (int)($_POST['rating'] ?? 5)));
+        $rating = (int)($_POST['rating'] ?? 5);
         $reviewText = trim($_POST['review_text'] ?? '');
         $district = trim($_POST['district_name'] ?? 'Dhaka');
         $phone = trim($_POST['phone'] ?? '');
-        $productId = (int)($_POST['product_id'] ?? 0);
 
         if (empty($authorName) || empty($reviewText)) {
-            $reviewError = 'অনুগ্রহ করে আপনার নাম এবং রিভিউ মন্তব্য লিখুন।';
+            $reviewError = 'অনুগ্রহ করে আপনার নাম এবং রিভিউটি লিখুন।';
         } else {
             try {
+                $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
                 $existingCols = [];
                 try {
-                    $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
                     if ($driver === 'mysql') {
                         $cStmt = $db->query("SHOW COLUMNS FROM `reviews`");
                         while ($row = $cStmt->fetch(PDO::FETCH_ASSOC)) {
@@ -149,7 +152,6 @@ try {
         if (preg_match_all('/\b([0-9]+(?:\.[0-9]+)?\s*(?:Liter|Litre|L|ml))\b/i', $textToScan, $matches)) {
             $foundUnits = array_unique(array_map('trim', $matches[1]));
             if (!empty($foundUnits)) {
-                // If only 1 unit found like 8L, also add common companions if cooker/bottle
                 $uList = array_values($foundUnits);
                 foreach ($uList as $u) {
                     $productSizes[] = ['size' => $u, 'price' => $basePrice];
@@ -264,21 +266,6 @@ if (!empty($product['gallery_images'])) {
 ?>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-    
-    <!-- Review Submission Notifications -->
-    <?php if ($reviewNotice): ?>
-    <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 text-xs font-bold flex items-center gap-2 mb-6 shadow-sm">
-        <i class="fas fa-circle-check text-base text-emerald-600"></i>
-        <span><?= htmlspecialchars($reviewNotice) ?></span>
-    </div>
-    <?php endif; ?>
-    <?php if ($reviewError): ?>
-    <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-700 text-xs font-bold flex items-center gap-2 mb-6 shadow-sm">
-        <i class="fas fa-circle-exclamation text-base text-rose-600"></i>
-        <span><?= htmlspecialchars($reviewError) ?></span>
-    </div>
-    <?php endif; ?>
-
     <!-- Breadcrumb -->
     <nav class="flex items-center gap-2 text-xs text-slate-500 mb-8 overflow-x-auto whitespace-nowrap">
         <a href="index.php" class="hover:text-indigo-600 font-medium">Home</a>
@@ -294,12 +281,24 @@ if (!empty($product['gallery_images'])) {
         <span class="text-slate-900 font-bold truncate max-w-xs"><?= htmlspecialchars($product['name']) ?></span>
     </nav>
 
+    <?php if ($reviewNotice): ?>
+    <div class="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+        <i class="fas fa-circle-check text-base"></i> <span><?= htmlspecialchars($reviewNotice) ?></span>
+    </div>
+    <?php endif; ?>
+    <?php if ($reviewError): ?>
+    <div class="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
+        <i class="fas fa-circle-exclamation text-base"></i> <span><?= htmlspecialchars($reviewError) ?></span>
+    </div>
+    <?php endif; ?>
+
     <!-- Main Product Presentation Box -->
     <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-10 shadow-sm mb-12">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
             
             <!-- Left: Gallery & Zoomable Photo Viewer -->
             <div class="space-y-4">
+                <!-- Big Main Zoom Image Container -->
                 <div class="relative aspect-square bg-slate-100 rounded-3xl overflow-hidden border border-slate-200 shadow-sm group cursor-crosshair" id="zoomContainer" onmousemove="handleZoom(event)" onmouseleave="resetZoom()">
                     <img id="mainProductImage" src="<?= htmlspecialchars($gallery[0] ?? '/images/products/watch-1.jpg') ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="w-full h-full object-cover transition-transform duration-200 origin-center">
                     
@@ -326,7 +325,7 @@ if (!empty($product['gallery_images'])) {
                 <?php endif; ?>
             </div>
 
-            <!-- Right: Details, Pricing, Colors, Liters & CTAs -->
+            <!-- Right: Details, Pricing, Variants & Direct Order CTAs -->
             <div class="flex flex-col justify-between space-y-6">
                 <div class="space-y-4">
                     <div class="flex flex-wrap items-center gap-2">
@@ -339,14 +338,14 @@ if (!empty($product['gallery_images'])) {
 
                     <h1 class="text-2xl sm:text-3xl font-extrabold font-serif text-slate-900 leading-snug"><?= htmlspecialchars($product['name']) ?></h1>
                     
-                    <!-- Rating & Reviews Anchor Link -->
-                    <a href="#reviewsSection" class="inline-flex items-center gap-2 group cursor-pointer">
+                    <!-- Rating & Reviews -->
+                    <div class="flex items-center gap-2">
                         <div class="flex text-amber-400 text-xs">
                             <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
                         </div>
-                        <span class="text-xs font-black text-slate-700"><?= $avgRating ?></span>
-                        <span class="text-xs text-indigo-600 group-hover:underline font-bold">(<?= $totalReviewsCount ?> Customer Reviews)</span>
-                    </a>
+                        <span class="text-xs font-bold text-slate-700"><?= $avgRating ?></span>
+                        <span class="text-xs text-slate-400">(<?= $totalReviewsCount ?> Verified Customer Reviews)</span>
+                    </div>
 
                     <!-- Dynamic Real-Time Price Display -->
                     <div class="flex items-baseline gap-3 pt-2">
@@ -516,163 +515,100 @@ if (!empty($product['gallery_images'])) {
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- CUSTOMER REVIEWS & RATING MODERATION SECTION -->
-        <div id="reviewsSection" class="mt-12 pt-10 border-t border-slate-200 space-y-8">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                <div>
-                    <span class="text-xs font-bold uppercase tracking-wider text-amber-600 flex items-center gap-1.5">
-                        <i class="fas fa-star text-amber-400"></i> Customer Feedback
-                    </span>
-                    <h3 class="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">Verified Customer Reviews (গ্রাহকের মতামত)</h3>
-                </div>
-
-                <a href="#writeReviewForm" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold rounded-xl shadow transition flex items-center gap-2 shrink-0">
-                    <i class="fas fa-pen"></i> <span>Write a Review (রিভিউ দিন)</span>
-                </a>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
-                <!-- Left Column: Overall Score & Review Form -->
-                <div class="space-y-6">
-                    <div class="p-6 rounded-3xl bg-slate-50 border border-slate-200 text-center space-y-3">
-                        <div class="text-4xl sm:text-5xl font-black text-slate-900"><?= $avgRating ?><span class="text-xl font-normal text-slate-400">/5</span></div>
-                        <div class="flex justify-center text-amber-400 text-lg">
-                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
-                        </div>
-                        <p class="text-xs text-slate-500 font-medium">Based on <?= $totalReviewsCount ?> customer experiences</p>
-                        <div class="pt-2 border-t border-slate-200 text-[11px] text-emerald-600 font-bold flex items-center justify-center gap-1.5">
-                            <i class="fas fa-shield-check"></i> 100% Authentic Verified Purchases
-                        </div>
-                    </div>
-
-                    <!-- Customer Write Review Form Card -->
-                    <div id="writeReviewForm" class="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-4">
-                        <h4 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                            <i class="fas fa-comment-dots text-indigo-600"></i> Write Your Review (আপনার রিভিউ লিখুন)
-                        </h4>
-                        <p class="text-[11px] text-slate-500">আপনার রিভিউটি সাবমিট করার পর অ্যাডমিন অনুমোদন দিলে এখানে শো করবে।</p>
-
-                        <form method="POST" action="product.php?slug=<?= htmlspecialchars($product['slug']) ?>#reviewsSection" class="space-y-3.5 text-xs">
-                            <input type="hidden" name="submit_review" value="1">
-                            <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
-
-                            <div>
-                                <label class="block text-slate-700 font-bold mb-1">Star Rating (স্টার রেটিং) *</label>
-                                <div class="flex items-center gap-2">
-                                    <select name="rating" id="reviewRatingSelect" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-amber-500 font-bold outline-none">
-                                        <option value="5">★★★★★ (5 Stars - Excellent)</option>
-                                        <option value="4">★★★★☆ (4 Stars - Very Good)</option>
-                                        <option value="3">★★★☆☆ (3 Stars - Average)</option>
-                                        <option value="2">★★☆☆☆ (2 Stars - Below Average)</option>
-                                        <option value="1">★☆☆☆☆ (1 Star - Poor)</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="block text-slate-700 font-bold mb-1">Your Name (আপনার নাম) *</label>
-                                <input type="text" name="author_name" required placeholder="e.g. Tanvir Ahmed" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-indigo-500">
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-slate-700 font-bold mb-1">District / City</label>
-                                    <input type="text" name="district_name" placeholder="e.g. Dhaka, Sylhet" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-slate-700 font-bold mb-1">Phone / Email</label>
-                                    <input type="text" name="phone" placeholder="Optional" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none">
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="block text-slate-700 font-bold mb-1">Your Review Feedback (মন্তব্য) *</label>
-                                <textarea name="review_text" rows="3" required placeholder="Share your experience with quality, packaging, and delivery..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-indigo-500 leading-relaxed"></textarea>
-                            </div>
-
-                            <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl shadow transition">
-                                Submit Review for Approval
-                            </button>
-                        </form>
+            <!-- CUSTOMER REVIEWS & RATING SECTION -->
+            <div id="reviewsSection" class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 space-y-6 shadow-sm">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+                    <div>
+                        <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">
+                            <i class="fas fa-star text-amber-400"></i> Verified Customer Reviews (<?= count($prodReviews) ?>)
+                        </h3>
+                        <p class="text-xs text-slate-500">Real opinions and experiences from our valued customers across Bangladesh.</p>
                     </div>
                 </div>
 
-                <!-- Right Column: List of Live Approved Customer Reviews -->
-                <div class="lg:col-span-2 space-y-4">
-                    <?php if (!empty($prodReviews)): ?>
-                        <?php foreach ($prodReviews as $rev): 
-                            $rStars = max(1, min(5, (int)($rev['rating'] ?? 5)));
-                        ?>
-                        <div class="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-sm">
-                                        <?= strtoupper(substr($rev['author_name'] ?? 'C', 0, 1)) ?>
-                                    </div>
-                                    <div>
-                                        <div class="flex items-center gap-2">
-                                            <h4 class="font-extrabold text-slate-900 text-sm"><?= htmlspecialchars($rev['author_name']) ?></h4>
-                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 flex items-center gap-1">
-                                                <i class="fas fa-circle-check"></i> Verified Purchase
-                                            </span>
-                                        </div>
-                                        <div class="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
-                                            <span><i class="fas fa-location-dot text-rose-400 mr-1"></i><?= htmlspecialchars($rev['district_name'] ?? 'Bangladesh') ?></span>
-                                            <span>•</span>
-                                            <span><?= date('d M Y', strtotime($rev['created_at'] ?? 'now')) ?></span>
-                                        </div>
-                                    </div>
+                <!-- Reviews List -->
+                <?php if (!empty($prodReviews)): ?>
+                <div class="space-y-4 divide-y">
+                    <?php foreach ($prodReviews as $rev): ?>
+                    <div class="pt-4 first:pt-0 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs">
+                                    <?= mb_substr($rev['author_name'] ?? ($rev['customer_name'] ?? 'C'), 0, 1) ?>
                                 </div>
-                                <div class="text-amber-400 text-xs">
-                                    <?= str_repeat('★', $rStars) ?>
+                                <div>
+                                    <h4 class="font-bold text-xs text-slate-900"><?= htmlspecialchars($rev['author_name'] ?? ($rev['customer_name'] ?? 'Verified Customer')) ?></h4>
+                                    <span class="text-[10px] text-slate-400"><?= htmlspecialchars($rev['district_name'] ?? 'Dhaka') ?> • <?= date('d M Y', strtotime($rev['created_at'] ?? 'now')) ?></span>
                                 </div>
                             </div>
-
-                            <p class="text-slate-700 leading-relaxed font-normal pt-1">
-                                "<?= nl2br(htmlspecialchars($rev['review_text'])) ?>"
-                            </p>
-                        </div>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <!-- Default Seed State -->
-                        <div class="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-sm">
-                                        M
-                                    </div>
-                                    <div>
-                                        <div class="flex items-center gap-2">
-                                            <h4 class="font-extrabold text-slate-900 text-sm">Mohammad Rafiq</h4>
-                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 flex items-center gap-1">
-                                                <i class="fas fa-circle-check"></i> Verified Purchase
-                                            </span>
-                                        </div>
-                                        <div class="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
-                                            <span><i class="fas fa-location-dot text-rose-400 mr-1"></i>Dhaka</span>
-                                            <span>•</span>
-                                            <span>14 August 2026</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="text-amber-400 text-xs">★★★★★</div>
+                            <div class="flex text-amber-400 text-xs">
+                                <?php for ($i = 1; $i <= 5; $i++): ?>
+                                <i class="fas fa-star <?= $i <= ($rev['rating'] ?? 5) ? 'text-amber-400' : 'text-slate-200' ?>"></i>
+                                <?php endfor; ?>
                             </div>
-                            <p class="text-slate-700 leading-relaxed font-normal pt-1">
-                                "প্রোডাক্টের কোয়ালিটি অনেক ভালো এবং প্রিমিয়াম প্যাকেজিং। অর্ডার করার ২ দিনের মধ্যে ডেলিভারি পেয়েছি। রাইডারের সামনে প্যাকেট খুলে চেক করে ক্যাশ অন ডেলিভারিতে টাকা পরিশোধ করেছি।"
-                            </p>
                         </div>
-                    <?php endif; ?>
+                        <p class="text-xs text-slate-700 leading-relaxed font-normal bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <?= nl2br(htmlspecialchars($rev['review_text'] ?? ($rev['comment'] ?? ''))) ?>
+                        </p>
+                    </div>
+                    <?php endforeach; ?>
                 </div>
+                <?php else: ?>
+                <div class="p-6 bg-slate-50 rounded-2xl text-center space-y-2 text-slate-500 text-xs">
+                    <i class="fas fa-comment-dots text-2xl text-slate-400"></i>
+                    <p class="font-bold text-slate-700">No public reviews yet for this product.</p>
+                    <p>Be the first customer to share your thoughts and help others!</p>
+                </div>
+                <?php endif; ?>
 
+                <!-- Leave a Review Form -->
+                <div class="p-6 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 mt-6">
+                    <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fas fa-pen-nib text-indigo-600"></i> Leave a Review (আপনার মতামত লিখুন)
+                    </h4>
+                    <form method="POST" action="product.php?slug=<?= urlencode($slug) ?>#reviewsSection" class="space-y-3 text-xs">
+                        <input type="hidden" name="action" value="submit_review">
+                        <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Your Name (আপনার নাম) *</label>
+                                <input type="text" name="author_name" required placeholder="e.g. Tanvir Ahmed" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">District (জেলা)</label>
+                                <input type="text" name="district_name" placeholder="e.g. Dhaka" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-1">Rating (রেটিং)</label>
+                                <select name="rating" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:border-indigo-500 font-bold text-amber-500">
+                                    <option value="5">⭐⭐⭐⭐⭐ (5/5 Excellent)</option>
+                                    <option value="4">⭐⭐⭐⭐ (4/5 Very Good)</option>
+                                    <option value="3">⭐⭐⭐ (3/5 Good)</option>
+                                    <option value="2">⭐⭐ (2/5 Average)</option>
+                                    <option value="1">⭐ (1/5 Poor)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1">Review Comment (বিস্তারিত অভিজ্ঞতা) *</label>
+                            <textarea name="review_text" rows="3" required placeholder="Write your authentic feedback about the quality and performance..." class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:border-indigo-500"></textarea>
+                        </div>
+
+                        <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow transition">
+                            Submit Review
+                        </button>
+                    </form>
+                </div>
             </div>
+
         </div>
 
     </div>
 
-    <!-- Related Products / Recommended Items (Always Active) -->
+    <!-- Related Products -->
     <?php if (!empty($relatedProducts)): ?>
     <div class="space-y-6 mt-12">
         <div class="flex items-center justify-between">
@@ -687,7 +623,7 @@ if (!empty($product['gallery_images'])) {
 
         <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
             <?php foreach ($relatedProducts as $p): 
-                $rPrice = ($p['sale_price'] && $p['sale_price'] > 0 && $p['sale_price'] < $p['price']) ? $p['sale_price'] : $p['price'];
+                $rPrice = ($p['sale_price'] && $p['sale_price'] > 0 && $p['sale_price'] < $p['price']) ? (float)$p['sale_price'] : (float)$p['price'];
                 $rImg = !empty($p['image_path']) ? $p['image_path'] : ($p['image'] ?? 'images/products/watch-1.jpg');
             ?>
             <div class="group bg-white rounded-3xl border border-slate-200 p-4 shadow-sm hover:shadow-xl hover:border-indigo-500/50 transition flex flex-col justify-between overflow-hidden relative">
@@ -816,7 +752,7 @@ function addVariantToCart(qtyOverride = null, isWholesale = false) {
     );
 }
 
-// Image Zoom Effect on Hover
+// Exact Original Image Zoom Effect on Hover
 function handleZoom(e) {
     const container = document.getElementById('zoomContainer');
     const img = document.getElementById('mainProductImage');
@@ -825,17 +761,20 @@ function handleZoom(e) {
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     
     img.style.transformOrigin = `${x}% ${y}%`;
-    img.style.transform = 'scale(1.8)';
+    img.style.transform = 'scale(2.2)';
 }
 
 function resetZoom() {
     const img = document.getElementById('mainProductImage');
-    img.style.transform = 'scale(1)';
-    img.style.transformOrigin = 'center center';
+    if (img) {
+        img.style.transform = 'scale(1)';
+        img.style.transformOrigin = 'center center';
+    }
 }
 
 function switchProductImage(src, btn) {
-    document.getElementById('mainProductImage').src = src;
+    const img = document.getElementById('mainProductImage');
+    if (img) img.src = src;
     document.querySelectorAll('.gallery-thumb').forEach(t => {
         t.className = 'gallery-thumb w-20 h-20 rounded-2xl overflow-hidden border-2 border-slate-200 hover:border-indigo-400 transition shrink-0 bg-slate-50';
     });
