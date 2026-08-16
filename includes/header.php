@@ -69,7 +69,9 @@ try {
         if ($cQuery) {
             $topHeaderCoupon = $cQuery->fetch();
         }
-    } catch (Exception $exC) {}
+    } catch (Throwable $exC) {
+        $topHeaderCoupon = null;
+    }
 
 } catch (Exception $e) {
     $categories = [];

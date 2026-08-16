@@ -543,6 +543,22 @@ function ensureTablesExist($pdo) {
                     `message` TEXT NULL,
                     `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `coupons` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `code` VARCHAR(50) UNIQUE NOT NULL,
+                    `discount_type` VARCHAR(20) NOT NULL DEFAULT 'fixed',
+                    `discount_value` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    `min_spend` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    `product_id` INT NULL,
+                    `show_in_header` TINYINT(1) DEFAULT 1,
+                    `header_banner_text` VARCHAR(255) NULL,
+                    `expiry_date` DATE NULL,
+                    `usage_limit` INT NULL,
+                    `used_count` INT DEFAULT 0,
+                    `is_active` TINYINT(1) DEFAULT 1,
+                    `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             ");
         }
 
@@ -593,9 +609,22 @@ function ensureTablesExist($pdo) {
 
         addColumnIfNotExists($pdo, 'orders', 'payment_number', $isSqlite ? 'TEXT' : 'VARCHAR(100) NULL');
         addColumnIfNotExists($pdo, 'orders', 'transaction_id', $isSqlite ? 'TEXT' : 'VARCHAR(100) NULL');
+        addColumnIfNotExists($pdo, 'orders', 'coupon_code', $isSqlite ? 'TEXT' : 'VARCHAR(50) NULL');
+        addColumnIfNotExists($pdo, 'orders', 'discount_amount', $isSqlite ? 'REAL DEFAULT 0.00' : 'DECIMAL(10,2) DEFAULT 0.00');
         addColumnIfNotExists($pdo, 'orders', 'upazila', $isSqlite ? "TEXT DEFAULT ''" : "VARCHAR(100) DEFAULT ''");
         addColumnIfNotExists($pdo, 'orders', 'post_office', $isSqlite ? "TEXT DEFAULT ''" : "VARCHAR(100) DEFAULT ''");
         addColumnIfNotExists($pdo, 'orders', 'country', $isSqlite ? "TEXT DEFAULT 'Bangladesh'" : "VARCHAR(100) DEFAULT 'Bangladesh'");
+
+        addColumnIfNotExists($pdo, 'products', 'colors', $isSqlite ? 'TEXT' : 'TEXT NULL');
+        addColumnIfNotExists($pdo, 'products', 'sizes', $isSqlite ? 'TEXT' : 'TEXT NULL');
+
+        addColumnIfNotExists($pdo, 'order_items', 'color', $isSqlite ? 'TEXT NULL' : 'VARCHAR(100) NULL');
+        addColumnIfNotExists($pdo, 'order_items', 'size', $isSqlite ? 'TEXT NULL' : 'VARCHAR(100) NULL');
+
+        addColumnIfNotExists($pdo, 'coupons', 'show_in_header', $isSqlite ? 'INTEGER DEFAULT 1' : 'TINYINT(1) DEFAULT 1');
+        addColumnIfNotExists($pdo, 'coupons', 'header_banner_text', $isSqlite ? 'TEXT NULL' : 'VARCHAR(255) NULL');
+        addColumnIfNotExists($pdo, 'coupons', 'product_id', $isSqlite ? 'INTEGER NULL' : 'INT NULL');
+        addColumnIfNotExists($pdo, 'coupons', 'min_spend', $isSqlite ? 'REAL DEFAULT 0.00' : 'DECIMAL(10,2) DEFAULT 0.00');
 
         addColumnIfNotExists($pdo, 'users', 'upazila', $isSqlite ? "TEXT DEFAULT ''" : "VARCHAR(100) DEFAULT ''");
         addColumnIfNotExists($pdo, 'users', 'post_office', $isSqlite ? "TEXT DEFAULT ''" : "VARCHAR(100) DEFAULT ''");

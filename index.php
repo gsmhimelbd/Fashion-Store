@@ -6,7 +6,7 @@ try {
     $db = getDB();
     $banners = $db->query("SELECT * FROM banners WHERE is_active = 1 ORDER BY display_order ASC")->fetchAll();
     $featuredProducts = $db->query("SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1 AND p.is_featured = 1 ORDER BY p.id DESC LIMIT 8")->fetchAll();
-} catch (Exception $e) {
+} catch (Throwable $e) {
     $banners = [];
     $featuredProducts = [];
 }
