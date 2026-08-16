@@ -14,17 +14,10 @@ try {
     $db = getDB();
 
     // Auto-heal schema
-    try {
-        @$db->exec("ALTER TABLE `reviews` ADD COLUMN `product_id` int(11) DEFAULT NULL");
-        @$db->exec("ALTER TABLE `reviews` ADD COLUMN `author_name` varchar(191) NOT NULL DEFAULT 'Customer'");
-        @$db->exec("ALTER TABLE `reviews` ADD COLUMN `rating` int(11) NOT NULL DEFAULT 5");
-        @$db->exec("ALTER TABLE `reviews` ADD COLUMN `review_text` text DEFAULT NULL");
-        @$db->exec("ALTER TABLE `reviews` ADD COLUMN `district_name` varchar(100) DEFAULT 'Dhaka'");
-        @$db->exec("ALTER TABLE `reviews` ADD COLUMN `phone` varchar(100) DEFAULT NULL");
-        @$db->exec("ALTER TABLE `reviews` ADD COLUMN `is_approved` tinyint(1) DEFAULT 0");
-        @$db->exec("ALTER TABLE `products` ADD COLUMN `colors` text DEFAULT NULL");
-        @$db->exec("ALTER TABLE `products` ADD COLUMN `sizes` text DEFAULT NULL");
-    } catch (Exception $ex) {}
+    try { $db->exec("ALTER TABLE `products` ADD COLUMN `colors` text DEFAULT NULL"); } catch (Exception $ex) {}
+    try { $db->exec("ALTER TABLE `products` ADD COLUMN `sizes` text DEFAULT NULL"); } catch (Exception $ex) {}
+    try { $db->exec("ALTER TABLE `reviews` ADD COLUMN `product_id` int(11) DEFAULT NULL"); } catch (Exception $ex) {}
+    try { $db->exec("ALTER TABLE `reviews` ADD COLUMN `is_approved` tinyint(1) DEFAULT 0"); } catch (Exception $ex) {}
 
     // Handle Customer Review Submission
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review'])) {
@@ -108,7 +101,7 @@ try {
         $productColors = array_filter(array_map('trim', explode(',', $product['colors'])));
     }
 
-    // Parse Available Sizes & Custom Price Mapping
+    // Parse Available Sizes / Liters & Custom Price Mapping
     $productSizes = [];
     $basePrice = ($product['sale_price'] && $product['sale_price'] > 0 && $product['sale_price'] < $product['price']) ? (float)$product['sale_price'] : (float)$product['price'];
     
@@ -130,7 +123,6 @@ try {
         } catch (Exception $exS) {}
 
         if (empty($productSizes)) {
-            // Fallback comma/colon format
             $rawParts = explode(',', $product['sizes']);
             foreach ($rawParts as $rp) {
                 if (str_contains($rp, ':')) {
@@ -150,7 +142,7 @@ try {
     }
 
     // Determine dynamic title and icon for variant selector
-    $variantLabel = 'Select Size / Variant (সাইজ / ভেরিয়েন্ট নির্বাচন করুন):';
+    $variantLabel = 'Select Option / Variant (ভেরিয়েন্ট নির্বাচন করুন):';
     $variantIcon = '📏';
     $isLiterType = false;
 
@@ -291,7 +283,6 @@ if (!empty($product['gallery_images'])) {
             
             <!-- Left: Gallery & Zoomable Photo Viewer -->
             <div class="space-y-4">
-                <!-- Big Main Zoom Image Container -->
                 <div class="relative aspect-square bg-slate-100 rounded-3xl overflow-hidden border border-slate-200 shadow-sm group cursor-crosshair" id="zoomContainer" onmousemove="handleZoom(event)" onmouseleave="resetZoom()">
                     <img id="mainProductImage" src="<?= htmlspecialchars($gallery[0] ?? '/images/products/watch-1.jpg') ?>" alt="<?= htmlspecialchars($product['name']) ?>" class="w-full h-full object-cover transition-transform duration-200 origin-center">
                     
@@ -318,7 +309,7 @@ if (!empty($product['gallery_images'])) {
                 <?php endif; ?>
             </div>
 
-            <!-- Right: Details, Pricing, Colors, Sizes & CTAs -->
+            <!-- Right: Details, Pricing, Colors, Liters & CTAs -->
             <div class="flex flex-col justify-between space-y-6">
                 <div class="space-y-4">
                     <div class="flex flex-wrap items-center gap-2">
@@ -351,20 +342,20 @@ if (!empty($product['gallery_images'])) {
                         <?php endif; ?>
                     </div>
 
-                    <!-- COLOR SELECTOR SECTION -->
+                    <!-- STEP 1: COLOR SELECTOR SECTION -->
                     <?php if (!empty($productColors)): ?>
                     <div class="space-y-2 pt-2 border-t border-slate-100">
                         <div class="flex items-center justify-between text-xs">
                             <label class="font-black text-slate-800 flex items-center gap-1.5">
-                                <span>🎨 Select Color (রং নির্বাচন করুন):</span>
-                                <span id="selectedColorLabel" class="text-indigo-600 font-extrabold"><?= htmlspecialchars($productColors[0]) ?></span>
+                                <span>🎨 Step 1: Select Color (১. রং পছন্দ করুন):</span>
+                                <span id="selectedColorLabel" class="text-indigo-600 font-extrabold bg-indigo-50 px-2 py-0.5 rounded-lg"><?= htmlspecialchars($productColors[0]) ?></span>
                             </label>
                         </div>
                         <div class="flex flex-wrap gap-2" id="colorOptionsContainer">
                             <?php foreach ($productColors as $cIdx => $cName): ?>
                             <button type="button" 
                                     onclick="selectProductColor('<?= htmlspecialchars(addslashes($cName)) ?>', this)" 
-                                    class="color-pill px-3.5 py-2 rounded-xl text-xs font-extrabold border-2 transition flex items-center gap-1.5 cursor-pointer <?= $cIdx === 0 ? 'border-indigo-600 bg-indigo-50/80 text-indigo-700 shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300' ?>">
+                                    class="color-pill px-3.5 py-2 rounded-xl text-xs font-extrabold border-2 transition flex items-center gap-1.5 cursor-pointer <?= $cIdx === 0 ? 'border-indigo-600 bg-indigo-50/90 text-indigo-700 shadow-sm ring-2 ring-indigo-600/20' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300' ?>">
                                 <span class="w-3 h-3 rounded-full border border-slate-300 inline-block shrink-0 shadow-inner" style="background-color: <?= strtolower(preg_replace('/[^a-z]/', '', $cName)) ?>;"></span>
                                 <span><?= htmlspecialchars($cName) ?></span>
                                 <i class="fas fa-check text-[10px] <?= $cIdx === 0 ? 'inline-block text-indigo-600' : 'hidden' ?>"></i>
@@ -374,12 +365,12 @@ if (!empty($product['gallery_images'])) {
                     </div>
                     <?php endif; ?>
 
-                    <!-- SIZE / LITER / VARIANT SELECTOR WITH DYNAMIC PRICE UPDATE -->
+                    <!-- STEP 2: SIZE / LITER / VARIANT SELECTOR WITH DYNAMIC PRICE UPDATE -->
                     <?php if (!empty($productSizes)): ?>
                     <div class="space-y-2.5 pt-2 border-t border-slate-100">
                         <div class="flex items-center justify-between text-xs">
                             <label class="font-black text-slate-800 flex items-center gap-1.5">
-                                <span><?= $variantIcon ?> <?= htmlspecialchars($variantLabel) ?></span>
+                                <span><?= $variantIcon ?> Step 2: <?= htmlspecialchars($variantLabel) ?></span>
                                 <span id="selectedSizeLabel" class="text-indigo-600 font-extrabold bg-indigo-50 px-2.5 py-0.5 rounded-lg border border-indigo-100"><?= htmlspecialchars($productSizes[0]['size']) ?></span>
                             </label>
                         </div>
@@ -400,6 +391,19 @@ if (!empty($product['gallery_images'])) {
                         </div>
                     </div>
                     <?php endif; ?>
+
+                    <!-- Live Selection Summary Badge -->
+                    <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between text-xs">
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-slate-400 block">Selected Option (আপনার নির্বাচন):</span>
+                            <span class="font-extrabold text-slate-900" id="selectionSummaryText">
+                                <?= !empty($productColors[0]) ? 'Color: ' . htmlspecialchars($productColors[0]) . ' • ' : '' ?>
+                                <?= !empty($productSizes[0]['size']) ? htmlspecialchars($productSizes[0]['size']) : 'Standard Unit' ?>
+                                (৳<?= number_format($initialPrice, 2) ?>)
+                            </span>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">● Ready to Dispatch</span>
+                    </div>
 
                     <!-- Wholesale Bulk Box -->
                     <?php if (!empty($product['is_wholesale']) && !empty($product['wholesale_price']) && $product['wholesale_price'] > 0): 
@@ -640,7 +644,7 @@ if (!empty($product['gallery_images'])) {
                                 <div class="text-amber-400 text-xs">★★★★★</div>
                             </div>
                             <p class="text-slate-700 leading-relaxed font-normal pt-1">
-                                "প্রোডাক্টের কোয়ালিটি অনেক ভালো এবং প্রিমিয়াম বিল্ড। অর্ডার করার ২ দিনের মধ্যে ডেলিভারি পেয়েছি। রাইডারের সামনে প্যাকেট খুলে চেক করে ক্যাশ অন ডেলিভারিতে টাকা পরিশোধ করেছি। OnlineBdMart থেকে নেওয়াতে একদম আসল অরিজিনাল জিনিস পেয়েছি।"
+                                "প্রোডাক্টের কোয়ালিটি অনেক ভালো এবং প্রিমিয়াম প্যাকেজিং। অর্ডার করার ২ দিনের মধ্যে ডেলিভারি পেয়েছি। রাইডারের সামনে প্যাকেট খুলে চেক করে ক্যাশ অন ডেলিভারিতে টাকা পরিশোধ করেছি।"
                             </p>
                         </div>
                     <?php endif; ?>
@@ -698,7 +702,6 @@ if (!empty($product['gallery_images'])) {
 </div>
 
 <script>
-// State variables for selected variant
 let selectedProductColor = '<?= !empty($productColors[0]) ? addslashes($productColors[0]) : '' ?>';
 let selectedProductSize = '<?= !empty($productSizes[0]['size']) ? addslashes($productSizes[0]['size']) : '' ?>';
 let currentVariantPrice = <?= (float)$initialPrice ?>;
@@ -708,7 +711,8 @@ const productWhatsappNum = '<?= htmlspecialchars($whatsapp ?? '01700000000') ?>'
 
 function selectProductColor(colorName, btn) {
     selectedProductColor = colorName;
-    document.getElementById('selectedColorLabel').textContent = colorName;
+    const label = document.getElementById('selectedColorLabel');
+    if (label) label.textContent = colorName;
     
     document.querySelectorAll('.color-pill').forEach(el => {
         el.className = 'color-pill px-3.5 py-2 rounded-xl text-xs font-extrabold border-2 transition flex items-center gap-1.5 cursor-pointer border-slate-200 bg-white text-slate-700 hover:border-slate-300';
@@ -716,37 +720,49 @@ function selectProductColor(colorName, btn) {
         if (icon) icon.className = 'fas fa-check text-[10px] hidden';
     });
 
-    btn.className = 'color-pill px-3.5 py-2 rounded-xl text-xs font-extrabold border-2 transition flex items-center gap-1.5 cursor-pointer border-indigo-600 bg-indigo-50/80 text-indigo-700 shadow-sm';
+    btn.className = 'color-pill px-3.5 py-2 rounded-xl text-xs font-extrabold border-2 transition flex items-center gap-1.5 cursor-pointer border-indigo-600 bg-indigo-50/90 text-indigo-700 shadow-sm ring-2 ring-indigo-600/20';
     const activeIcon = btn.querySelector('i');
     if (activeIcon) activeIcon.className = 'fas fa-check text-[10px] inline-block text-indigo-600';
 
-    updateWhatsappOrderLink();
+    updateSelectionSummary();
 }
 
 function selectProductSize(sizeName, sizePrice, btn) {
     selectedProductSize = sizeName;
     currentVariantPrice = parseFloat(sizePrice);
     
-    document.getElementById('selectedSizeLabel').textContent = sizeName;
-    document.getElementById('displayProductPrice').textContent = '৳' + currentVariantPrice.toFixed(2);
+    const label = document.getElementById('selectedSizeLabel');
+    if (label) label.textContent = sizeName;
+
+    const priceEl = document.getElementById('displayProductPrice');
+    if (priceEl) priceEl.textContent = '৳' + currentVariantPrice.toFixed(2);
     
     document.querySelectorAll('.size-pill').forEach(el => {
-        el.className = 'size-pill px-4 py-2.5 rounded-xl text-xs font-extrabold border-2 transition flex items-center gap-2 cursor-pointer border-slate-200 bg-white text-slate-700 hover:border-slate-300';
+        el.className = 'size-pill px-4 py-2.5 rounded-2xl text-xs font-black border-2 transition flex items-center gap-2 cursor-pointer border-slate-200 bg-white text-slate-700 hover:border-indigo-400 hover:bg-slate-50';
         const badge = el.querySelector('span:last-child');
-        if (badge) badge.className = 'px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-100 text-slate-600';
+        if (badge) badge.className = 'px-2.5 py-0.5 rounded-lg text-[11px] font-black bg-slate-100 text-slate-700';
     });
 
-    btn.className = 'size-pill px-4 py-2.5 rounded-xl text-xs font-extrabold border-2 transition flex items-center gap-2 cursor-pointer border-indigo-600 bg-indigo-50/80 text-indigo-700 shadow-sm';
+    btn.className = 'size-pill px-4 py-2.5 rounded-2xl text-xs font-black border-2 transition flex items-center gap-2 cursor-pointer border-indigo-600 bg-indigo-50/90 text-indigo-700 shadow-md ring-2 ring-indigo-600/20';
     const activeBadge = btn.querySelector('span:last-child');
-    if (activeBadge) activeBadge.className = 'px-2 py-0.5 rounded-md text-[10px] font-black bg-indigo-600 text-white';
+    if (activeBadge) activeBadge.className = 'px-2.5 py-0.5 rounded-lg text-[11px] font-black bg-indigo-600 text-white';
 
-    updateWhatsappOrderLink();
+    updateSelectionSummary();
 }
 
-function updateWhatsappOrderLink() {
+function updateSelectionSummary() {
+    let text = '';
+    if (selectedProductColor) text += 'Color: ' + selectedProductColor + ' • ';
+    if (selectedProductSize) text += selectedProductSize + ' ';
+    else text += 'Standard Unit ';
+    text += '(৳' + currentVariantPrice.toFixed(2) + ')';
+
+    const sumEl = document.getElementById('selectionSummaryText');
+    if (sumEl) sumEl.textContent = text;
+
     let msg = 'Hello OnlineBdMart! I want to order product: ' + productBaseTitle;
     if (selectedProductColor) msg += ' | Color: ' + selectedProductColor;
-    if (selectedProductSize) msg += ' | Size: ' + selectedProductSize;
+    if (selectedProductSize) msg += ' | Option: ' + selectedProductSize;
     msg += ' (৳' + currentVariantPrice.toFixed(2) + ')';
     
     const waBtn = document.getElementById('whatsappOrderBtn');
