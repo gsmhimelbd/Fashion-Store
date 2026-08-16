@@ -304,6 +304,7 @@ CREATE TABLE `coupons` (
   `discount_value` decimal(10,2) NOT NULL DEFAULT 0.00,
   `min_spend` decimal(10,2) NOT NULL DEFAULT 0.00,
   `product_id` int(11) DEFAULT NULL,
+  `first_order_only` tinyint(1) DEFAULT 0,
   `show_in_header` tinyint(1) DEFAULT 1,
   `header_banner_text` varchar(255) DEFAULT NULL,
   `expiry_date` date DEFAULT NULL,

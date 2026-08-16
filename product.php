@@ -792,6 +792,15 @@ function addVariantToCart(qtyOverride = null, isWholesale = false) {
     const qtyInput = document.getElementById('productQty');
     const quantity = qtyOverride !== null ? qtyOverride : (qtyInput ? parseInt(qtyInput.value) : 1);
     
+    if (!selectedProductColor) {
+        const cLabel = document.getElementById('selectedColorLabel');
+        if (cLabel && cLabel.textContent) selectedProductColor = cLabel.textContent.trim();
+    }
+    if (!selectedProductSize) {
+        const sLabel = document.getElementById('selectedSizeLabel');
+        if (sLabel && sLabel.textContent) selectedProductSize = sLabel.textContent.trim();
+    }
+
     addToCart(
         productBaseId, 
         quantity, 

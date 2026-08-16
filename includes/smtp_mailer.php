@@ -220,8 +220,14 @@ function sendOrderEmailNotifications($orderId) {
         $itemsRows = '';
         foreach ($items as $item) {
             $itemTotal = number_format($item['price'] * $item['quantity'], 2);
+            $variantTag = '';
+            if (!empty($item['color'])) $variantTag .= "<div style='font-size: 11px; color: #6366f1; font-weight: bold;'>Color: " . htmlspecialchars($item['color']) . "</div>";
+            if (!empty($item['size'])) $variantTag .= "<div style='font-size: 11px; color: #d97706; font-weight: bold;'>Size/Liter: " . htmlspecialchars($item['size']) . "</div>";
             $itemsRows .= "<tr>
-                <td style='padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #1e293b;'>{$item['product_name']}</td>
+                <td style='padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #1e293b;'>
+                    <div>{$item['product_name']}</div>
+                    {$variantTag}
+                </td>
                 <td style='padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: center; color: #64748b;'>{$item['quantity']}</td>
                 <td style='padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; color: #1e293b;'>৳" . number_format($item['price'], 2) . "</td>
                 <td style='padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; font-weight: bold; color: #4338ca;'>৳{$itemTotal}</td>

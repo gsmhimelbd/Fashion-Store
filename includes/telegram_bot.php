@@ -148,7 +148,10 @@ function formatTelegramOrderMessage($order, $items, $statusTitle = '🛍️ NEW 
         $pPrice = number_format((float)($item['price'] ?? 0), 2);
         $pTotal = number_format((float)($item['total_price'] ?? ($item['price'] * $qty)), 2);
         $wholesaleTag = !empty($item['is_wholesale']) ? ' [Wholesale]' : '';
-        $itemsText .= "• <b>{$pName}</b>{$wholesaleTag}\n  └ <i>{$qty} pcs × ৳{$pPrice}</i> = <b>৳{$pTotal}</b>\n";
+        $variantTag = '';
+        if (!empty($item['color'])) $variantTag .= ' • Color: ' . htmlspecialchars($item['color']);
+        if (!empty($item['size'])) $variantTag .= ' • Size/Liter: ' . htmlspecialchars($item['size']);
+        $itemsText .= "• <b>{$pName}</b>{$wholesaleTag}{$variantTag}\n  └ <i>{$qty} pcs × ৳{$pPrice}</i> = <b>৳{$pTotal}</b>\n";
     }
 
     $locationInfo = $address . "\n  └ <b>District:</b> " . $district;

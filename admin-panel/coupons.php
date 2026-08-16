@@ -9,7 +9,9 @@ try {
     $db = getDB();
 
     // Auto-heal coupons and orders schema individually
-    try { $db->exec("CREATE TABLE IF NOT EXISTS `coupons` (`id` int(11) NOT NULL AUTO_INCREMENT, `code` varchar(50) NOT NULL, `discount_type` varchar(20) NOT NULL DEFAULT 'fixed', `discount_value` decimal(10,2) NOT NULL DEFAULT 0.00, `min_spend` decimal(10,2) NOT NULL DEFAULT 0.00, `product_id` int(11) DEFAULT NULL, `show_in_header` tinyint(1) DEFAULT 1, `header_banner_text` varchar(255) DEFAULT NULL, `expiry_date` date DEFAULT NULL, `used_count` int(11) DEFAULT 0, `is_active` tinyint(1) DEFAULT 1, `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`id`), UNIQUE KEY `code` (`code`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (Exception $e) {}
+    try { $db->exec("CREATE TABLE IF NOT EXISTS `coupons` (`id` int(11) NOT NULL AUTO_INCREMENT, `code` varchar(50) NOT NULL, `discount_type` varchar(20) NOT NULL DEFAULT 'fixed', `discount_value` decimal(10,2) NOT NULL DEFAULT 0.00, `min_spend` decimal(10,2) NOT NULL DEFAULT 0.00, `product_id` int(11) DEFAULT NULL, `show_in_header` tinyint(1) DEFAULT 1, `header_banner_text` varchar(255) DEFAULT NULL, `first_order_only` tinyint(1) DEFAULT 0, `expiry_date` date DEFAULT NULL, `used_count` int(11) DEFAULT 0, `is_active` tinyint(1) DEFAULT 1, `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`id`), UNIQUE KEY `code` (`code`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `coupons` ADD COLUMN `first_order_only` tinyint(1) DEFAULT 0"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `coupons` ADD `first_order_only` tinyint(1) DEFAULT 0"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE `coupons` ADD COLUMN `product_id` int(11) DEFAULT NULL"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE `coupons` ADD `product_id` int(11) DEFAULT NULL"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE `coupons` ADD COLUMN `show_in_header` tinyint(1) DEFAULT 1"); } catch (Exception $e) {}
@@ -35,6 +37,7 @@ try {
             $discountValue = (float)($_POST['discount_value'] ?? 0);
             $minSpend = (float)($_POST['min_spend'] ?? 0);
             $productId = !empty($_POST['product_id']) ? (int)$_POST['product_id'] : null;
+            $firstOrderOnly = isset($_POST['first_order_only']) ? 1 : 0;
             $showInHeader = isset($_POST['show_in_header']) ? 1 : 0;
             $headerBannerText = trim($_POST['header_banner_text'] ?? '');
             $expiryDate = !empty($_POST['expiry_date']) ? $_POST['expiry_date'] : null;
@@ -53,8 +56,8 @@ try {
                     $error = 'Please enter a valid coupon code and discount value.';
                 } else {
                     try {
-                        $stmt = $db->prepare("INSERT INTO coupons (`code`, `discount_type`, `discount_value`, `min_spend`, `product_id`, `show_in_header`, `header_banner_text`, `expiry_date`, `is_active`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
-                        $stmt->execute([$code, $discountType, $discountValue, $minSpend, $productId, $showInHeader, $headerBannerText, $expiryDate, $isActive]);
+                        $stmt = $db->prepare("INSERT INTO coupons (`code`, `discount_type`, `discount_value`, `min_spend`, `product_id`, `first_order_only`, `show_in_header`, `header_banner_text`, `expiry_date`, `is_active`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
+                        $stmt->execute([$code, $discountType, $discountValue, $minSpend, $productId, $firstOrderOnly, $showInHeader, $headerBannerText, $expiryDate, $isActive]);
                     } catch (Exception $e1) {
                         try {
                             $stmt = $db->prepare("INSERT INTO coupons (`code`, `discount_type`, `discount_value`, `min_spend`, `show_in_header`, `header_banner_text`, `is_active`) VALUES (?, ?, ?, ?, ?, ?, ?)");
@@ -69,8 +72,8 @@ try {
             } else {
                 $id = (int)$_POST['coupon_id'];
                 try {
-                    $stmt = $db->prepare("UPDATE coupons SET `code` = ?, `discount_type` = ?, `discount_value` = ?, `min_spend` = ?, `product_id` = ?, `show_in_header` = ?, `header_banner_text` = ?, `expiry_date` = ?, `is_active` = ? WHERE `id` = ?");
-                    $stmt->execute([$code, $discountType, $discountValue, $minSpend, $productId, $showInHeader, $headerBannerText, $expiryDate, $isActive, $id]);
+                    $stmt = $db->prepare("UPDATE coupons SET `code` = ?, `discount_type` = ?, `discount_value` = ?, `min_spend` = ?, `product_id` = ?, `first_order_only` = ?, `show_in_header` = ?, `header_banner_text` = ?, `expiry_date` = ?, `is_active` = ? WHERE `id` = ?");
+                    $stmt->execute([$code, $discountType, $discountValue, $minSpend, $productId, $firstOrderOnly, $showInHeader, $headerBannerText, $expiryDate, $isActive, $id]);
                 } catch (Exception $e1) {
                     try {
                         $stmt = $db->prepare("UPDATE coupons SET `code` = ?, `discount_type` = ?, `discount_value` = ?, `min_spend` = ?, `show_in_header` = ?, `header_banner_text` = ?, `is_active` = ? WHERE `id` = ?");
@@ -149,7 +152,7 @@ try {
         <div class="border-b border-slate-800 pb-3">
             <span class="text-xs font-bold uppercase text-indigo-400">Discount Engine</span>
             <h3 class="text-base font-black text-white mt-0.5" id="formHeaderTitle">Create Discount Coupon</h3>
-            <p class="text-xs text-slate-400">Create promo codes for all items or specific products, and manage Top Header announcement banner.</p>
+            <p class="text-xs text-slate-400">Set First Order Only or All Orders coupons, choose applicable products, and manage Top Header banner.</p>
         </div>
 
         <form method="POST" action="coupons.php" id="couponForm" class="space-y-4 text-xs">
@@ -159,7 +162,7 @@ try {
             <div>
                 <label class="block text-slate-300 font-bold mb-1">Coupon Code (কুপন কোড) *</label>
                 <div class="flex items-center">
-                    <input type="text" name="code" id="cCode" required placeholder="e.g. SPECIAL100, EID2026" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-amber-400 font-mono font-black text-sm outline-none focus:border-indigo-500 uppercase">
+                    <input type="text" name="code" id="cCode" required placeholder="e.g. FIRST100, SPECIAL10, EID2026" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-amber-400 font-mono font-black text-sm outline-none focus:border-indigo-500 uppercase">
                 </div>
             </div>
 
@@ -194,6 +197,17 @@ try {
                 </select>
             </div>
 
+            <!-- First Order Only Option -->
+            <div class="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl">
+                <label class="flex items-center gap-2.5 cursor-pointer">
+                    <input type="checkbox" name="first_order_only" id="cFirstOrderOnly" value="1" class="w-4 h-4 rounded text-amber-500 focus:ring-amber-500">
+                    <div>
+                        <span class="font-extrabold text-amber-300 text-xs block">First Order Only (শুধুমাত্র ১ম অর্ডারের জন্য প্রযোজ্য)</span>
+                        <span class="text-[10px] text-amber-400/80 block">চেক করলে শুধুমাত্র নতুন কাস্টমাররা তাদের প্রথম অর্ডারে এটি ব্যবহার করতে পারবে।</span>
+                    </div>
+                </label>
+            </div>
+
             <div>
                 <label class="block text-slate-300 font-bold mb-1">Expiry Date (মেয়াদ শেষ হওয়ার তারিখ)</label>
                 <input type="date" name="expiry_date" id="cExpiryDate" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500">
@@ -211,7 +225,7 @@ try {
 
                 <div>
                     <label class="block text-slate-300 font-bold mb-1">Top Header Banner Text (ব্যানারের লেখা)</label>
-                    <input type="text" name="header_banner_text" id="cBannerText" placeholder="e.g. 🎁 Use code SPECIAL100 to get ৳100 OFF on your order!" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none focus:border-indigo-500">
+                    <input type="text" name="header_banner_text" id="cBannerText" placeholder="e.g. 🎁 Use code FIRST100 to get ৳100 OFF on your first order!" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none focus:border-indigo-500">
                 </div>
             </div>
 
@@ -250,6 +264,7 @@ try {
                 <?php foreach ($coupons as $cp): 
                     $isHeader = !empty($cp['show_in_header']);
                     $isActive = !empty($cp['is_active']);
+                    $isFirstOrder = !empty($cp['first_order_only']);
                     $cpJson = htmlspecialchars(json_encode($cp), ENT_QUOTES, 'UTF-8');
                 ?>
                 <div class="p-4 sm:p-5 rounded-2xl bg-slate-950 border <?= $isActive ? 'border-slate-800' : 'border-slate-800/40 opacity-70' ?> space-y-3 text-xs hover:border-slate-700 transition">
@@ -260,11 +275,16 @@ try {
                                 <i class="fas fa-ticket"></i>
                             </div>
                             <div class="min-w-0">
-                                <div class="flex items-center gap-2">
+                                <div class="flex flex-wrap items-center gap-2">
                                     <h4 class="font-black text-amber-400 text-base font-mono tracking-wider"><?= htmlspecialchars($cp['code']) ?></h4>
                                     <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black <?= ($cp['discount_type'] ?? 'fixed') === 'percent' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-emerald-500/20 text-emerald-300' ?>">
                                         <?= ($cp['discount_type'] ?? 'fixed') === 'percent' ? $cp['discount_value'] . '% OFF' : '৳' . number_format($cp['discount_value'] ?? 0, 2) . ' OFF' ?>
                                     </span>
+                                    <?php if ($isFirstOrder): ?>
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                        ⭐ 1st Order Only
+                                    </span>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-0.5">
                                     <span>Min Spend: <strong>৳<?= number_format($cp['min_spend'] ?? 0, 0) ?></strong></span>
@@ -341,6 +361,7 @@ function editCoupon(cp) {
     document.getElementById('cValue').value = cp.discount_value || '';
     document.getElementById('cMinSpend').value = cp.min_spend || '0';
     document.getElementById('cProductId').value = cp.product_id || '';
+    document.getElementById('cFirstOrderOnly').checked = (cp.first_order_only == 1 || cp.first_order_only === '1' || cp.first_order_only === true);
     document.getElementById('cExpiryDate').value = cp.expiry_date || '';
     document.getElementById('cShowInHeader').checked = (cp.show_in_header == 1 || cp.show_in_header === '1' || cp.show_in_header === true);
     document.getElementById('cBannerText').value = cp.header_banner_text || '';
@@ -360,6 +381,7 @@ function resetCouponForm() {
     document.getElementById('cValue').value = '';
     document.getElementById('cMinSpend').value = '0';
     document.getElementById('cProductId').value = '';
+    document.getElementById('cFirstOrderOnly').checked = false;
     document.getElementById('cExpiryDate').value = '';
     document.getElementById('cShowInHeader').checked = true;
     document.getElementById('cBannerText').value = '';

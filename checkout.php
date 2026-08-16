@@ -44,6 +44,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['coupon_action'])) {
                 exit;
             }
 
+            // Check First Order Only Rule
+            if (!empty($coupon['first_order_only'])) {
+                $custPhone = trim($_POST['customer_phone'] ?? ($_SESSION['user_phone'] ?? ''));
+                $custEmail = trim($_POST['customer_email'] ?? ($_SESSION['user_email'] ?? ''));
+                
+                if ($custPhone || $custEmail) {
+                    $prevStmt = $db->prepare("SELECT COUNT(*) FROM orders WHERE (customer_phone = ? OR phone = ?) OR (customer_email != '' AND (customer_email = ? OR email = ?))");
+                    $prevStmt->execute([$custPhone, $custPhone, $custEmail, $custEmail]);
+                    $prevOrderCount = (int)$prevStmt->fetchColumn();
+
+                    if ($prevOrderCount > 0) {
+                        echo json_encode(['success' => false, 'message' => 'দুঃখিত! এই কুপন কোডটি শুধুমাত্র নতুন গ্রাহকদের ১ম অর্ডারের জন্য প্রযোজ্য (First Order Only)।']);
+                        exit;
+                    }
+                }
+            }
+
             // Check Product Scope
             if (!empty($coupon['product_id'])) {
                 $hasMatchingProduct = false;
