@@ -245,6 +245,13 @@ if (empty($featuredProducts)) {
 
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             <?php 
+            if (empty($categories)) {
+                try {
+                    $catDirect = $db->query("SELECT * FROM categories")->fetchAll();
+                    if (!empty($catDirect)) $categories = $catDirect;
+                } catch (Exception $ex) {}
+            }
+
             // Filter Top Categories selected from Admin Panel to show on Homepage
             $displayCats = array_filter($categories, function($c) {
                 $isHome = isset($c['show_on_homepage']) ? ($c['show_on_homepage'] == 1) : (isset($c['is_featured']) ? ($c['is_featured'] == 1) : true);
@@ -264,8 +271,18 @@ if (empty($featuredProducts)) {
 
             foreach ($displayCats as $cat): 
                 $pCount = $cat['products_count'] ?? 0;
-                $emoji = trim((string)($cat['emoji'] ?? '🛍️'));
-                if (empty($emoji)) $emoji = '🛍️';
+                $emoji = trim((string)($cat['emoji'] ?? ''));
+                if (empty($emoji)) {
+                    $slug = strtolower($cat['slug'] ?? ($cat['name'] ?? ''));
+                    if (str_contains($slug, 'watch') || str_contains($slug, 'clock')) $emoji = '⌚';
+                    elseif (str_contains($slug, 'gadget') || str_contains($slug, 'phone')) $emoji = '📱';
+                    elseif (str_contains($slug, 'wallet') || str_contains($slug, 'leather')) $emoji = '👛';
+                    elseif (str_contains($slug, 'bag')) $emoji = '👜';
+                    elseif (str_contains($slug, 'glass') || str_contains($slug, 'sunglass')) $emoji = '🕶️';
+                    elseif (str_contains($slug, 'men')) $emoji = '👔';
+                    elseif (str_contains($slug, 'women')) $emoji = '👗';
+                    else $emoji = '🛍️';
+                }
             ?>
             <a href="shop.php?category=<?= htmlspecialchars($cat['slug']) ?>" class="group bg-white p-5 rounded-2xl border border-slate-200/80 hover:border-indigo-500 hover:shadow-xl transition-all duration-300 flex flex-col items-center text-center">
                 <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-50 to-indigo-100 group-hover:from-indigo-600 group-hover:to-cyan-500 text-indigo-600 group-hover:text-white flex items-center justify-center text-3xl transition-all duration-300 mb-3 shadow-sm overflow-hidden shrink-0">

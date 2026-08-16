@@ -1,6 +1,14 @@
 <?php
 $pageTitle = 'Product Categories - OnlineBdMart • Online Shopping BD';
 require_once 'includes/header.php';
+
+if (empty($categories)) {
+    try {
+        $db = getDB();
+        $catDirect = $db->query("SELECT * FROM categories")->fetchAll();
+        if (!empty($catDirect)) $categories = $catDirect;
+    } catch (Exception $ex) {}
+}
 ?>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
@@ -26,8 +34,18 @@ require_once 'includes/header.php';
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <?php foreach ($categories as $cat): 
             $pCount = $cat['products_count'] ?? 0;
-            $emoji = trim((string)($cat['emoji'] ?? '🛍️'));
-            if (empty($emoji)) $emoji = '🛍️';
+            $emoji = trim((string)($cat['emoji'] ?? ''));
+            if (empty($emoji)) {
+                $slug = strtolower($cat['slug'] ?? ($cat['name'] ?? ''));
+                if (str_contains($slug, 'watch') || str_contains($slug, 'clock')) $emoji = '⌚';
+                elseif (str_contains($slug, 'gadget') || str_contains($slug, 'phone')) $emoji = '📱';
+                elseif (str_contains($slug, 'wallet') || str_contains($slug, 'leather')) $emoji = '👛';
+                elseif (str_contains($slug, 'bag')) $emoji = '👜';
+                elseif (str_contains($slug, 'glass') || str_contains($slug, 'sunglass')) $emoji = '🕶️';
+                elseif (str_contains($slug, 'men')) $emoji = '👔';
+                elseif (str_contains($slug, 'women')) $emoji = '👗';
+                else $emoji = '🛍️';
+            }
         ?>
         <a href="shop.php?category=<?= htmlspecialchars($cat['slug']) ?>" class="group bg-white p-6 rounded-3xl border border-slate-200 hover:border-indigo-500 hover:shadow-2xl transition-all duration-300 flex flex-col justify-between space-y-5">
             <div class="flex items-start justify-between gap-4">
@@ -44,7 +62,7 @@ require_once 'includes/header.php';
                     <?= htmlspecialchars($cat['name']) ?>
                 </h3>
                 <p class="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
-                    <?= htmlspecialchars($cat['description'] ?? ('Premium ' . strtolower($cat['name']) . ' collection with warranty and fast delivery across BD.')) ?>
+                    <?= htmlspecialchars($cat['description'] ?? ('Explore our ' . strtolower($cat['name']) . ' collection.')) ?>
                 </p>
             </div>
 

@@ -22,27 +22,9 @@ $allProducts = [];
 try {
     $db = getDB();
 
-    // Auto-heal categories schema in MySQL
-    try {
-        $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
-        if ($driver === 'mysql') {
-            @$db->exec("ALTER TABLE `categories` ADD COLUMN `show_on_homepage` tinyint(1) DEFAULT 1");
-            @$db->exec("ALTER TABLE `categories` ADD COLUMN `is_featured` tinyint(1) DEFAULT 1");
-            @$db->exec("ALTER TABLE `categories` ADD COLUMN `emoji` varchar(50) DEFAULT '🛍️'");
-            @$db->exec("ALTER TABLE `categories` ADD COLUMN `parent_id` int(11) DEFAULT NULL");
-            @$db->exec("ALTER TABLE `categories` ADD COLUMN `display_order` int(11) DEFAULT 1");
-            @$db->exec("ALTER TABLE `categories` ADD COLUMN `is_active` tinyint(1) DEFAULT 1");
-        }
-    } catch (Exception $ex) {}
-
-    // Fetch real live categories from database
-    try {
-        $catRows = $db->query("SELECT * FROM categories WHERE is_active = 1 OR is_active IS NULL ORDER BY display_order ASC, id ASC")->fetchAll();
-    } catch (Exception $e1) {
-        $catRows = $db->query("SELECT * FROM categories ORDER BY id ASC")->fetchAll();
-    }
-
-    if (!empty($catRows)) {
+    // Fetch live categories from database
+    $catRows = $db->query("SELECT * FROM categories")->fetchAll();
+    if (is_array($catRows) && !empty($catRows)) {
         $counts = [];
         try {
             $pStmt = $db->query("SELECT category_id, COUNT(*) as c FROM products WHERE is_active = 1 GROUP BY category_id");
@@ -68,6 +50,14 @@ try {
             }
             $categories[] = $crow;
         }
+
+        // Sort in PHP safely
+        usort($categories, function($a, $b) {
+            $o1 = (int)($a['display_order'] ?? 1);
+            $o2 = (int)($b['display_order'] ?? 1);
+            if ($o1 === $o2) return ((int)($a['id'] ?? 0)) <=> ((int)($b['id'] ?? 0));
+            return $o1 <=> $o2;
+        });
     }
 
     $allProducts = $db->query("SELECT p.id, p.name, p.slug, p.price, p.sale_price, p.image_path, c.name as category FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1")->fetchAll();
