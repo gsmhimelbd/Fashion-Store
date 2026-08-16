@@ -8,33 +8,22 @@ $error = '';
 try {
     $db = getDB();
 
-    // Auto-heal coupons and orders schema
-    try {
-        $db->exec("CREATE TABLE IF NOT EXISTS `coupons` (
-            `id` int(11) NOT NULL AUTO_INCREMENT,
-            `code` varchar(50) NOT NULL,
-            `discount_type` varchar(20) NOT NULL DEFAULT 'fixed',
-            `discount_value` decimal(10,2) NOT NULL DEFAULT 0.00,
-            `min_spend` decimal(10,2) NOT NULL DEFAULT 0.00,
-            `product_id` int(11) DEFAULT NULL,
-            `show_in_header` tinyint(1) DEFAULT 1,
-            `header_banner_text` varchar(255) DEFAULT NULL,
-            `expiry_date` date DEFAULT NULL,
-            `usage_limit` int(11) DEFAULT NULL,
-            `used_count` int(11) DEFAULT 0,
-            `is_active` tinyint(1) DEFAULT 1,
-            `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (`id`),
-            UNIQUE KEY `code` (`code`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-        @$db->exec("ALTER TABLE `orders` ADD COLUMN `coupon_code` varchar(50) DEFAULT NULL");
-        @$db->exec("ALTER TABLE `orders` ADD COLUMN `discount_amount` decimal(10,2) DEFAULT 0.00");
-        @$db->exec("ALTER TABLE `coupons` ADD COLUMN `show_in_header` tinyint(1) DEFAULT 1");
-        @$db->exec("ALTER TABLE `coupons` ADD COLUMN `header_banner_text` varchar(255) DEFAULT NULL");
-        @$db->exec("ALTER TABLE `coupons` ADD COLUMN `product_id` int(11) DEFAULT NULL");
-        @$db->exec("ALTER TABLE `coupons` ADD COLUMN `min_spend` decimal(10,2) NOT NULL DEFAULT 0.00");
-    } catch (Exception $ex) {}
+    // Auto-heal coupons and orders schema individually
+    try { $db->exec("CREATE TABLE IF NOT EXISTS `coupons` (`id` int(11) NOT NULL AUTO_INCREMENT, `code` varchar(50) NOT NULL, `discount_type` varchar(20) NOT NULL DEFAULT 'fixed', `discount_value` decimal(10,2) NOT NULL DEFAULT 0.00, `min_spend` decimal(10,2) NOT NULL DEFAULT 0.00, `product_id` int(11) DEFAULT NULL, `show_in_header` tinyint(1) DEFAULT 1, `header_banner_text` varchar(255) DEFAULT NULL, `expiry_date` date DEFAULT NULL, `used_count` int(11) DEFAULT 0, `is_active` tinyint(1) DEFAULT 1, `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`id`), UNIQUE KEY `code` (`code`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `coupons` ADD COLUMN `product_id` int(11) DEFAULT NULL"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `coupons` ADD `product_id` int(11) DEFAULT NULL"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `coupons` ADD COLUMN `show_in_header` tinyint(1) DEFAULT 1"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `coupons` ADD `show_in_header` tinyint(1) DEFAULT 1"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `coupons` ADD COLUMN `header_banner_text` varchar(255) DEFAULT NULL"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `coupons` ADD `header_banner_text` varchar(255) DEFAULT NULL"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `coupons` ADD COLUMN `discount_type` varchar(20) NOT NULL DEFAULT 'fixed'"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `coupons` ADD COLUMN `discount_value` decimal(10,2) NOT NULL DEFAULT 0.00"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `coupons` ADD COLUMN `min_spend` decimal(10,2) NOT NULL DEFAULT 0.00"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `coupons` ADD COLUMN `expiry_date` date DEFAULT NULL"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `coupons` ADD COLUMN `used_count` int(11) DEFAULT 0"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `coupons` ADD COLUMN `is_active` tinyint(1) DEFAULT 1"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `orders` ADD COLUMN `coupon_code` varchar(50) DEFAULT NULL"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE `orders` ADD COLUMN `discount_amount` decimal(10,2) DEFAULT 0.00"); } catch (Exception $e) {}
 
     // Handle Actions
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -42,7 +31,7 @@ try {
 
         if ($action === 'create' || $action === 'update') {
             $code = strtoupper(trim(preg_replace('/[^A-Za-z0-9_-]/', '', $_POST['code'] ?? '')));
-            $discountType = $_POST['discount_type'] === 'percent' ? 'percent' : 'fixed';
+            $discountType = ($_POST['discount_type'] ?? '') === 'percent' ? 'percent' : 'fixed';
             $discountValue = (float)($_POST['discount_value'] ?? 0);
             $minSpend = (float)($_POST['min_spend'] ?? 0);
             $productId = !empty($_POST['product_id']) ? (int)$_POST['product_id'] : null;
@@ -63,14 +52,34 @@ try {
                 if (empty($code) || $discountValue <= 0) {
                     $error = 'Please enter a valid coupon code and discount value.';
                 } else {
-                    $stmt = $db->prepare("INSERT INTO coupons (`code`, `discount_type`, `discount_value`, `min_spend`, `product_id`, `show_in_header`, `header_banner_text`, `expiry_date`, `is_active`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
-                    $stmt->execute([$code, $discountType, $discountValue, $minSpend, $productId, $showInHeader, $headerBannerText, $expiryDate, $isActive]);
+                    try {
+                        $stmt = $db->prepare("INSERT INTO coupons (`code`, `discount_type`, `discount_value`, `min_spend`, `product_id`, `show_in_header`, `header_banner_text`, `expiry_date`, `is_active`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
+                        $stmt->execute([$code, $discountType, $discountValue, $minSpend, $productId, $showInHeader, $headerBannerText, $expiryDate, $isActive]);
+                    } catch (Exception $e1) {
+                        try {
+                            $stmt = $db->prepare("INSERT INTO coupons (`code`, `discount_type`, `discount_value`, `min_spend`, `show_in_header`, `header_banner_text`, `is_active`) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                            $stmt->execute([$code, $discountType, $discountValue, $minSpend, $showInHeader, $headerBannerText, $isActive]);
+                        } catch (Exception $e2) {
+                            $stmt = $db->prepare("INSERT INTO coupons (`code`, `discount_type`, `discount_value`) VALUES (?, ?, ?)");
+                            $stmt->execute([$code, $discountType, $discountValue]);
+                        }
+                    }
                     $msg = "✓ Coupon \"{$code}\" created successfully!";
                 }
             } else {
                 $id = (int)$_POST['coupon_id'];
-                $stmt = $db->prepare("UPDATE coupons SET `code` = ?, `discount_type` = ?, `discount_value` = ?, `min_spend` = ?, `product_id` = ?, `show_in_header` = ?, `header_banner_text` = ?, `expiry_date` = ?, `is_active` = ? WHERE `id` = ?");
-                $stmt->execute([$code, $discountType, $discountValue, $minSpend, $productId, $showInHeader, $headerBannerText, $expiryDate, $isActive, $id]);
+                try {
+                    $stmt = $db->prepare("UPDATE coupons SET `code` = ?, `discount_type` = ?, `discount_value` = ?, `min_spend` = ?, `product_id` = ?, `show_in_header` = ?, `header_banner_text` = ?, `expiry_date` = ?, `is_active` = ? WHERE `id` = ?");
+                    $stmt->execute([$code, $discountType, $discountValue, $minSpend, $productId, $showInHeader, $headerBannerText, $expiryDate, $isActive, $id]);
+                } catch (Exception $e1) {
+                    try {
+                        $stmt = $db->prepare("UPDATE coupons SET `code` = ?, `discount_type` = ?, `discount_value` = ?, `min_spend` = ?, `show_in_header` = ?, `header_banner_text` = ?, `is_active` = ? WHERE `id` = ?");
+                        $stmt->execute([$code, $discountType, $discountValue, $minSpend, $showInHeader, $headerBannerText, $isActive, $id]);
+                    } catch (Exception $e2) {
+                        $stmt = $db->prepare("UPDATE coupons SET `code` = ?, `discount_value` = ? WHERE `id` = ?");
+                        $stmt->execute([$code, $discountValue, $id]);
+                    }
+                }
                 $msg = "✓ Coupon \"{$code}\" updated successfully!";
             }
         } elseif ($action === 'toggle_header') {
@@ -78,17 +87,20 @@ try {
             $current = (int)$_POST['current_status'];
             $newStatus = $current === 1 ? 0 : 1;
             
-            // If enabling this one in header, optionally disable other coupons from header
             if ($newStatus === 1) {
-                @$db->exec("UPDATE coupons SET show_in_header = 0");
+                try { @$db->exec("UPDATE coupons SET show_in_header = 0"); } catch (Exception $ex) {}
             }
-            $db->prepare("UPDATE coupons SET show_in_header = ? WHERE id = ?")->execute([$newStatus, $id]);
+            try {
+                $db->prepare("UPDATE coupons SET show_in_header = ? WHERE id = ?")->execute([$newStatus, $id]);
+            } catch (Exception $ex2) {}
             $msg = $newStatus === 1 ? '✓ Coupon banner enabled on Top Header!' : '✓ Coupon banner hidden from Top Header.';
         } elseif ($action === 'toggle_active') {
             $id = (int)$_POST['coupon_id'];
             $current = (int)$_POST['current_status'];
             $newStatus = $current === 1 ? 0 : 1;
-            $db->prepare("UPDATE coupons SET is_active = ? WHERE id = ?")->execute([$newStatus, $id]);
+            try {
+                $db->prepare("UPDATE coupons SET is_active = ? WHERE id = ?")->execute([$newStatus, $id]);
+            } catch (Exception $ex) {}
             $msg = $newStatus === 1 ? '✓ Coupon activated!' : '✓ Coupon disabled.';
         } elseif ($action === 'delete') {
             $id = (int)$_POST['coupon_id'];
@@ -97,8 +109,21 @@ try {
         }
     }
 
-    $allProducts = $db->query("SELECT id, name, price, image_path FROM products WHERE is_active = 1 ORDER BY name ASC")->fetchAll();
-    $coupons = $db->query("SELECT c.*, p.name as product_name FROM coupons c LEFT JOIN products p ON c.product_id = p.id ORDER BY c.id DESC")->fetchAll();
+    try {
+        $allProducts = $db->query("SELECT id, name, price, image_path FROM products WHERE is_active = 1 ORDER BY name ASC")->fetchAll();
+    } catch (Exception $pe) {
+        $allProducts = [];
+    }
+
+    try {
+        $coupons = $db->query("SELECT c.*, p.name as product_name FROM coupons c LEFT JOIN products p ON c.product_id = p.id ORDER BY c.id DESC")->fetchAll();
+    } catch (Exception $ce1) {
+        try {
+            $coupons = $db->query("SELECT * FROM coupons ORDER BY id DESC")->fetchAll();
+        } catch (Exception $ce2) {
+            $coupons = [];
+        }
+    }
 
 } catch (Exception $e) {
     $error = $e->getMessage();
@@ -141,14 +166,14 @@ try {
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-slate-300 font-bold mb-1">Discount Type</label>
-                    <select name="discount_type" id="cType" class="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-bold outline-none focus:border-indigo-500">
+                    <select name="discount_type" id="cType" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-bold outline-none focus:border-indigo-500">
                         <option value="fixed">Fixed Amount (৳ টাকা ছাড়)</option>
                         <option value="percent">Percentage (% ছাড়)</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-slate-300 font-bold mb-1">Discount Value *</label>
-                    <input type="number" step="0.01" name="discount_value" id="cValue" required placeholder="100" class="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-emerald-400 font-black text-sm outline-none focus:border-indigo-500">
+                    <input type="number" step="0.01" name="discount_value" id="cValue" required placeholder="100" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-emerald-400 font-black text-sm outline-none focus:border-indigo-500">
                 </div>
             </div>
 
@@ -237,12 +262,12 @@ try {
                             <div class="min-w-0">
                                 <div class="flex items-center gap-2">
                                     <h4 class="font-black text-amber-400 text-base font-mono tracking-wider"><?= htmlspecialchars($cp['code']) ?></h4>
-                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black <?= $cp['discount_type'] === 'percent' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-emerald-500/20 text-emerald-300' ?>">
-                                        <?= $cp['discount_type'] === 'percent' ? $cp['discount_value'] . '% OFF' : '৳' . number_format($cp['discount_value'], 2) . ' OFF' ?>
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black <?= ($cp['discount_type'] ?? 'fixed') === 'percent' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-emerald-500/20 text-emerald-300' ?>">
+                                        <?= ($cp['discount_type'] ?? 'fixed') === 'percent' ? $cp['discount_value'] . '% OFF' : '৳' . number_format($cp['discount_value'] ?? 0, 2) . ' OFF' ?>
                                     </span>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                                    <span>Min Spend: <strong>৳<?= number_format($cp['min_spend'], 0) ?></strong></span>
+                                    <span>Min Spend: <strong>৳<?= number_format($cp['min_spend'] ?? 0, 0) ?></strong></span>
                                     <span>•</span>
                                     <span>Scope: <strong class="<?= empty($cp['product_id']) ? 'text-indigo-300' : 'text-cyan-300' ?>"><?= empty($cp['product_id']) ? 'All Products' : htmlspecialchars($cp['product_name'] ?? 'Specific Item') ?></strong></span>
                                 </div>
@@ -266,7 +291,7 @@ try {
                     <!-- Header Banner Preview & Toggle Switch -->
                     <div class="pt-2.5 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div class="text-[11px] text-slate-400 truncate max-w-md">
-                            <span class="text-indigo-400 font-bold">Header Text:</span> <?= htmlspecialchars($cp['header_banner_text'] ?: 'Special Offer Available') ?>
+                            <span class="text-indigo-400 font-bold">Header Text:</span> <?= htmlspecialchars($cp['header_banner_text'] ?? 'Special Offer Available') ?>
                         </div>
 
                         <div class="flex items-center gap-2 shrink-0">
