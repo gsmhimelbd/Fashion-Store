@@ -8,6 +8,18 @@ $error = '';
 try {
     $db = getDB();
 
+    // Auto-heal categories schema if missing show_on_homepage or emoji columns
+    try {
+        $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'mysql') {
+            @$db->exec("ALTER TABLE `categories` ADD COLUMN `show_on_homepage` tinyint(1) DEFAULT 1");
+            @$db->exec("ALTER TABLE `categories` ADD COLUMN `is_featured` tinyint(1) DEFAULT 1");
+            @$db->exec("ALTER TABLE `categories` ADD COLUMN `emoji` varchar(50) DEFAULT '🛍️'");
+            @$db->exec("ALTER TABLE `categories` ADD COLUMN `parent_id` int(11) DEFAULT NULL");
+            @$db->exec("ALTER TABLE `categories` ADD COLUMN `display_order` int(11) DEFAULT 1");
+        }
+    } catch (Exception $ex) {}
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
 
@@ -24,20 +36,49 @@ try {
             $isActive = 1;
 
             if ($action === 'create') {
-                $stmt = $db->prepare("INSERT INTO categories (name, slug, parent_id, emoji, description, display_order, show_on_homepage, is_featured, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
-                $stmt->execute([$name, $slug, $parentId, $emoji, $desc, $displayOrder, $showOnHome, $showOnHome, $isActive]);
+                try {
+                    $stmt = $db->prepare("INSERT INTO categories (name, slug, parent_id, emoji, description, display_order, show_on_homepage, is_featured, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
+                    $stmt->execute([$name, $slug, $parentId, $emoji, $desc, $displayOrder, $showOnHome, $showOnHome, $isActive]);
+                } catch (Exception $e1) {
+                    try {
+                        @$db->exec("ALTER TABLE `categories` ADD COLUMN `show_on_homepage` tinyint(1) DEFAULT 1");
+                        $stmt = $db->prepare("INSERT INTO categories (name, slug, parent_id, emoji, description, display_order, show_on_homepage, is_featured, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        $stmt->execute([$name, $slug, $parentId, $emoji, $desc, $displayOrder, $showOnHome, $showOnHome, $isActive]);
+                    } catch (Exception $e2) {
+                        $stmt = $db->prepare("INSERT INTO categories (name, slug, parent_id, emoji, description, display_order) VALUES (?, ?, ?, ?, ?, ?)");
+                        $stmt->execute([$name, $slug, $parentId, $emoji, $desc, $displayOrder]);
+                    }
+                }
                 $msg = $parentId ? '✓ Subcategory created successfully!' : '✓ Category created and saved!';
             } else {
                 $id = (int)$_POST['category_id'];
-                $stmt = $db->prepare("UPDATE categories SET name = ?, slug = ?, parent_id = ?, emoji = ?, description = ?, display_order = ?, show_on_homepage = ?, is_featured = ? WHERE id = ?");
-                $stmt->execute([$name, $slug, $parentId, $emoji, $desc, $displayOrder, $showOnHome, $showOnHome, $id]);
+                try {
+                    $stmt = $db->prepare("UPDATE categories SET name = ?, slug = ?, parent_id = ?, emoji = ?, description = ?, display_order = ?, show_on_homepage = ?, is_featured = ? WHERE id = ?");
+                    $stmt->execute([$name, $slug, $parentId, $emoji, $desc, $displayOrder, $showOnHome, $showOnHome, $id]);
+                } catch (Exception $e1) {
+                    try {
+                        @$db->exec("ALTER TABLE `categories` ADD COLUMN `show_on_homepage` tinyint(1) DEFAULT 1");
+                        $stmt = $db->prepare("UPDATE categories SET name = ?, slug = ?, parent_id = ?, emoji = ?, description = ?, display_order = ?, show_on_homepage = ? WHERE id = ?");
+                        $stmt->execute([$name, $slug, $parentId, $emoji, $desc, $displayOrder, $showOnHome, $id]);
+                    } catch (Exception $e2) {
+                        $stmt = $db->prepare("UPDATE categories SET name = ?, slug = ?, parent_id = ?, emoji = ?, description = ?, display_order = ? WHERE id = ?");
+                        $stmt->execute([$name, $slug, $parentId, $emoji, $desc, $displayOrder, $id]);
+                    }
+                }
                 $msg = '✓ Category updated successfully!';
             }
         } elseif ($action === 'toggle_home') {
             $id = (int)$_POST['category_id'];
             $current = (int)$_POST['current_status'];
             $newStatus = $current === 1 ? 0 : 1;
-            $db->prepare("UPDATE categories SET show_on_homepage = ?, is_featured = ? WHERE id = ?")->execute([$newStatus, $newStatus, $id]);
+            try {
+                @$db->exec("ALTER TABLE `categories` ADD COLUMN `show_on_homepage` tinyint(1) DEFAULT 1");
+                $db->prepare("UPDATE categories SET show_on_homepage = ?, is_featured = ? WHERE id = ?")->execute([$newStatus, $newStatus, $id]);
+            } catch (Exception $ex) {
+                try {
+                    $db->prepare("UPDATE categories SET show_on_homepage = ? WHERE id = ?")->execute([$newStatus, $id]);
+                } catch (Exception $ex2) {}
+            }
             $msg = $newStatus === 1 ? '✓ Category enabled on Home Screen!' : '✓ Category hidden from Home Screen.';
         } elseif ($action === 'delete') {
             $id = (int)$_POST['category_id'];
