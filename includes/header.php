@@ -16,9 +16,32 @@ $announcement = $s['announcement_bar'] ?? ('Free Delivery Tangail ৳' . $tangai
 $isCustomerLoggedIn = !empty($_SESSION['user_logged_in']) || !empty($_SESSION['user_id']) || !empty($_SESSION['customer_id']);
 $customerName = $_SESSION['user_name'] ?? ($_SESSION['customer_name'] ?? 'Account');
 
+$categories = [];
+$allProducts = [];
+
 try {
     $db = getDB();
-    $catRows = $db->query("SELECT * FROM categories ORDER BY display_order ASC, id ASC")->fetchAll();
+
+    // Auto-heal categories schema in MySQL
+    try {
+        $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'mysql') {
+            @$db->exec("ALTER TABLE `categories` ADD COLUMN `show_on_homepage` tinyint(1) DEFAULT 1");
+            @$db->exec("ALTER TABLE `categories` ADD COLUMN `is_featured` tinyint(1) DEFAULT 1");
+            @$db->exec("ALTER TABLE `categories` ADD COLUMN `emoji` varchar(50) DEFAULT '🛍️'");
+            @$db->exec("ALTER TABLE `categories` ADD COLUMN `parent_id` int(11) DEFAULT NULL");
+            @$db->exec("ALTER TABLE `categories` ADD COLUMN `display_order` int(11) DEFAULT 1");
+            @$db->exec("ALTER TABLE `categories` ADD COLUMN `is_active` tinyint(1) DEFAULT 1");
+        }
+    } catch (Exception $ex) {}
+
+    // Fetch real live categories from database
+    try {
+        $catRows = $db->query("SELECT * FROM categories WHERE is_active = 1 OR is_active IS NULL ORDER BY display_order ASC, id ASC")->fetchAll();
+    } catch (Exception $e1) {
+        $catRows = $db->query("SELECT * FROM categories ORDER BY id ASC")->fetchAll();
+    }
+
     if (!empty($catRows)) {
         $counts = [];
         try {
@@ -28,31 +51,17 @@ try {
             }
         } catch (Exception $ex) {}
 
-        $categories = [];
         foreach ($catRows as $crow) {
             $crow['products_count'] = $counts[$crow['id']] ?? 0;
             if (empty($crow['emoji'])) $crow['emoji'] = '🛍️';
-            if (empty($crow['icon'])) $crow['icon'] = 'fa-tag';
             $categories[] = $crow;
         }
-    } else {
-        $categories = [];
     }
+
     $allProducts = $db->query("SELECT p.id, p.name, p.slug, p.price, p.sale_price, p.image_path, c.name as category FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1")->fetchAll();
 } catch (Exception $e) {
     $categories = [];
     $allProducts = [];
-}
-
-if (empty($categories)) {
-    $categories = [
-        ['id' => 1, 'name' => 'Watches', 'slug' => 'watches', 'emoji' => '⌚', 'icon' => 'fa-clock', 'products_count' => 12],
-        ['id' => 2, 'name' => 'Smart Gadgets', 'slug' => 'smart-gadgets', 'emoji' => '📱', 'icon' => 'fa-mobile-screen-button', 'products_count' => 8],
-        ['id' => 3, 'name' => 'Leather Wallets', 'slug' => 'leather-wallets', 'emoji' => '👛', 'icon' => 'fa-wallet', 'products_count' => 15],
-        ['id' => 4, 'name' => 'Luxury Bags', 'slug' => 'luxury-bags', 'emoji' => '👜', 'icon' => 'fa-bag-shopping', 'products_count' => 9],
-        ['id' => 5, 'name' => 'Sunglasses', 'slug' => 'sunglasses', 'emoji' => '🕶️', 'icon' => 'fa-glasses', 'products_count' => 7],
-        ['id' => 6, 'name' => 'Accessories & Belts', 'slug' => 'accessories-belts', 'emoji' => '👔', 'icon' => 'fa-gem', 'products_count' => 11],
-    ];
 }
 
 $cartItems = getCartItems();
@@ -153,7 +162,7 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
                             <select name="category" class="text-xs font-bold text-slate-700 bg-transparent outline-none cursor-pointer">
                                 <option value="">All Categories</option>
                                 <?php foreach ($categories as $cat): ?>
-                                <option value="<?= htmlspecialchars($cat['slug']) ?>" <?= (($_GET['category'] ?? '') === $cat['slug']) ? 'selected' : '' ?>><?= htmlspecialchars($cat['name']) ?></option>
+                                <option value="<?= htmlspecialchars($cat['slug']) ?>" <?= (($_GET['category'] ?? '') === $cat['slug']) ? 'selected' : '' ?>><?= htmlspecialchars($cat['emoji'] ?? '') ?> <?= htmlspecialchars($cat['name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -280,7 +289,6 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
                     </div>
                 </div>
 
-                <!-- Cart Items Container -->
                 <div id="cartDrawerItemsList" class="flex-1 overflow-y-auto p-5 space-y-4">
                     <?php if (empty($cartItems)): ?>
                         <div class="h-full flex flex-col items-center justify-center text-center py-12">

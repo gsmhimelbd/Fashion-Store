@@ -1,25 +1,6 @@
 <?php
 $pageTitle = 'Product Categories - OnlineBdMart • Online Shopping BD';
 require_once 'includes/header.php';
-
-try {
-    $db = getDB();
-    $allCats = $db->query("SELECT c.*, (SELECT COUNT(*) FROM products WHERE category_id = c.id) as products_count FROM categories c WHERE c.is_active = 1 OR c.is_active IS NULL ORDER BY c.display_order ASC, c.id ASC")->fetchAll();
-    if (!empty($allCats)) {
-        $categories = $allCats;
-    }
-} catch (Exception $e) {}
-
-if (empty($categories)) {
-    $categories = [
-        ['id' => 1, 'name' => 'Watches', 'slug' => 'watches', 'emoji' => '⌚', 'icon' => 'fa-clock', 'products_count' => 12, 'description' => 'Luxury chronograph, quartz, mechanical and automatic wrist watches.'],
-        ['id' => 2, 'name' => 'Smart Gadgets', 'slug' => 'smart-gadgets', 'emoji' => '📱', 'icon' => 'fa-mobile-screen-button', 'products_count' => 8, 'description' => 'Earbuds, smart bands, magnetic wireless power banks and accessories.'],
-        ['id' => 3, 'name' => 'Leather Wallets', 'slug' => 'leather-wallets', 'emoji' => '👛', 'icon' => 'fa-wallet', 'products_count' => 15, 'description' => 'Full-grain cowhide leather bifold, cardholder and long wallets.'],
-        ['id' => 4, 'name' => 'Luxury Bags', 'slug' => 'luxury-bags', 'emoji' => '👜', 'icon' => 'fa-bag-shopping', 'products_count' => 9, 'description' => 'Executive handbags, crossbody messenger bags and backpacks.'],
-        ['id' => 5, 'name' => 'Sunglasses', 'slug' => 'sunglasses', 'emoji' => '🕶️', 'icon' => 'fa-glasses', 'products_count' => 7, 'description' => 'Polarized UV400 aviator, wayfarer and retro sunglasses.'],
-        ['id' => 6, 'name' => 'Accessories & Belts', 'slug' => 'accessories-belts', 'emoji' => '👔', 'icon' => 'fa-gem', 'products_count' => 11, 'description' => 'Genuine leather belts, cuff links, rings and premium accessories.'],
-    ];
-}
 ?>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
@@ -40,7 +21,8 @@ if (empty($categories)) {
         </div>
     </div>
 
-    <!-- Category Grid -->
+    <!-- Category Grid (Live from Database) -->
+    <?php if (!empty($categories)): ?>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <?php foreach ($categories as $cat): 
             $pCount = $cat['products_count'] ?? 0;
@@ -73,6 +55,14 @@ if (empty($categories)) {
         </a>
         <?php endforeach; ?>
     </div>
+    <?php else: ?>
+    <div class="p-12 text-center bg-white rounded-3xl border border-slate-200 text-slate-400 space-y-3">
+        <i class="fas fa-folder-open text-4xl text-slate-300"></i>
+        <h3 class="font-bold text-slate-700 text-base">No Categories Created Yet</h3>
+        <p class="text-xs text-slate-400">Add categories in the Admin Panel to display them here.</p>
+        <a href="admin-panel/categories.php" class="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs inline-block">Go to Admin Categories</a>
+    </div>
+    <?php endif; ?>
 </div>
 
 <?php require_once 'includes/footer.php'; ?>
