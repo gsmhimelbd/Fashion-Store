@@ -161,6 +161,15 @@
                 } else {
                     let html = '';
                     data.items.forEach(item => {
+                        const itemKey = item.cart_key || item.id;
+                        let variantBadges = '';
+                        if (item.color || item.size) {
+                            variantBadges = '<div class="flex flex-wrap items-center gap-1 mt-0.5">';
+                            if (item.color) variantBadges += `<span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">Color: ${item.color}</span>`;
+                            if (item.size) variantBadges += `<span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-50 text-amber-800 border border-amber-200">Size: ${item.size}</span>`;
+                            variantBadges += '</div>';
+                        }
+
                         html += `
                             <div class="flex gap-4 p-3 rounded-2xl bg-slate-50 border border-slate-100">
                                 <img src="/${item.image.replace(/^\/+/, '')}" class="w-16 h-16 object-cover rounded-xl bg-white border shrink-0">
@@ -168,15 +177,16 @@
                                     <div>
                                         <div class="flex items-start justify-between gap-2">
                                             <h4 class="text-xs font-bold text-slate-800 line-clamp-1">${item.name}</h4>
-                                            <button onclick="removeCartItem(${item.id})" class="text-slate-300 hover:text-rose-500"><i class="fas fa-trash-can text-xs"></i></button>
+                                            <button onclick="removeCartItem(${item.id}, '${itemKey}')" class="text-slate-300 hover:text-rose-500"><i class="fas fa-trash-can text-xs"></i></button>
                                         </div>
-                                        <p class="text-xs font-bold text-indigo-600">৳${item.price.toFixed(2)}</p>
+                                        ${variantBadges}
+                                        <p class="text-xs font-bold text-indigo-600 mt-1">৳${item.price.toFixed(2)}</p>
                                     </div>
                                     <div class="flex items-center justify-between mt-2">
                                         <div class="flex items-center border rounded-lg bg-white">
-                                            <button onclick="updateCartQty(${item.id}, ${item.quantity - 1})" class="w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-slate-100">-</button>
+                                            <button onclick="updateCartQty(${item.id}, ${item.quantity - 1}, '${itemKey}')" class="w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-slate-100">-</button>
                                             <span class="w-8 text-center text-xs font-bold">${item.quantity}</span>
-                                            <button onclick="updateCartQty(${item.id}, ${item.quantity + 1})" class="w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-slate-100">+</button>
+                                            <button onclick="updateCartQty(${item.id}, ${item.quantity + 1}, '${itemKey}')" class="w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-slate-100">+</button>
                                         </div>
                                         <span class="text-xs font-extrabold">৳${(item.price * item.quantity).toFixed(2)}</span>
                                     </div>
@@ -190,11 +200,19 @@
         }
 
         // 3. Add to Cart Function
-        function addToCart(productId, quantity = 1, isWholesale = false) {
+        function addToCart(productId, quantity = 1, isWholesale = false, color = '', size = '', customPrice = null) {
             fetch('cart.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'add', product_id: productId, quantity: quantity, is_wholesale: isWholesale })
+                body: JSON.stringify({ 
+                    action: 'add', 
+                    product_id: productId, 
+                    quantity: quantity, 
+                    is_wholesale: isWholesale,
+                    color: color,
+                    size: size,
+                    custom_price: customPrice
+                })
             })
             .then(r => r.json())
             .then(d => {
@@ -209,11 +227,11 @@
             });
         }
 
-        function updateCartQty(productId, qty) {
+        function updateCartQty(productId, qty, cartKey = '') {
             fetch('cart.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'update', product_id: productId, quantity: qty })
+                body: JSON.stringify({ action: 'update', product_id: productId, quantity: qty, cart_key: cartKey })
             })
             .then(r => r.json())
             .then(d => {
@@ -226,18 +244,18 @@
             });
         }
 
-        function removeCartItem(productId) {
+        function removeCartItem(productId, cartKey = '') {
             fetch('cart.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'remove', product_id: productId })
+                body: JSON.stringify({ action: 'remove', product_id: productId, cart_key: cartKey })
             })
             .then(r => r.json())
             .then(d => {
                 if (d.success) {
                     window.__CART_DATA__.count = d.count;
                     window.__CART_DATA__.subtotal = d.subtotal;
-                    window.__CART_DATA__.items = window.__CART_DATA__.items.filter(i => i.id !== productId);
+                    window.__CART_DATA__.items = d.items;
                     renderCartDrawerUI();
                     showToast('Item removed from cart.', 'info');
                 }

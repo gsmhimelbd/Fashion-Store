@@ -161,6 +161,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 @$db->exec("ALTER TABLE `order_items` ADD COLUMN `total_price` decimal(10,2) DEFAULT NULL");
                 @$db->exec("ALTER TABLE `order_items` ADD COLUMN `product_image` varchar(255) DEFAULT NULL");
                 @$db->exec("ALTER TABLE `order_items` ADD COLUMN `is_wholesale` tinyint(1) DEFAULT 0");
+                @$db->exec("ALTER TABLE `order_items` ADD COLUMN `color` varchar(100) DEFAULT NULL");
+                @$db->exec("ALTER TABLE `order_items` ADD COLUMN `size` varchar(100) DEFAULT NULL");
             } catch (Exception $ex) {}
 
             // Insert items safely
@@ -168,15 +170,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $itemTotal = (float)($item['price'] * $item['quantity']);
                 $isWholesale = !empty($item['is_wholesale']) ? 1 : 0;
                 $img = $item['image'] ?? '';
+                $itemColor = $item['color'] ?? null;
+                $itemSize = $item['size'] ?? null;
 
                 try {
-                    $itemStmt = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, product_image, price, quantity, total_price, is_wholesale, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
-                    $itemStmt->execute([$orderId, $item['id'], $item['name'], $img, $item['price'], $item['quantity'], $itemTotal, $isWholesale]);
+                    $itemStmt = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, product_image, price, quantity, total_price, is_wholesale, color, size, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)");
+                    $itemStmt->execute([$orderId, $item['id'], $item['name'], $img, $item['price'], $item['quantity'], $itemTotal, $isWholesale, $itemColor, $itemSize]);
                 } catch (Exception $e1) {
                     try {
-                        $itemStmt2 = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, price, quantity) VALUES (?, ?, ?, ?, ?)");
-                        $itemStmt2->execute([$orderId, $item['id'], $item['name'], $item['price'], $item['quantity']]);
-                    } catch (Exception $e2) {}
+                        $itemStmt2 = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, product_image, price, quantity, total_price, is_wholesale) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                        $itemStmt2->execute([$orderId, $item['id'], $item['name'], $img, $item['price'], $item['quantity'], $itemTotal, $isWholesale]);
+                    } catch (Exception $e2) {
+                        try {
+                            $itemStmt3 = $db->prepare("INSERT INTO order_items (order_id, product_id, product_name, price, quantity) VALUES (?, ?, ?, ?, ?)");
+                            $itemStmt3->execute([$orderId, $item['id'], $item['name'], $item['price'], $item['quantity']]);
+                        } catch (Exception $e3) {}
+                    }
                 }
             }
 
@@ -411,6 +420,16 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
                             <img src="/<?= ltrim($it['image'], '/') ?>" class="w-12 h-12 object-cover rounded-xl bg-slate-50 border shrink-0">
                             <div class="min-w-0">
                                 <p class="font-bold text-slate-800 truncate"><?= htmlspecialchars($it['name']) ?></p>
+                                <?php if (!empty($it['color']) || !empty($it['size'])): ?>
+                                <div class="flex items-center gap-1.5 my-0.5">
+                                    <?php if (!empty($it['color'])): ?>
+                                    <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700">Color: <?= htmlspecialchars($it['color']) ?></span>
+                                    <?php endif; ?>
+                                    <?php if (!empty($it['size'])): ?>
+                                    <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-50 text-amber-800">Size: <?= htmlspecialchars($it['size']) ?></span>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
                                 <span class="text-slate-500 text-[11px]"><?= $it['quantity'] ?> × ৳<?= number_format($it['price'], 2) ?></span>
                             </div>
                         </div>

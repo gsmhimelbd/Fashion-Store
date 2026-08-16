@@ -13,7 +13,7 @@ $reviewError = '';
 try {
     $db = getDB();
 
-    // Auto-heal reviews schema in MySQL
+    // Auto-heal schema
     try {
         @$db->exec("ALTER TABLE `reviews` ADD COLUMN `product_id` int(11) DEFAULT NULL");
         @$db->exec("ALTER TABLE `reviews` ADD COLUMN `author_name` varchar(191) NOT NULL DEFAULT 'Customer'");
@@ -22,6 +22,8 @@ try {
         @$db->exec("ALTER TABLE `reviews` ADD COLUMN `district_name` varchar(100) DEFAULT 'Dhaka'");
         @$db->exec("ALTER TABLE `reviews` ADD COLUMN `phone` varchar(100) DEFAULT NULL");
         @$db->exec("ALTER TABLE `reviews` ADD COLUMN `is_approved` tinyint(1) DEFAULT 0");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `colors` text DEFAULT NULL");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `sizes` text DEFAULT NULL");
     } catch (Exception $ex) {}
 
     // Handle Customer Review Submission
@@ -37,7 +39,6 @@ try {
             $reviewError = 'অনুগ্রহ করে আপনার নাম এবং রিভিউ মন্তব্য লিখুন।';
         } else {
             try {
-                // Dynamically detect existing columns in reviews table
                 $existingCols = [];
                 try {
                     $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
@@ -81,7 +82,6 @@ try {
                 $stmt->execute($values);
                 $reviewNotice = '✓ ধন্যবাদ! আপনার রিভিউটি সফলভাবে জমা হয়েছে। অ্যাডমিন পর্যালোচনার পর এটি অ্যাপ্রুভ করলে এখানে প্রকাশিত হবে।';
             } catch (Exception $e) {
-                // Safe ultimate fallback
                 try {
                     $stmt = $db->prepare("INSERT INTO `reviews` (`product_id`, `author_name`, `rating`, `review_text`, `district_name`, `is_approved`) VALUES (?, ?, ?, ?, ?, 0)");
                     $stmt->execute([$productId, $authorName, $rating, $reviewText, $district]);
@@ -101,6 +101,56 @@ try {
         header('Location: shop.php');
         exit;
     }
+
+    // Parse Available Colors
+    $productColors = [];
+    if (!empty($product['colors'])) {
+        $productColors = array_filter(array_map('trim', explode(',', $product['colors'])));
+    }
+
+    // Parse Available Sizes & Custom Price Mapping
+    $productSizes = [];
+    $basePrice = ($product['sale_price'] && $product['sale_price'] > 0 && $product['sale_price'] < $product['price']) ? (float)$product['sale_price'] : (float)$product['price'];
+    
+    if (!empty($product['sizes'])) {
+        try {
+            $parsed = json_decode($product['sizes'], true);
+            if (is_array($parsed)) {
+                foreach ($parsed as $item) {
+                    $sName = trim($item['size'] ?? ($item['name'] ?? ''));
+                    if ($sName !== '') {
+                        $sPrice = !empty($item['price']) ? (float)$item['price'] : $basePrice;
+                        $productSizes[] = [
+                            'size' => $sName,
+                            'price' => $sPrice
+                        ];
+                    }
+                }
+            }
+        } catch (Exception $exS) {}
+
+        if (empty($productSizes)) {
+            // Fallback comma/colon format
+            $rawParts = explode(',', $product['sizes']);
+            foreach ($rawParts as $rp) {
+                if (str_contains($rp, ':')) {
+                    [$sN, $sP] = explode(':', $rp);
+                    $productSizes[] = [
+                        'size' => trim($sN),
+                        'price' => is_numeric(trim($sP)) ? (float)trim($sP) : $basePrice
+                    ];
+                } elseif (trim($rp) !== '') {
+                    $productSizes[] = [
+                        'size' => trim($rp),
+                        'price' => $basePrice
+                    ];
+                }
+            }
+        }
+    }
+
+    // Initial selected price (first size price or base price)
+    $initialPrice = (!empty($productSizes) && isset($productSizes[0]['price'])) ? $productSizes[0]['price'] : $basePrice;
 
     // Fetch Approved Reviews for this Product
     $prodReviews = [];
@@ -126,7 +176,7 @@ try {
         $prodReviews = [];
     }
 
-    // Smart Related Products: Fetch from same category with trending fallback
+    // Smart Related Products
     $relatedProducts = [];
     try {
         if (!empty($product['category_id'])) {
@@ -168,8 +218,6 @@ $metaDescription = !empty($product['meta_description']) ? $product['meta_descrip
 $metaKeywords = !empty($product['meta_keywords']) ? $product['meta_keywords'] : (!empty($product['focus_keyword']) ? $product['focus_keyword'] : ($product['name'] . ', price in bangladesh, buy online bd'));
 
 require_once 'includes/header.php';
-
-$price = ($product['sale_price'] && $product['sale_price'] > 0 && $product['sale_price'] < $product['price']) ? $product['sale_price'] : $product['price'];
 
 // Gallery images array
 $gallery = [];
@@ -251,7 +299,7 @@ if (!empty($product['gallery_images'])) {
                 <?php endif; ?>
             </div>
 
-            <!-- Right: Details, Pricing, Wholesale & CTAs -->
+            <!-- Right: Details, Pricing, Colors, Sizes & CTAs -->
             <div class="flex flex-col justify-between space-y-6">
                 <div class="space-y-4">
                     <div class="flex flex-wrap items-center gap-2">
@@ -273,9 +321,9 @@ if (!empty($product['gallery_images'])) {
                         <span class="text-xs text-indigo-600 group-hover:underline font-bold">(<?= $totalReviewsCount ?> Customer Reviews)</span>
                     </a>
 
-                    <!-- Price Block -->
+                    <!-- Dynamic Real-Time Price Display -->
                     <div class="flex items-baseline gap-3 pt-2">
-                        <span class="text-3xl sm:text-4xl font-black text-indigo-600">৳<?= number_format($price, 2) ?></span>
+                        <span class="text-3xl sm:text-4xl font-black text-indigo-600" id="displayProductPrice">৳<?= number_format($initialPrice, 2) ?></span>
                         <?php if ($product['sale_price'] && $product['sale_price'] < $product['price']): ?>
                         <span class="text-lg text-slate-400 line-through">৳<?= number_format($product['price'], 2) ?></span>
                         <span class="px-2.5 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-600">
@@ -283,6 +331,53 @@ if (!empty($product['gallery_images'])) {
                         </span>
                         <?php endif; ?>
                     </div>
+
+                    <!-- COLOR SELECTOR SECTION -->
+                    <?php if (!empty($productColors)): ?>
+                    <div class="space-y-2 pt-2 border-t border-slate-100">
+                        <div class="flex items-center justify-between text-xs">
+                            <label class="font-black text-slate-800 flex items-center gap-1.5">
+                                <span>🎨 Select Color (রং নির্বাচন করুন):</span>
+                                <span id="selectedColorLabel" class="text-indigo-600 font-extrabold"><?= htmlspecialchars($productColors[0]) ?></span>
+                            </label>
+                        </div>
+                        <div class="flex flex-wrap gap-2" id="colorOptionsContainer">
+                            <?php foreach ($productColors as $cIdx => $cName): ?>
+                            <button type="button" 
+                                    onclick="selectProductColor('<?= htmlspecialchars(addslashes($cName)) ?>', this)" 
+                                    class="color-pill px-3.5 py-2 rounded-xl text-xs font-extrabold border-2 transition flex items-center gap-1.5 cursor-pointer <?= $cIdx === 0 ? 'border-indigo-600 bg-indigo-50/80 text-indigo-700 shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300' ?>">
+                                <span class="w-3 h-3 rounded-full border border-slate-300 inline-block shrink-0 shadow-inner" style="background-color: <?= strtolower(preg_replace('/[^a-z]/', '', $cName)) ?>;"></span>
+                                <span><?= htmlspecialchars($cName) ?></span>
+                                <i class="fas fa-check text-[10px] <?= $cIdx === 0 ? 'inline-block text-indigo-600' : 'hidden' ?>"></i>
+                            </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- SIZE / VARIANT SELECTOR WITH DYNAMIC PRICE UPDATE -->
+                    <?php if (!empty($productSizes)): ?>
+                    <div class="space-y-2 pt-2 border-t border-slate-100">
+                        <div class="flex items-center justify-between text-xs">
+                            <label class="font-black text-slate-800 flex items-center gap-1.5">
+                                <span>📏 Select Size / Variant (সাইজ নির্বাচন করুন):</span>
+                                <span id="selectedSizeLabel" class="text-indigo-600 font-extrabold"><?= htmlspecialchars($productSizes[0]['size']) ?></span>
+                            </label>
+                        </div>
+                        <div class="flex flex-wrap gap-2" id="sizeOptionsContainer">
+                            <?php foreach ($productSizes as $sIdx => $sItem): ?>
+                            <button type="button" 
+                                    onclick="selectProductSize('<?= htmlspecialchars(addslashes($sItem['size'])) ?>', <?= (float)$sItem['price'] ?>, this)" 
+                                    class="size-pill px-4 py-2.5 rounded-xl text-xs font-extrabold border-2 transition flex items-center gap-2 cursor-pointer <?= $sIdx === 0 ? 'border-indigo-600 bg-indigo-50/80 text-indigo-700 shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300' ?>">
+                                <span><?= htmlspecialchars($sItem['size']) ?></span>
+                                <span class="px-2 py-0.5 rounded-md text-[10px] font-black <?= $sIdx === 0 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600' ?>">
+                                    ৳<?= number_format($sItem['price'], 0) ?>
+                                </span>
+                            </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
 
                     <!-- Wholesale Bulk Box -->
                     <?php if (!empty($product['is_wholesale']) && !empty($product['wholesale_price']) && $product['wholesale_price'] > 0): 
@@ -293,7 +388,7 @@ if (!empty($product['gallery_images'])) {
                             <span class="text-xs font-black uppercase text-amber-900 flex items-center gap-1.5"><i class="fas fa-boxes-stacked"></i> Wholesale / B2B Rate Available</span>
                             <p class="text-xs text-amber-800 mt-0.5">Order <strong><?= $moq ?>+ pcs</strong> at wholesale price: <strong class="text-emerald-700 text-sm">৳<?= number_format($product['wholesale_price'], 2) ?>/pc</strong></p>
                         </div>
-                        <button type="button" onclick="addToCart(<?= $product['id'] ?>, <?= $moq ?>, true)" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl shadow transition shrink-0">
+                        <button type="button" onclick="addVariantToCart(<?= $moq ?>, true)" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black rounded-xl shadow transition shrink-0">
                             Add <?= $moq ?> pcs Wholesale
                         </button>
                     </div>
@@ -315,12 +410,12 @@ if (!empty($product['gallery_images'])) {
                             <input type="number" id="productQty" value="1" min="1" class="w-10 sm:w-12 text-center bg-transparent font-black text-sm outline-none">
                             <button type="button" onclick="const q = document.getElementById('productQty'); q.value++;" class="w-9 h-9 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-200 rounded-xl transition text-base">+</button>
                         </div>
-                        <button type="button" onclick="addToCart(<?= $product['id'] ?>, parseInt(document.getElementById('productQty').value))" class="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 transition flex items-center justify-center gap-2 active:scale-98">
+                        <button type="button" onclick="addVariantToCart()" class="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 transition flex items-center justify-center gap-2 active:scale-98">
                             <i class="fas fa-bag-shopping text-sm"></i> <span>Add to Bag</span>
                         </button>
                     </div>
 
-                    <a href="https://wa.me/88<?= htmlspecialchars($whatsapp ?? '01700000000') ?>?text=<?= urlencode('Hello OnlineBdMart! I want to order product: ' . $product['name'] . ' (৳' . $price . ') - URL: https://onlinebdmart.com/product.php?slug=' . $product['slug']) ?>" target="_blank" class="w-full h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md transition flex items-center justify-center gap-2">
+                    <a id="whatsappOrderBtn" href="https://wa.me/88<?= htmlspecialchars($whatsapp ?? '01700000000') ?>?text=<?= urlencode('Hello OnlineBdMart! I want to order product: ' . $product['name'] . (!empty($productColors[0]) ? ' | Color: ' . $productColors[0] : '') . (!empty($productSizes[0]['size']) ? ' | Size: ' . $productSizes[0]['size'] : '') . ' (৳' . $initialPrice . ')') ?>" target="_blank" class="w-full h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-md transition flex items-center justify-center gap-2">
                         <i class="fab fa-whatsapp text-lg"></i> <span>1-Click Order on WhatsApp</span>
                     </a>
                 </div>
@@ -399,7 +494,6 @@ if (!empty($product['gallery_images'])) {
                 
                 <!-- Left Column: Overall Score & Review Form -->
                 <div class="space-y-6">
-                    <!-- Rating Summary Card -->
                     <div class="p-6 rounded-3xl bg-slate-50 border border-slate-200 text-center space-y-3">
                         <div class="text-4xl sm:text-5xl font-black text-slate-900"><?= $avgRating ?><span class="text-xl font-normal text-slate-400">/5</span></div>
                         <div class="flex justify-center text-amber-400 text-lg">
@@ -500,7 +594,7 @@ if (!empty($product['gallery_images'])) {
                         </div>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <!-- Default Initial Seed State -->
+                        <!-- Default Seed State -->
                         <div class="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-3">
@@ -525,33 +619,6 @@ if (!empty($product['gallery_images'])) {
                             </div>
                             <p class="text-slate-700 leading-relaxed font-normal pt-1">
                                 "প্রোডাক্টের কোয়ালিটি অনেক ভালো এবং প্রিমিয়াম বিল্ড। অর্ডার করার ২ দিনের মধ্যে ডেলিভারি পেয়েছি। রাইডারের সামনে প্যাকেট খুলে চেক করে ক্যাশ অন ডেলিভারিতে টাকা পরিশোধ করেছি। OnlineBdMart থেকে নেওয়াতে একদম আসল অরিজিনাল জিনিস পেয়েছি।"
-                            </p>
-                        </div>
-
-                        <div class="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-sm">
-                                        S
-                                    </div>
-                                    <div>
-                                        <div class="flex items-center gap-2">
-                                            <h4 class="font-extrabold text-slate-900 text-sm">Shakil Ahmed</h4>
-                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 flex items-center gap-1">
-                                                <i class="fas fa-circle-check"></i> Verified Purchase
-                                            </span>
-                                        </div>
-                                        <div class="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
-                                            <span><i class="fas fa-location-dot text-rose-400 mr-1"></i>Chittagong</span>
-                                            <span>•</span>
-                                            <span>11 August 2026</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="text-amber-400 text-xs">★★★★★</div>
-                            </div>
-                            <p class="text-slate-700 leading-relaxed font-normal pt-1">
-                                "Very satisfied! Fast charging and long battery backup. Best price in Bangladesh compared to other stores."
                             </p>
                         </div>
                     <?php endif; ?>
@@ -609,6 +676,77 @@ if (!empty($product['gallery_images'])) {
 </div>
 
 <script>
+// State variables for selected variant
+let selectedProductColor = '<?= !empty($productColors[0]) ? addslashes($productColors[0]) : '' ?>';
+let selectedProductSize = '<?= !empty($productSizes[0]['size']) ? addslashes($productSizes[0]['size']) : '' ?>';
+let currentVariantPrice = <?= (float)$initialPrice ?>;
+const productBaseId = <?= (int)$product['id'] ?>;
+const productBaseTitle = '<?= addslashes($product['name']) ?>';
+const productWhatsappNum = '<?= htmlspecialchars($whatsapp ?? '01700000000') ?>';
+
+function selectProductColor(colorName, btn) {
+    selectedProductColor = colorName;
+    document.getElementById('selectedColorLabel').textContent = colorName;
+    
+    document.querySelectorAll('.color-pill').forEach(el => {
+        el.className = 'color-pill px-3.5 py-2 rounded-xl text-xs font-extrabold border-2 transition flex items-center gap-1.5 cursor-pointer border-slate-200 bg-white text-slate-700 hover:border-slate-300';
+        const icon = el.querySelector('i');
+        if (icon) icon.className = 'fas fa-check text-[10px] hidden';
+    });
+
+    btn.className = 'color-pill px-3.5 py-2 rounded-xl text-xs font-extrabold border-2 transition flex items-center gap-1.5 cursor-pointer border-indigo-600 bg-indigo-50/80 text-indigo-700 shadow-sm';
+    const activeIcon = btn.querySelector('i');
+    if (activeIcon) activeIcon.className = 'fas fa-check text-[10px] inline-block text-indigo-600';
+
+    updateWhatsappOrderLink();
+}
+
+function selectProductSize(sizeName, sizePrice, btn) {
+    selectedProductSize = sizeName;
+    currentVariantPrice = parseFloat(sizePrice);
+    
+    document.getElementById('selectedSizeLabel').textContent = sizeName;
+    document.getElementById('displayProductPrice').textContent = '৳' + currentVariantPrice.toFixed(2);
+    
+    document.querySelectorAll('.size-pill').forEach(el => {
+        el.className = 'size-pill px-4 py-2.5 rounded-xl text-xs font-extrabold border-2 transition flex items-center gap-2 cursor-pointer border-slate-200 bg-white text-slate-700 hover:border-slate-300';
+        const badge = el.querySelector('span:last-child');
+        if (badge) badge.className = 'px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-100 text-slate-600';
+    });
+
+    btn.className = 'size-pill px-4 py-2.5 rounded-xl text-xs font-extrabold border-2 transition flex items-center gap-2 cursor-pointer border-indigo-600 bg-indigo-50/80 text-indigo-700 shadow-sm';
+    const activeBadge = btn.querySelector('span:last-child');
+    if (activeBadge) activeBadge.className = 'px-2 py-0.5 rounded-md text-[10px] font-black bg-indigo-600 text-white';
+
+    updateWhatsappOrderLink();
+}
+
+function updateWhatsappOrderLink() {
+    let msg = 'Hello OnlineBdMart! I want to order product: ' + productBaseTitle;
+    if (selectedProductColor) msg += ' | Color: ' + selectedProductColor;
+    if (selectedProductSize) msg += ' | Size: ' + selectedProductSize;
+    msg += ' (৳' + currentVariantPrice.toFixed(2) + ')';
+    
+    const waBtn = document.getElementById('whatsappOrderBtn');
+    if (waBtn) {
+        waBtn.href = 'https://wa.me/88' + productWhatsappNum + '?text=' + encodeURIComponent(msg);
+    }
+}
+
+function addVariantToCart(qtyOverride = null, isWholesale = false) {
+    const qtyInput = document.getElementById('productQty');
+    const quantity = qtyOverride !== null ? qtyOverride : (qtyInput ? parseInt(qtyInput.value) : 1);
+    
+    addToCart(
+        productBaseId, 
+        quantity, 
+        isWholesale, 
+        selectedProductColor, 
+        selectedProductSize, 
+        currentVariantPrice
+    );
+}
+
 // Image Zoom Effect on Hover
 function handleZoom(e) {
     const container = document.getElementById('zoomContainer');

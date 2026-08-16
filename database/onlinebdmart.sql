@@ -81,6 +81,8 @@ CREATE TABLE `products` (
   `description` longtext DEFAULT NULL,
   `specifications` text DEFAULT NULL,
   `why_buy_from_us` text DEFAULT NULL,
+  `colors` text DEFAULT NULL,
+  `sizes` text DEFAULT NULL,
   `meta_title` varchar(255) DEFAULT NULL,
   `meta_description` text DEFAULT NULL,
   `meta_keywords` varchar(255) DEFAULT NULL,
@@ -285,6 +287,8 @@ CREATE TABLE `order_items` (
   `quantity` int(11) NOT NULL DEFAULT 1,
   `total_price` decimal(10,2) DEFAULT NULL,
   `is_wholesale` tinyint(1) DEFAULT 0,
+  `color` varchar(100) DEFAULT NULL,
+  `size` varchar(100) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

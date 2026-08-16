@@ -99,7 +99,16 @@ $storeAddress = $settings['store_address'] ?? 'Tangail, Dhaka Division, Banglade
                 <tbody class="divide-y divide-slate-100">
                     <?php foreach ($items as $it): ?>
                     <tr>
-                        <td class="py-3 font-bold text-slate-800"><?= htmlspecialchars($it['product_name']) ?></td>
+                        <td class="py-3 font-bold text-slate-800">
+                            <div><?= htmlspecialchars($it['product_name']) ?></div>
+                            <?php if (!empty($it['color']) || !empty($it['size'])): ?>
+                            <div class="text-[10px] text-slate-500 font-normal">
+                                <?php if (!empty($it['color'])): ?><span>Color: <?= htmlspecialchars($it['color']) ?></span><?php endif; ?>
+                                <?php if (!empty($it['color']) && !empty($it['size'])): ?> | <?php endif; ?>
+                                <?php if (!empty($it['size'])): ?><span>Size: <?= htmlspecialchars($it['size']) ?></span><?php endif; ?>
+                            </div>
+                            <?php endif; ?>
+                        </td>
                         <td class="py-3 text-center text-slate-600">৳<?= number_format($it['price'], 2) ?></td>
                         <td class="py-3 text-center font-bold text-slate-900"><?= $it['quantity'] ?></td>
                         <td class="py-3 text-right font-black text-slate-900">৳<?= number_format($it['total_price'], 2) ?></td>

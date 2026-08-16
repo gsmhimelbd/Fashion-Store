@@ -135,6 +135,20 @@ try {
                         </td>
                         <td class="py-3 font-bold text-white">
                             <p><?= htmlspecialchars($it['product_name']) ?></p>
+                            <?php if (!empty($it['color']) || !empty($it['size'])): ?>
+                            <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                                <?php if (!empty($it['color'])): ?>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                    Color: <?= htmlspecialchars($it['color']) ?>
+                                </span>
+                                <?php endif; ?>
+                                <?php if (!empty($it['size'])): ?>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                    Size: <?= htmlspecialchars($it['size']) ?>
+                                </span>
+                                <?php endif; ?>
+                            </div>
+                            <?php endif; ?>
                             <?php if (!empty($it['is_wholesale'])): ?>
                             <span class="inline-block mt-0.5 text-[9px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-black">Wholesale Bulk Item</span>
                             <?php endif; ?>

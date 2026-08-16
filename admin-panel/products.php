@@ -1,5 +1,5 @@
 <?php
-$adminTitle = 'Product Catalog, Inventory & SEO';
+$adminTitle = 'Product Catalog, Inventory, Variants & SEO';
 require_once __DIR__ . '/header.php';
 
 $msg = '';
@@ -70,6 +70,10 @@ try {
         @$db->exec("ALTER TABLE `products` ADD COLUMN `specifications` text DEFAULT NULL");
         @$db->exec("ALTER TABLE `products` ADD COLUMN `why_buy_from_us` text DEFAULT NULL");
         
+        // Colors & Sizes Variant Support
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `colors` text DEFAULT NULL");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `sizes` text DEFAULT NULL");
+
         // SEO Fields
         @$db->exec("ALTER TABLE `products` ADD COLUMN `meta_title` varchar(255) DEFAULT NULL");
         @$db->exec("ALTER TABLE `products` ADD COLUMN `meta_description` text DEFAULT NULL");
@@ -116,6 +120,30 @@ try {
             $desc = trim($_POST['description'] ?? '');
             $specs = trim($_POST['specifications'] ?? '');
             $whyBuy = trim($_POST['why_buy_from_us'] ?? '');
+
+            // Handle Colors
+            $colors = trim($_POST['colors'] ?? '');
+
+            // Handle Sizes & Size-based Pricing
+            $sizesJson = '';
+            if (!empty($_POST['size_name']) && is_array($_POST['size_name'])) {
+                $sizeList = [];
+                foreach ($_POST['size_name'] as $idx => $sName) {
+                    $sName = trim($sName);
+                    if ($sName !== '') {
+                        $sPrice = !empty($_POST['size_price'][$idx]) ? (float)$_POST['size_price'][$idx] : $price;
+                        $sizeList[] = [
+                            'size' => $sName,
+                            'price' => $sPrice
+                        ];
+                    }
+                }
+                if (!empty($sizeList)) {
+                    $sizesJson = json_encode($sizeList, JSON_UNESCAPED_UNICODE);
+                }
+            } elseif (!empty($_POST['sizes_raw'])) {
+                $sizesJson = trim($_POST['sizes_raw']);
+            }
 
             // Handle Primary Image
             $imagePath = trim($_POST['existing_image'] ?? 'images/products/watch-1.jpg');
@@ -173,6 +201,8 @@ try {
                 'description' => $desc,
                 'specifications' => $specs,
                 'why_buy_from_us' => $whyBuy,
+                'colors' => $colors,
+                'sizes' => $sizesJson,
                 'meta_title' => $metaTitle,
                 'meta_description' => $metaDescription,
                 'meta_keywords' => $metaKeywords,
@@ -195,7 +225,7 @@ try {
                 $insertSql = "INSERT INTO `products` (" . implode(', ', $insertCols) . ") VALUES (" . implode(', ', $placeholders) . ")";
                 $stmt = $db->prepare($insertSql);
                 $stmt->execute($values);
-                $msg = '✓ Product created successfully with complete SEO and photos!';
+                $msg = '✓ Product created successfully with colors, sizes, and pricing variants!';
             } else {
                 $id = (int)$_POST['product_id'];
                 $updateCols = [];
@@ -248,7 +278,7 @@ try {
     <div>
         <span class="text-xs font-bold uppercase text-indigo-400">Inventory & Catalog</span>
         <h2 class="text-xl font-black text-white mt-1">Product Catalog (<?= count($products) ?> Items)</h2>
-        <p class="text-xs text-slate-400">Add products with local photo uploads, full Google SEO settings, specs, and wholesale pricing.</p>
+        <p class="text-xs text-slate-400">Manage products with color variants, size-based pricing, Google SEO, photo uploads, and wholesale rates.</p>
     </div>
     <button type="button" onclick="openAddProductModal()" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-2xl text-xs shadow-lg transition flex items-center gap-2">
         <i class="fas fa-plus"></i> <span>+ Add New Product</span>
@@ -262,7 +292,7 @@ try {
             <thead>
                 <tr class="border-b border-slate-800 text-slate-400 font-bold uppercase text-[10px]">
                     <th class="py-3">Photo</th>
-                    <th class="py-3">Product Name & SEO Slug</th>
+                    <th class="py-3">Product Name & Variants</th>
                     <th class="py-3">Category</th>
                     <th class="py-3">Retail Price</th>
                     <th class="py-3">Wholesale Rate</th>
@@ -276,6 +306,8 @@ try {
                     <?php foreach ($products as $p): 
                         $prodJson = htmlspecialchars(json_encode($p), ENT_QUOTES, 'UTF-8');
                         $pImg = !empty($p['image_path']) ? $p['image_path'] : ($p['image'] ?? 'images/products/watch-1.jpg');
+                        $hasColors = !empty($p['colors']);
+                        $hasSizes = !empty($p['sizes']);
                     ?>
                     <tr class="hover:bg-slate-800/40 transition">
                         <td class="py-3.5">
@@ -283,9 +315,23 @@ try {
                         </td>
                         <td class="py-3.5 max-w-xs">
                             <p class="font-bold text-white truncate"><?= htmlspecialchars($p['name']) ?></p>
+                            
+                            <!-- Color & Size badges -->
+                            <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                                <?php if ($hasColors): ?>
+                                <span class="px-2 py-0.5 rounded-md text-[9px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 truncate max-w-[120px]">
+                                    🎨 <?= htmlspecialchars($p['colors']) ?>
+                                </span>
+                                <?php endif; ?>
+                                <?php if ($hasSizes): ?>
+                                <span class="px-2 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                    📏 Sizes Configured
+                                </span>
+                                <?php endif; ?>
+                            </div>
+                            
                             <div class="flex items-center gap-2 mt-0.5">
-                                <span class="text-[10px] text-indigo-400 font-mono">/product/<?= htmlspecialchars($p['slug']) ?></span>
-                                <span class="text-[10px] text-slate-500 font-mono">SKU: <?= htmlspecialchars($p['sku'] ?: 'N/A') ?></span>
+                                <span class="text-[10px] text-slate-500 font-mono">/product/<?= htmlspecialchars($p['slug']) ?></span>
                             </div>
                         </td>
                         <td class="py-3.5 text-slate-300">
@@ -318,7 +364,7 @@ try {
                             <a href="../product.php?slug=<?= htmlspecialchars($p['slug']) ?>" target="_blank" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 hover:text-white text-xs inline-block" title="View Product on Storefront">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <button type="button" onclick='openEditProductModal(<?= $prodJson ?>)' class="p-2 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl text-xs" title="Edit Product & SEO">
+                            <button type="button" onclick='openEditProductModal(<?= $prodJson ?>)' class="p-2 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl text-xs" title="Edit Product, Colors, Sizes & SEO">
                                 <i class="fas fa-pen-to-square"></i>
                             </button>
                             <form method="POST" action="products.php" onsubmit="return confirm('Delete product <?= addslashes($p['name']) ?>?');" class="inline">
@@ -339,7 +385,7 @@ try {
     </div>
 </div>
 
-<!-- ADD / EDIT PRODUCT POPUP MODAL WITH FULL SEO SUITE -->
+<!-- ADD / EDIT PRODUCT POPUP MODAL WITH FULL SEO & VARIANT SUITE -->
 <div id="productModalContainer" class="fixed inset-0 z-50 overflow-y-auto hidden" role="dialog" aria-modal="true">
     <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm" onclick="closeProductModal()"></div>
     <div class="min-h-screen flex items-center justify-center p-4 sm:p-6">
@@ -353,7 +399,7 @@ try {
                     </div>
                     <div>
                         <h3 class="text-base font-extrabold text-white" id="modalTitle">Add New Product</h3>
-                        <p class="text-xs text-slate-400">Inventory details, photo uploads, specifications & Google SEO</p>
+                        <p class="text-xs text-slate-400">Inventory, Colors, Size-based Pricing & Google SEO</p>
                     </div>
                 </div>
                 <button type="button" onclick="closeProductModal()" class="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition">
@@ -407,8 +453,8 @@ try {
                             </select>
                         </div>
                         <div>
-                            <label class="block text-slate-300 font-bold mb-1">Regular Retail Price (৳) *</label>
-                            <input type="number" step="0.01" name="price" id="pPrice" required placeholder="3850" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-indigo-400 font-bold outline-none focus:border-indigo-500">
+                            <label class="block text-slate-300 font-bold mb-1">Base Retail Price (মূল দাম ৳) *</label>
+                            <input type="number" step="0.01" name="price" id="pPrice" required placeholder="3850" oninput="syncDefaultSizePrice()" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-indigo-400 font-bold outline-none focus:border-indigo-500">
                         </div>
                         <div>
                             <label class="block text-slate-300 font-bold mb-1">Sale Discount Price (৳)</label>
@@ -421,12 +467,76 @@ try {
                     </div>
                 </div>
 
-                <!-- Section 2: Complete SEO Suite (Google Search Snippet Preview) -->
-                <div class="p-5 sm:p-6 rounded-3xl bg-slate-950 border-2 border-indigo-500/40 space-y-4 shadow-xl">
+                <!-- Section 2: Colors & Size-based Pricing Variants -->
+                <div class="p-5 sm:p-6 rounded-3xl bg-slate-950 border-2 border-indigo-500/40 space-y-5 shadow-xl">
+                    <div class="border-b border-slate-800 pb-3">
+                        <span class="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-2">
+                            <i class="fas fa-palette"></i> 2. Product Color & Size Variants (কালার ও সাইজ অনুযায়ী দাম)
+                        </span>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Add color options and set different prices for different sizes/variants (e.g. M = ৳1200, L = ৳1450).</p>
+                    </div>
+
+                    <!-- Colors Section -->
+                    <div class="space-y-2">
+                        <label class="block text-slate-300 font-bold">Available Colors (উপলব্ধ কালারসমূহ - কমা দিয়ে লিখুন)</label>
+                        <div class="flex items-center gap-2">
+                            <input type="text" name="colors" id="pColors" placeholder="e.g. Black, Silver, Rose Gold, Navy Blue" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500 font-medium">
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                            <span class="text-[10px] text-slate-500 font-bold mr-1">Quick Add:</span>
+                            <?php 
+                            $colorPresets = ['Black', 'White', 'Silver', 'Gold', 'Rose Gold', 'Navy Blue', 'Brown', 'Maroon', 'Green', 'Red', 'Gray'];
+                            foreach ($colorPresets as $cp): ?>
+                            <button type="button" onclick="addColorPreset('<?= $cp ?>')" class="px-2 py-0.5 bg-slate-900 hover:bg-indigo-600/40 text-slate-300 hover:text-white rounded-lg text-[10px] font-bold border border-slate-800 transition">
+                                + <?= $cp ?>
+                            </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <!-- Sizes & Size-based Pricing Table -->
+                    <div class="space-y-3 pt-3 border-t border-slate-800">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                                <label class="block text-slate-300 font-bold">Sizes & Custom Pricing (সাইজ এবং সাইজ অনুযায়ী দাম)</label>
+                                <p class="text-[10px] text-slate-400">প্রতিটি সাইজের জন্য আলাদা দাম নির্ধারণ করতে পারবেন। কাস্টমার সাইজ সিলেক্ট করলে স্বয়ংক্রিয়ভাবে ওই দাম শো করবে।</p>
+                            </div>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <button type="button" onclick="addSizePreset('apparel')" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-indigo-400 rounded-lg text-[10px] font-bold border border-slate-800">Presets: S/M/L/XL</button>
+                                <button type="button" onclick="addSizePreset('volume')" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-amber-400 rounded-lg text-[10px] font-bold border border-slate-800">50ml/100ml</button>
+                                <button type="button" onclick="addSizeRow()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-black shadow transition">
+                                    + Add Size Row
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Sizes Repeater Table -->
+                        <div class="overflow-x-auto bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                            <table class="w-full text-left text-xs" id="sizesTable">
+                                <thead>
+                                    <tr class="text-slate-400 font-bold text-[10px] uppercase border-b border-slate-800">
+                                        <th class="pb-2">Size / Variant Name (সাইজ)</th>
+                                        <th class="pb-2">Price (এই সাইজের দাম ৳)</th>
+                                        <th class="pb-2 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sizesTableBody" class="divide-y divide-slate-800/60">
+                                    <!-- Dynamic Rows inserted here by JS -->
+                                </tbody>
+                            </table>
+                            <div id="noSizesNotice" class="py-4 text-center text-slate-500 text-[11px]">
+                                No size variants added yet. Click <b>"+ Add Size Row"</b> or choose a preset if this product has size options.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Complete SEO Suite -->
+                <div class="p-5 sm:p-6 rounded-3xl bg-slate-950 border border-slate-800 space-y-4 shadow-sm">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
                         <div>
                             <span class="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2">
-                                <i class="fas fa-magnifying-glass"></i> 2. Product SEO Optimization (গুগল সার্চ এসইও)
+                                <i class="fas fa-magnifying-glass"></i> 3. Product SEO Optimization (গুগল সার্চ এসইও)
                             </span>
                             <p class="text-[11px] text-slate-400 mt-0.5">Customize Google search snippet, focus keyword, meta description, and clean URL slug.</p>
                         </div>
@@ -488,10 +598,10 @@ try {
                     </div>
                 </div>
 
-                <!-- Section 3: Wholesale Controls -->
+                <!-- Section 4: Wholesale Controls -->
                 <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-3">
                     <div class="flex items-center justify-between">
-                        <span class="font-extrabold text-amber-400 text-xs flex items-center gap-1.5"><i class="fas fa-boxes-stacked"></i> 3. Wholesale & B2B Bulk Settings</span>
+                        <span class="font-extrabold text-amber-400 text-xs flex items-center gap-1.5"><i class="fas fa-boxes-stacked"></i> 4. Wholesale & B2B Bulk Settings</span>
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" name="is_wholesale" id="pIsWholesale" value="1" checked class="rounded text-amber-500">
                             <span class="text-amber-300 font-bold">Enable Wholesale</span>
@@ -509,11 +619,11 @@ try {
                     </div>
                 </div>
 
-                <!-- Section 4: Photo Uploads -->
+                <!-- Section 5: Photo Uploads -->
                 <div class="space-y-2">
                     <div class="border-b border-slate-800/80 pb-2">
                         <h4 class="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-2">
-                            <i class="fas fa-images"></i> 4. Product Photos
+                            <i class="fas fa-images"></i> 5. Product Photos
                         </h4>
                     </div>
 
@@ -535,11 +645,11 @@ try {
                     </div>
                 </div>
 
-                <!-- Section 5: Descriptions & Specs -->
+                <!-- Section 6: Descriptions & Specs -->
                 <div class="space-y-4">
                     <div class="border-b border-slate-800/80 pb-2">
                         <h4 class="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-2">
-                            <i class="fas fa-align-left"></i> 5. Details & Specifications
+                            <i class="fas fa-align-left"></i> 6. Details & Specifications
                         </h4>
                     </div>
 
@@ -565,7 +675,7 @@ try {
                     </div>
                 </div>
 
-                <!-- Section 6: Toggles & Save -->
+                <!-- Section 7: Toggles & Save -->
                 <div class="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-800">
                     <div class="flex items-center gap-6">
                         <label class="flex items-center gap-2 cursor-pointer">
@@ -618,6 +728,89 @@ function onProductTitleChange() {
     }
 
     updateSerpPreview();
+}
+
+function addColorPreset(cName) {
+    const el = document.getElementById('pColors');
+    const cur = el.value.trim();
+    if (!cur) {
+        el.value = cName;
+    } else {
+        const parts = cur.split(',').map(s => s.trim());
+        if (!parts.includes(cName)) {
+            el.value = cur + ', ' + cName;
+        }
+    }
+}
+
+function addSizeRow(name = '', price = '') {
+    const basePrice = document.getElementById('pPrice').value || '1000';
+    const rowPrice = price !== '' ? price : basePrice;
+    
+    const tbody = document.getElementById('sizesTableBody');
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-slate-800/40 transition';
+    tr.innerHTML = `
+        <td class="py-2 pr-2">
+            <input type="text" name="size_name[]" value="${name}" required placeholder="e.g. S, M, L, XL or 50ml, 100ml" class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-bold outline-none focus:border-indigo-500">
+        </td>
+        <td class="py-2 pr-2">
+            <div class="flex items-center">
+                <span class="px-2 py-1.5 bg-slate-950 border border-r-0 border-slate-800 rounded-l-lg text-slate-400 font-bold text-[11px]">৳</span>
+                <input type="number" step="0.01" name="size_price[]" value="${rowPrice}" required placeholder="Price" class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-r-lg text-indigo-400 font-black outline-none focus:border-indigo-500">
+            </div>
+        </td>
+        <td class="py-2 text-right">
+            <button type="button" onclick="this.closest('tr').remove(); checkSizesCount();" class="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 rounded-lg transition" title="Remove Size">
+                <i class="fas fa-trash-can"></i>
+            </button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+    checkSizesCount();
+}
+
+function addSizePreset(type) {
+    const basePrice = parseFloat(document.getElementById('pPrice').value || 1000);
+    const tbody = document.getElementById('sizesTableBody');
+    tbody.innerHTML = '';
+    
+    if (type === 'apparel') {
+        const presets = [
+            { name: 'S', price: basePrice },
+            { name: 'M', price: basePrice },
+            { name: 'L', price: basePrice + 100 },
+            { name: 'XL', price: basePrice + 200 },
+            { name: 'XXL', price: basePrice + 300 }
+        ];
+        presets.forEach(p => addSizeRow(p.name, p.price));
+    } else if (type === 'volume') {
+        const presets = [
+            { name: '50ml', price: basePrice },
+            { name: '100ml', price: basePrice + 350 },
+            { name: '200ml', price: basePrice + 700 }
+        ];
+        presets.forEach(p => addSizeRow(p.name, p.price));
+    }
+    checkSizesCount();
+}
+
+function checkSizesCount() {
+    const tbody = document.getElementById('sizesTableBody');
+    const notice = document.getElementById('noSizesNotice');
+    if (tbody.children.length === 0) {
+        notice.classList.remove('hidden');
+    } else {
+        notice.classList.add('hidden');
+    }
+}
+
+function syncDefaultSizePrice() {
+    const basePrice = document.getElementById('pPrice').value;
+    const sizePriceInputs = document.querySelectorAll('input[name="size_price[]"]');
+    if (sizePriceInputs.length === 1 && !sizePriceInputs[0].value) {
+        sizePriceInputs[0].value = basePrice;
+    }
 }
 
 function autoGenerateSEO() {
@@ -673,7 +866,7 @@ function updateSerpPreview() {
 }
 
 function openAddProductModal() {
-    document.getElementById('modalTitle').textContent = 'Add New Product & SEO';
+    document.getElementById('modalTitle').textContent = 'Add New Product & Variants';
     document.getElementById('modalSubmitBtn').textContent = 'Save & Publish Product';
     document.getElementById('formAction').value = 'create';
     document.getElementById('formProductId').value = '';
@@ -683,6 +876,10 @@ function openAddProductModal() {
     document.getElementById('pName').value = '';
     document.getElementById('pSlug').value = '';
     document.getElementById('pSlug').dataset.manualEdited = '';
+    document.getElementById('pColors').value = '';
+    document.getElementById('sizesTableBody').innerHTML = '';
+    checkSizesCount();
+
     document.getElementById('pMetaTitle').value = '';
     document.getElementById('pMetaTitle').dataset.manualEdited = '';
     document.getElementById('pMetaDesc').value = '';
@@ -713,8 +910,8 @@ function openAddProductModal() {
 }
 
 function openEditProductModal(p) {
-    document.getElementById('modalTitle').textContent = 'Edit Product & SEO: ' + p.name;
-    document.getElementById('modalSubmitBtn').textContent = 'Update Product & SEO';
+    document.getElementById('modalTitle').textContent = 'Edit Product & Variants: ' + p.name;
+    document.getElementById('modalSubmitBtn').textContent = 'Update Product & Variants';
     document.getElementById('formAction').value = 'update';
     document.getElementById('formProductId').value = p.id;
     document.getElementById('formExistingImage').value = p.image_path || p.image || '';
@@ -723,6 +920,34 @@ function openEditProductModal(p) {
     document.getElementById('pName').value = p.name || '';
     document.getElementById('pSlug').value = p.slug || '';
     document.getElementById('pSlug').dataset.manualEdited = 'true';
+    document.getElementById('pColors').value = p.colors || '';
+
+    // Load Sizes Table
+    const tbody = document.getElementById('sizesTableBody');
+    tbody.innerHTML = '';
+    if (p.sizes) {
+        try {
+            let sData = JSON.parse(p.sizes);
+            if (Array.isArray(sData)) {
+                sData.forEach(item => {
+                    addSizeRow(item.size || item.name || '', item.price || p.price || '');
+                });
+            }
+        } catch (e) {
+            // Comma separated fallback
+            const sParts = p.sizes.split(',');
+            sParts.forEach(sp => {
+                if (sp.includes(':')) {
+                    const [sN, sP] = sp.split(':');
+                    addSizeRow(sN.trim(), sP.trim());
+                } else if (sp.trim()) {
+                    addSizeRow(sp.trim(), p.price || '');
+                }
+            });
+        }
+    }
+    checkSizesCount();
+
     document.getElementById('pMetaTitle').value = p.meta_title || '';
     document.getElementById('pMetaTitle').dataset.manualEdited = 'true';
     document.getElementById('pMetaDesc').value = p.meta_description || '';
