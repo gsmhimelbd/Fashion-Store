@@ -23,6 +23,10 @@ const db = new DatabaseSync(DB_PATH);
 
 try { db.exec("ALTER TABLE categories ADD COLUMN show_on_homepage INTEGER DEFAULT 1"); } catch(e) {}
 try { db.exec("ALTER TABLE categories ADD COLUMN is_featured INTEGER DEFAULT 1"); } catch(e) {}
+try { db.exec("ALTER TABLE products ADD COLUMN meta_title TEXT"); } catch(e) {}
+try { db.exec("ALTER TABLE products ADD COLUMN meta_description TEXT"); } catch(e) {}
+try { db.exec("ALTER TABLE products ADD COLUMN meta_keywords TEXT"); } catch(e) {}
+try { db.exec("ALTER TABLE products ADD COLUMN focus_keyword TEXT"); } catch(e) {}
 
 // Helper to get settings
 function getSettings() {

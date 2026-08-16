@@ -1,5 +1,5 @@
 <?php
-$adminTitle = 'Product Catalog & Inventory';
+$adminTitle = 'Product Catalog, Inventory & SEO';
 require_once __DIR__ . '/header.php';
 
 $msg = '';
@@ -25,17 +25,82 @@ function uploadProductFile($fileArray, $subfolder = 'products') {
     return null;
 }
 
+function getTableColumns($db, $table = 'products') {
+    $cols = [];
+    try {
+        $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'mysql') {
+            $stmt = $db->query("SHOW COLUMNS FROM `$table`");
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $cols[] = $row['Field'];
+            }
+        } else {
+            $stmt = $db->query("PRAGMA table_info(`$table`)");
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $cols[] = $row['name'];
+            }
+        }
+    } catch (Exception $e) {}
+    return $cols;
+}
+
 try {
     $db = getDB();
 
-    // Handle Actions
+    // Auto-Heal products schema in MySQL / SQLite
+    try {
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `image_path` varchar(255) DEFAULT 'images/products/watch-1.jpg'");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `image` varchar(255) DEFAULT 'images/products/watch-1.jpg'");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `gallery_images` text DEFAULT NULL");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `sku` varchar(100) DEFAULT NULL");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `category_id` int(11) DEFAULT NULL");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `subcategory_id` int(11) DEFAULT NULL");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `price` decimal(10,2) NOT NULL DEFAULT 0.00");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `sale_price` decimal(10,2) DEFAULT NULL");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `is_wholesale` tinyint(1) DEFAULT 0");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `wholesale_price` decimal(10,2) DEFAULT NULL");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `wholesale_moq` int(11) DEFAULT 5");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `wholesale_min_qty` int(11) DEFAULT 5");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `stock` int(11) DEFAULT 50");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `stock_quantity` int(11) DEFAULT 50");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `is_featured` tinyint(1) DEFAULT 1");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `is_active` tinyint(1) DEFAULT 1");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `short_description` text DEFAULT NULL");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `description` text DEFAULT NULL");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `specifications` text DEFAULT NULL");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `why_buy_from_us` text DEFAULT NULL");
+        
+        // SEO Fields
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `meta_title` varchar(255) DEFAULT NULL");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `meta_description` text DEFAULT NULL");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `meta_keywords` varchar(255) DEFAULT NULL");
+        @$db->exec("ALTER TABLE `products` ADD COLUMN `focus_keyword` varchar(191) DEFAULT NULL");
+    } catch (Exception $e) {}
+
+    // Handle Form Submissions
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
 
         if ($action === 'create' || $action === 'update') {
             $name = trim($_POST['name'] ?? '');
-            $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $name), '-'));
+            
+            // SEO & Slug handling
+            $customSlug = trim($_POST['slug'] ?? '');
+            if (!empty($customSlug)) {
+                $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $customSlug), '-'));
+            } else {
+                $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $name), '-'));
+            }
             if (!$slug) $slug = 'product-' . time();
+
+            $metaTitle = trim($_POST['meta_title'] ?? '');
+            if (empty($metaTitle)) {
+                $metaTitle = $name . ' Price in Bangladesh | OnlineBdMart';
+            }
+            $metaDescription = trim($_POST['meta_description'] ?? '');
+            $focusKeyword = trim($_POST['focus_keyword'] ?? '');
+            $metaKeywords = trim($_POST['meta_keywords'] ?? ($focusKeyword ?: $name));
+
             $catId = !empty($_POST['category_id']) ? (int)$_POST['category_id'] : null;
             $subcatId = !empty($_POST['subcategory_id']) ? (int)$_POST['subcategory_id'] : null;
             $sku = trim($_POST['sku'] ?? '');
@@ -52,14 +117,14 @@ try {
             $specs = trim($_POST['specifications'] ?? '');
             $whyBuy = trim($_POST['why_buy_from_us'] ?? '');
 
-            // Handle Primary Image Upload from Computer
+            // Handle Primary Image
             $imagePath = trim($_POST['existing_image'] ?? 'images/products/watch-1.jpg');
             if (isset($_FILES['primary_image']) && $_FILES['primary_image']['error'] === UPLOAD_ERR_OK) {
                 $uploaded = uploadProductFile($_FILES['primary_image'], 'products');
                 if ($uploaded) $imagePath = $uploaded;
             }
 
-            // Handle Multiple Gallery Images Upload
+            // Handle Gallery Images
             $galleryArr = [];
             if (!empty($_POST['existing_gallery'])) {
                 $galleryArr = array_filter(explode(',', $_POST['existing_gallery']));
@@ -82,20 +147,77 @@ try {
             }
             $galleryStr = implode(',', array_unique($galleryArr));
 
+            // Dynamic Schema Mapping to prevent any Unknown Column errors
+            $existingCols = getTableColumns($db, 'products');
+            
+            $payload = [
+                'name' => $name,
+                'slug' => $slug,
+                'sku' => $sku,
+                'category_id' => $catId,
+                'subcategory_id' => $subcatId,
+                'price' => $price,
+                'sale_price' => $salePrice,
+                'is_wholesale' => $isWholesale,
+                'wholesale_price' => $wholesalePrice,
+                'wholesale_moq' => $wholesaleMoq,
+                'wholesale_min_qty' => $wholesaleMoq,
+                'stock' => $stock,
+                'stock_quantity' => $stock,
+                'is_featured' => $isFeatured,
+                'is_active' => $isActive,
+                'image_path' => $imagePath,
+                'image' => $imagePath,
+                'gallery_images' => $galleryStr,
+                'short_description' => $shortDesc,
+                'description' => $desc,
+                'specifications' => $specs,
+                'why_buy_from_us' => $whyBuy,
+                'meta_title' => $metaTitle,
+                'meta_description' => $metaDescription,
+                'meta_keywords' => $metaKeywords,
+                'focus_keyword' => $focusKeyword,
+            ];
+
             if ($action === 'create') {
-                $stmt = $db->prepare("INSERT INTO products (name, slug, sku, category_id, subcategory_id, price, sale_price, is_wholesale, wholesale_price, wholesale_moq, wholesale_min_qty, stock, stock_quantity, is_featured, is_active, image_path, gallery_images, short_description, description, specifications, why_buy_from_us, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
-                $stmt->execute([$name, $slug, $sku, $catId, $subcatId, $price, $salePrice, $isWholesale, $wholesalePrice, $wholesaleMoq, $wholesaleMoq, $stock, $stock, $isFeatured, $isActive, $imagePath, $galleryStr, $shortDesc, $desc, $specs, $whyBuy]);
-                $msg = 'Product added successfully with uploaded photos and specifications!';
+                $insertCols = [];
+                $placeholders = [];
+                $values = [];
+
+                foreach ($payload as $col => $val) {
+                    if (empty($existingCols) || in_array($col, $existingCols)) {
+                        $insertCols[] = "`$col`";
+                        $placeholders[] = "?";
+                        $values[] = $val;
+                    }
+                }
+
+                $insertSql = "INSERT INTO `products` (" . implode(', ', $insertCols) . ") VALUES (" . implode(', ', $placeholders) . ")";
+                $stmt = $db->prepare($insertSql);
+                $stmt->execute($values);
+                $msg = '✓ Product created successfully with complete SEO and photos!';
             } else {
                 $id = (int)$_POST['product_id'];
-                $stmt = $db->prepare("UPDATE products SET name = ?, slug = ?, sku = ?, category_id = ?, subcategory_id = ?, price = ?, sale_price = ?, is_wholesale = ?, wholesale_price = ?, wholesale_moq = ?, wholesale_min_qty = ?, stock = ?, stock_quantity = ?, is_featured = ?, is_active = ?, image_path = ?, gallery_images = ?, short_description = ?, description = ?, specifications = ?, why_buy_from_us = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                $stmt->execute([$name, $slug, $sku, $catId, $subcatId, $price, $salePrice, $isWholesale, $wholesalePrice, $wholesaleMoq, $wholesaleMoq, $stock, $stock, $isFeatured, $isActive, $imagePath, $galleryStr, $shortDesc, $desc, $specs, $whyBuy, $id]);
-                $msg = 'Product updated successfully!';
+                $updateCols = [];
+                $values = [];
+
+                foreach ($payload as $col => $val) {
+                    if (empty($existingCols) || in_array($col, $existingCols)) {
+                        $updateCols[] = "`$col` = ?";
+                        $values[] = $val;
+                    }
+                }
+                $values[] = $id;
+
+                $updateSql = "UPDATE `products` SET " . implode(', ', $updateCols) . " WHERE `id` = ?";
+                $stmt = $db->prepare($updateSql);
+                $stmt->execute($values);
+                $msg = '✓ Product updated successfully!';
             }
         } elseif ($action === 'delete') {
             $id = (int)$_POST['product_id'];
             $db->prepare("DELETE FROM products WHERE id = ?")->execute([$id]);
-            $msg = 'Product deleted successfully!';
+            $msg = '✓ Product deleted successfully!';
         }
     }
 
@@ -111,24 +233,24 @@ try {
 ?>
 
 <?php if ($msg): ?>
-<div class="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold">
-    <i class="fas fa-circle-check mr-1.5"></i> <?= htmlspecialchars($msg) ?>
+<div class="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold flex items-center gap-2 mb-6">
+    <i class="fas fa-circle-check text-base"></i> <span><?= htmlspecialchars($msg) ?></span>
 </div>
 <?php endif; ?>
 <?php if ($error): ?>
-<div class="p-4 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-400 text-xs font-bold">
-    <i class="fas fa-circle-exclamation mr-1.5"></i> <?= htmlspecialchars($error) ?>
+<div class="p-4 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-400 text-xs font-bold flex items-center gap-2 mb-6">
+    <i class="fas fa-circle-exclamation text-base"></i> <span><?= htmlspecialchars($error) ?></span>
 </div>
 <?php endif; ?>
 
 <!-- Products Header & Add Button -->
-<div class="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-sm">
+<div class="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl shadow-sm mb-6">
     <div>
-        <span class="text-xs font-bold uppercase text-indigo-400">Inventory Controls</span>
-        <h2 class="text-lg font-black text-white mt-1">Product Catalog (<?= count($products) ?> Items)</h2>
-        <p class="text-xs text-slate-400">Add products with local photo uploads, multiple gallery pictures, specs, wholesale pricing, and zoom preview.</p>
+        <span class="text-xs font-bold uppercase text-indigo-400">Inventory & Catalog</span>
+        <h2 class="text-xl font-black text-white mt-1">Product Catalog (<?= count($products) ?> Items)</h2>
+        <p class="text-xs text-slate-400">Add products with local photo uploads, full Google SEO settings, specs, and wholesale pricing.</p>
     </div>
-    <button type="button" onclick="openAddProductModal()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl text-xs shadow-lg transition flex items-center gap-2">
+    <button type="button" onclick="openAddProductModal()" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-2xl text-xs shadow-lg transition flex items-center gap-2">
         <i class="fas fa-plus"></i> <span>+ Add New Product</span>
     </button>
 </div>
@@ -140,7 +262,7 @@ try {
             <thead>
                 <tr class="border-b border-slate-800 text-slate-400 font-bold uppercase text-[10px]">
                     <th class="py-3">Photo</th>
-                    <th class="py-3">Product Name</th>
+                    <th class="py-3">Product Name & SEO Slug</th>
                     <th class="py-3">Category</th>
                     <th class="py-3">Retail Price</th>
                     <th class="py-3">Wholesale Rate</th>
@@ -153,14 +275,18 @@ try {
                 <?php if (!empty($products)): ?>
                     <?php foreach ($products as $p): 
                         $prodJson = htmlspecialchars(json_encode($p), ENT_QUOTES, 'UTF-8');
+                        $pImg = !empty($p['image_path']) ? $p['image_path'] : ($p['image'] ?? 'images/products/watch-1.jpg');
                     ?>
                     <tr class="hover:bg-slate-800/40 transition">
                         <td class="py-3.5">
-                            <img src="/<?= ltrim($p['image_path'], '/') ?>" class="w-12 h-12 object-cover rounded-xl bg-slate-950 border border-slate-800 shrink-0">
+                            <img src="/<?= ltrim($pImg, '/') ?>" class="w-12 h-12 object-cover rounded-xl bg-slate-950 border border-slate-800 shrink-0">
                         </td>
                         <td class="py-3.5 max-w-xs">
                             <p class="font-bold text-white truncate"><?= htmlspecialchars($p['name']) ?></p>
-                            <span class="text-[10px] text-slate-400 font-mono">SKU: <?= htmlspecialchars($p['sku'] ?: 'N/A') ?></span>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[10px] text-indigo-400 font-mono">/product/<?= htmlspecialchars($p['slug']) ?></span>
+                                <span class="text-[10px] text-slate-500 font-mono">SKU: <?= htmlspecialchars($p['sku'] ?: 'N/A') ?></span>
+                            </div>
                         </td>
                         <td class="py-3.5 text-slate-300">
                             <span class="font-semibold block"><?= htmlspecialchars($p['category_name'] ?? 'General') ?></span>
@@ -171,7 +297,7 @@ try {
                         <td class="py-3.5">
                             <span class="font-black text-white block">৳<?= number_format($p['price'], 2) ?></span>
                             <?php if ($p['sale_price'] && $p['sale_price'] < $p['price']): ?>
-                            <span class="text-[10px] text-rose-400">Sale: ৳<?= number_format($p['sale_price'], 2) ?></span>
+                            <span class="text-[10px] text-rose-400 font-bold">Sale: ৳<?= number_format($p['sale_price'], 2) ?></span>
                             <?php endif; ?>
                         </td>
                         <td class="py-3.5">
@@ -182,20 +308,20 @@ try {
                             <span class="text-slate-500">-</span>
                             <?php endif; ?>
                         </td>
-                        <td class="py-3.5 text-center font-bold text-slate-200"><?= $p['stock_quantity'] ?? $p['stock'] ?></td>
+                        <td class="py-3.5 text-center font-bold text-slate-200"><?= $p['stock_quantity'] ?? ($p['stock'] ?? 0) ?></td>
                         <td class="py-3.5 text-center">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold <?= $p['is_active'] ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500' ?>">
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-black <?= $p['is_active'] ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500' ?>">
                                 <?= $p['is_active'] ? 'Active' : 'Disabled' ?>
                             </span>
                         </td>
-                        <td class="py-3.5 text-right space-x-2">
-                            <a href="../product.php?slug=<?= htmlspecialchars($p['slug']) ?>" target="_blank" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 hover:text-white text-xs" title="Preview Product">
+                        <td class="py-3.5 text-right space-x-1.5 whitespace-nowrap">
+                            <a href="../product.php?slug=<?= htmlspecialchars($p['slug']) ?>" target="_blank" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 hover:text-white text-xs inline-block" title="View Product on Storefront">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <button type="button" onclick='openEditProductModal(<?= $prodJson ?>)' class="p-2 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl text-xs" title="Edit Product">
+                            <button type="button" onclick='openEditProductModal(<?= $prodJson ?>)' class="p-2 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl text-xs" title="Edit Product & SEO">
                                 <i class="fas fa-pen-to-square"></i>
                             </button>
-                            <form method="POST" action="products.php" onsubmit="return confirm('Are you sure you want to delete this product?');" class="inline">
+                            <form method="POST" action="products.php" onsubmit="return confirm('Delete product <?= addslashes($p['name']) ?>?');" class="inline">
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="product_id" value="<?= $p['id'] ?>">
                                 <button type="submit" class="p-2 bg-rose-500/20 hover:bg-rose-500 text-rose-400 hover:text-white rounded-xl text-xs" title="Delete Product">
@@ -213,84 +339,159 @@ try {
     </div>
 </div>
 
-<!-- ADD / EDIT PRODUCT POPUP MODAL -->
+<!-- ADD / EDIT PRODUCT POPUP MODAL WITH FULL SEO SUITE -->
 <div id="productModalContainer" class="fixed inset-0 z-50 overflow-y-auto hidden" role="dialog" aria-modal="true">
     <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm" onclick="closeProductModal()"></div>
     <div class="min-h-screen flex items-center justify-center p-4 sm:p-6">
         <div class="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-10">
+            
             <!-- Modal Header -->
             <div class="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-lg">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center text-lg shadow-inner">
                         <i class="fas fa-box-open"></i>
                     </div>
                     <div>
                         <h3 class="text-base font-extrabold text-white" id="modalTitle">Add New Product</h3>
-                        <p class="text-xs text-slate-400">Complete details with local photo uploads & specs</p>
+                        <p class="text-xs text-slate-400">Inventory details, photo uploads, specifications & Google SEO</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeProductModal()" class="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800">
+                <button type="button" onclick="closeProductModal()" class="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition">
                     <i class="fas fa-times text-lg"></i>
                 </button>
             </div>
 
             <!-- Modal Form -->
-            <form method="POST" action="products.php" enctype="multipart/form-data" class="p-6 sm:p-8 space-y-6 text-xs max-h-[80vh] overflow-y-auto">
+            <form method="POST" action="products.php" enctype="multipart/form-data" class="p-6 sm:p-8 space-y-6 text-xs max-h-[82vh] overflow-y-auto">
                 <input type="hidden" name="action" id="formAction" value="create">
                 <input type="hidden" name="product_id" id="formProductId" value="">
                 <input type="hidden" name="existing_image" id="formExistingImage" value="images/products/watch-1.jpg">
                 <input type="hidden" name="existing_gallery" id="formExistingGallery" value="">
 
-                <!-- Row 1: Name, SKU, Category, Subcategory -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="sm:col-span-2">
-                        <label class="block text-slate-300 font-bold mb-1">Product Title *</label>
-                        <input type="text" name="name" id="pName" required placeholder="e.g. Naviforce Chronograph Watch" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500">
+                <!-- Section 1: Core Details -->
+                <div class="space-y-4">
+                    <div class="border-b border-slate-800/80 pb-2">
+                        <h4 class="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-2">
+                            <i class="fas fa-info-circle"></i> 1. Basic Product Information
+                        </h4>
                     </div>
-                    <div>
-                        <label class="block text-slate-300 font-bold mb-1">SKU / Model Code</label>
-                        <input type="text" name="sku" id="pSku" placeholder="e.g. NF-9110" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono outline-none">
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="sm:col-span-2">
+                            <label class="block text-slate-300 font-bold mb-1">Product Title (প্রোডাক্টের নাম) *</label>
+                            <input type="text" name="name" id="pName" required oninput="onProductTitleChange()" placeholder="e.g. Smart Scalp Massager" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500 font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 font-bold mb-1">SKU / Model Code</label>
+                            <input type="text" name="sku" id="pSku" placeholder="e.g. SSM-101" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 font-bold mb-1">Parent Category *</label>
+                            <select name="category_id" id="pCategory" required class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500">
+                                <option value="">Select Category</option>
+                                <?php foreach ($parentCategories as $c): ?>
+                                <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['emoji'] ?? '🛍️') ?> <?= htmlspecialchars($c['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-slate-300 font-bold mb-1">Parent Category *</label>
-                        <select name="category_id" id="pCategory" required class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none">
-                            <option value="">Select Category</option>
-                            <?php foreach ($parentCategories as $c): ?>
-                            <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['emoji'] ?? '🛍️') ?> <?= htmlspecialchars($c['name']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-slate-300 font-bold mb-1">Subcategory (Optional)</label>
+                            <select name="subcategory_id" id="pSubcategory" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none">
+                                <option value="">None / Top Level</option>
+                                <?php foreach ($subCategories as $sc): ?>
+                                <option value="<?= $sc['id'] ?>">&rsaquo; <?= htmlspecialchars($sc['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 font-bold mb-1">Regular Retail Price (৳) *</label>
+                            <input type="number" step="0.01" name="price" id="pPrice" required placeholder="3850" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-indigo-400 font-bold outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 font-bold mb-1">Sale Discount Price (৳)</label>
+                            <input type="number" step="0.01" name="sale_price" id="pSalePrice" placeholder="3250" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-rose-400 font-bold outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 font-bold mb-1">Stock Quantity</label>
+                            <input type="number" name="stock_quantity" id="pStock" value="50" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none">
+                        </div>
                     </div>
                 </div>
 
-                <!-- Row 2: Subcategory & Pricing -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div>
-                        <label class="block text-slate-300 font-bold mb-1">Subcategory (Optional)</label>
-                        <select name="subcategory_id" id="pSubcategory" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none">
-                            <option value="">None / Top Level</option>
-                            <?php foreach ($subCategories as $sc): ?>
-                            <option value="<?= $sc['id'] ?>">&rsaquo; <?= htmlspecialchars($sc['name']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                <!-- Section 2: Complete SEO Suite (Google Search Snippet Preview) -->
+                <div class="p-5 sm:p-6 rounded-3xl bg-slate-950 border-2 border-indigo-500/40 space-y-4 shadow-xl">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                        <div>
+                            <span class="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                                <i class="fas fa-magnifying-glass"></i> 2. Product SEO Optimization (গুগল সার্চ এসইও)
+                            </span>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Customize Google search snippet, focus keyword, meta description, and clean URL slug.</p>
+                        </div>
+                        <button type="button" onclick="autoGenerateSEO()" class="px-3 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 hover:text-white rounded-xl text-[11px] font-bold border border-indigo-500/40 transition flex items-center gap-1.5 shrink-0">
+                            <i class="fas fa-wand-magic-sparkles"></i> <span>Auto-Fill SEO</span>
+                        </button>
                     </div>
-                    <div>
-                        <label class="block text-slate-300 font-bold mb-1">Regular Retail Price (৳) *</label>
-                        <input type="number" step="0.01" name="price" id="pPrice" required placeholder="3850" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-indigo-400 font-bold outline-none">
+
+                    <!-- Live Google SERP Snippet Preview Box -->
+                    <div class="p-4 bg-white rounded-2xl border border-slate-300 space-y-1.5 shadow-inner">
+                        <div class="flex items-center gap-2 text-[11px] text-slate-600 font-sans">
+                            <span class="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center text-[10px]">🌐</span>
+                            <span class="truncate">https://onlinebdmart.com &rsaquo; product &rsaquo; <strong id="serpSlugPreview" class="text-slate-800 font-mono font-normal">smart-scalp-massager</strong></span>
+                        </div>
+                        <h4 id="serpTitlePreview" class="text-base font-semibold text-blue-700 hover:underline cursor-pointer leading-tight line-clamp-1 font-sans">
+                            Smart Scalp Massager - Electric Head Massager Price in BD | OnlineBdMart
+                        </h4>
+                        <p id="serpDescPreview" class="text-xs text-slate-600 line-clamp-2 leading-relaxed font-sans">
+                            Buy original Smart Scalp Massager in Bangladesh at best price. 100% authentic with fast home delivery and cash on delivery across Bangladesh.
+                        </p>
                     </div>
-                    <div>
-                        <label class="block text-slate-300 font-bold mb-1">Sale Discount Price (৳)</label>
-                        <input type="number" step="0.01" name="sale_price" id="pSalePrice" placeholder="3250" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-rose-400 font-bold outline-none">
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-slate-300 font-bold">SEO Title (এসইও টাইটেল) *</label>
+                                <span id="titleCountBadge" class="text-[10px] text-slate-400">0/60 chars</span>
+                            </div>
+                            <input type="text" name="meta_title" id="pMetaTitle" oninput="updateSerpPreview()" placeholder="e.g. Smart Scalp Massager - Electric Head Massager Price in BD" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500 font-medium">
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-300 font-bold mb-1">URL Slug (ক্লিন ইউআরএল) *</label>
+                            <div class="flex items-center">
+                                <span class="px-3 py-2.5 bg-slate-900 border border-r-0 border-slate-800 rounded-l-xl text-slate-500 font-mono text-[11px]">/product/</span>
+                                <input type="text" name="slug" id="pSlug" oninput="updateSerpPreview()" placeholder="smart-scalp-massager" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-r-xl text-indigo-400 font-mono font-bold outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
                     </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-slate-300 font-bold mb-1">Focus Keyword (মেইন ফোকাস কিওয়ার্ড)</label>
+                            <input type="text" name="focus_keyword" id="pFocusKeyword" oninput="updateSerpPreview()" placeholder="e.g. smart scalp massager, head massager bd" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-300 font-bold mb-1">Meta Keywords (ট্যাগ/কিওয়ার্ড)</label>
+                            <input type="text" name="meta_keywords" id="pMetaKeywords" placeholder="massager, electric scalp massager, price in bd" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+
                     <div>
-                        <label class="block text-slate-300 font-bold mb-1">Stock Quantity</label>
-                        <input type="number" name="stock_quantity" id="pStock" value="50" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="text-slate-300 font-bold">Meta Description (গুগল সার্চ বিবরণী)</label>
+                            <span id="descCountBadge" class="text-[10px] text-slate-400">0/160 chars</span>
+                        </div>
+                        <textarea name="meta_description" id="pMetaDesc" rows="2" oninput="updateSerpPreview()" placeholder="Buy original Smart Scalp Massager in Bangladesh at lowest price. 100% authentic with fast home delivery and cash on delivery." class="w-full px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500 leading-relaxed"></textarea>
                     </div>
                 </div>
 
-                <!-- Row 3: Wholesale Controls -->
+                <!-- Section 3: Wholesale Controls -->
                 <div class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-3">
                     <div class="flex items-center justify-between">
-                        <span class="font-extrabold text-amber-400 text-xs"><i class="fas fa-boxes-stacked mr-1"></i> Wholesale & B2B Bulk Settings</span>
+                        <span class="font-extrabold text-amber-400 text-xs flex items-center gap-1.5"><i class="fas fa-boxes-stacked"></i> 3. Wholesale & B2B Bulk Settings</span>
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" name="is_wholesale" id="pIsWholesale" value="1" checked class="rounded text-amber-500">
                             <span class="text-amber-300 font-bold">Enable Wholesale</span>
@@ -308,66 +509,81 @@ try {
                     </div>
                 </div>
 
-                <!-- Row 4: Photo Uploads from Computer -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-                        <label class="block text-white font-bold"><i class="fas fa-upload text-indigo-400 mr-1"></i> Upload Cover Image (from Local Computer)</label>
-                        <input type="file" name="primary_image" accept="image/*" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500">
-                        <div id="imagePreviewContainer" class="pt-2 hidden">
-                            <img id="primaryImagePreview" src="" class="w-20 h-20 object-cover rounded-xl border border-slate-800">
-                        </div>
+                <!-- Section 4: Photo Uploads -->
+                <div class="space-y-2">
+                    <div class="border-b border-slate-800/80 pb-2">
+                        <h4 class="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-2">
+                            <i class="fas fa-images"></i> 4. Product Photos
+                        </h4>
                     </div>
 
-                    <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-                        <label class="block text-white font-bold"><i class="fas fa-images text-emerald-400 mr-1"></i> Upload Multiple Gallery Images</label>
-                        <input type="file" name="gallery_images[]" multiple accept="image/*" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500">
-                        <p class="text-[10px] text-slate-400">Select multiple photos for product zoom & angle gallery.</p>
-                        <div id="galleryPreviewContainer" class="flex flex-wrap gap-2 pt-2"></div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                            <label class="block text-white font-bold"><i class="fas fa-upload text-indigo-400 mr-1"></i> Upload Cover Image</label>
+                            <input type="file" name="primary_image" accept="image/*" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500">
+                            <div id="imagePreviewContainer" class="pt-2 hidden">
+                                <img id="primaryImagePreview" src="" class="w-20 h-20 object-cover rounded-xl border border-slate-800">
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                            <label class="block text-white font-bold"><i class="fas fa-images text-emerald-400 mr-1"></i> Upload Multiple Gallery Images</label>
+                            <input type="file" name="gallery_images[]" multiple accept="image/*" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500">
+                            <p class="text-[10px] text-slate-400">Select multiple photos for product zoom & angle gallery.</p>
+                            <div id="galleryPreviewContainer" class="flex flex-wrap gap-2 pt-2"></div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Row 5: Descriptions & Specifications -->
+                <!-- Section 5: Descriptions & Specs -->
                 <div class="space-y-4">
-                    <div>
-                        <label class="block text-slate-300 font-bold mb-1">Short Summary</label>
-                        <input type="text" name="short_description" id="pShortDesc" placeholder="e.g. Japanese Quartz Movement, 316L Stainless Steel, 30M Waterproof" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none">
+                    <div class="border-b border-slate-800/80 pb-2">
+                        <h4 class="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-2">
+                            <i class="fas fa-align-left"></i> 5. Details & Specifications
+                        </h4>
                     </div>
 
                     <div>
-                        <label class="block text-slate-300 font-bold mb-1">Full Detailed Description</label>
-                        <textarea name="description" id="pDesc" rows="4" placeholder="Detailed product story, features, and comfort details..." class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none"></textarea>
+                        <label class="block text-slate-300 font-bold mb-1">Short Summary (সংক্ষিপ্ত বিবরণ)</label>
+                        <input type="text" name="short_description" id="pShortDesc" placeholder="e.g. 3D Kneading Massage, IPX7 Waterproof, 4 Silicone Heads, USB Rechargeable" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-300 font-bold mb-1">Full Detailed Description (সম্পূর্ণ বিবরণ)</label>
+                        <textarea name="description" id="pDesc" rows="3" placeholder="Detailed product story, features, and comfort details..." class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none"></textarea>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-slate-300 font-bold mb-1"><i class="fas fa-list-check text-cyan-400 mr-1"></i> Product Specifications (Specs Tab)</label>
-                            <textarea name="specifications" id="pSpecs" rows="3" placeholder="Dial Diameter: 45mm&#10;Case Thickness: 12mm&#10;Glass: Hardlex Sapphire&#10;Water Resistance: 3ATM" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono outline-none"></textarea>
+                            <label class="block text-slate-300 font-bold mb-1"><i class="fas fa-list-check text-cyan-400 mr-1"></i> Specifications (স্পেসিফিকেশন)</label>
+                            <textarea name="specifications" id="pSpecs" rows="3" placeholder="Battery: 1200mAh Li-ion&#10;Waterproof: IPX7&#10;Material: Food-Grade Silicone & ABS&#10;Charging: Type-C Fast Charge" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono outline-none"></textarea>
                         </div>
                         <div>
-                            <label class="block text-slate-300 font-bold mb-1"><i class="fas fa-shield-halved text-emerald-400 mr-1"></i> Why Buy from OnlineBdMart (Trust Badges)</label>
+                            <label class="block text-slate-300 font-bold mb-1"><i class="fas fa-shield-halved text-emerald-400 mr-1"></i> Trust & Guarantee Badges</label>
                             <textarea name="why_buy_from_us" id="pWhyBuy" rows="3" placeholder="✓ 100% Original Product Guarantee&#10;✓ 7 Days Free Replacement Policy&#10;✓ Open Parcel Before Payment (COD)&#10;✓ Official Warranty Included" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none"></textarea>
                         </div>
                     </div>
                 </div>
 
-                <!-- Row 6: Toggles -->
-                <div class="flex items-center gap-6 pt-2 border-t border-slate-800">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="is_featured" id="pIsFeatured" value="1" checked class="rounded text-indigo-600">
-                        <span class="text-slate-300 font-bold">Featured on Home Page</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="is_active" id="pIsActive" value="1" checked class="rounded text-emerald-600">
-                        <span class="text-slate-300 font-bold">Active in Catalog</span>
-                    </label>
-                </div>
+                <!-- Section 6: Toggles & Save -->
+                <div class="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-800">
+                    <div class="flex items-center gap-6">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="is_featured" id="pIsFeatured" value="1" checked class="rounded text-indigo-600">
+                            <span class="text-slate-300 font-bold">Featured on Home Page</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="is_active" id="pIsActive" value="1" checked class="rounded text-emerald-600">
+                            <span class="text-slate-300 font-bold">Active in Catalog</span>
+                        </label>
+                    </div>
 
-                <!-- Submit Button -->
-                <div class="pt-4 border-t border-slate-800 flex justify-end gap-3">
-                    <button type="button" onclick="closeProductModal()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl">Cancel</button>
-                    <button type="submit" class="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl shadow-lg transition" id="modalSubmitBtn">
-                        Save Product
-                    </button>
+                    <div class="flex items-center gap-3">
+                        <button type="button" onclick="closeProductModal()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl">Cancel</button>
+                        <button type="submit" class="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl shadow-lg transition" id="modalSubmitBtn">
+                            Save Product
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -375,8 +591,89 @@ try {
 </div>
 
 <script>
+function generateSlug(text) {
+    return text.toString().toLowerCase().trim()
+        .replace(/[^a-z0-9 -]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+}
+
+function onProductTitleChange() {
+    const name = document.getElementById('pName').value;
+    const slugInput = document.getElementById('pSlug');
+    const formAction = document.getElementById('formAction').value;
+    
+    if (formAction === 'create' || !slugInput.dataset.manualEdited) {
+        slugInput.value = generateSlug(name);
+    }
+    
+    const metaTitleInput = document.getElementById('pMetaTitle');
+    if (formAction === 'create' && !metaTitleInput.dataset.manualEdited) {
+        metaTitleInput.value = name ? (name + ' Price in Bangladesh | OnlineBdMart') : '';
+    }
+
+    const focusInput = document.getElementById('pFocusKeyword');
+    if (formAction === 'create' && !focusInput.dataset.manualEdited) {
+        focusInput.value = name.toLowerCase();
+    }
+
+    updateSerpPreview();
+}
+
+function autoGenerateSEO() {
+    const name = document.getElementById('pName').value.trim() || 'Product Name';
+    const shortDesc = document.getElementById('pShortDesc').value.trim() || document.getElementById('pDesc').value.trim();
+    
+    document.getElementById('pSlug').value = generateSlug(name);
+    document.getElementById('pMetaTitle').value = name + ' - Best Price in Bangladesh | OnlineBdMart';
+    document.getElementById('pFocusKeyword').value = name.toLowerCase();
+    document.getElementById('pMetaKeywords').value = name.toLowerCase() + ', price in bd, buy online, authentic, delivery in bangladesh';
+    
+    if (shortDesc) {
+        document.getElementById('pMetaDesc').value = 'Buy original ' + name + ' in Bangladesh at best price. ' + shortDesc.substring(0, 100) + '... Cash on delivery available.';
+    } else {
+        document.getElementById('pMetaDesc').value = 'Buy authentic ' + name + ' in Bangladesh at lowest price with official warranty. Fast home delivery and cash on delivery across 64 districts.';
+    }
+
+    updateSerpPreview();
+}
+
+function updateSerpPreview() {
+    const name = document.getElementById('pName').value.trim();
+    const slug = document.getElementById('pSlug').value.trim() || generateSlug(name) || 'product-slug';
+    const metaTitle = document.getElementById('pMetaTitle').value.trim() || (name ? name + ' Price in Bangladesh | OnlineBdMart' : 'Product Title - Online Shopping BD');
+    const metaDesc = document.getElementById('pMetaDesc').value.trim() || (name ? 'Buy authentic ' + name + ' in Bangladesh at lowest price with fast delivery and COD.' : 'Product meta description preview for Google search...');
+
+    document.getElementById('serpSlugPreview').textContent = slug;
+    document.getElementById('serpTitlePreview').textContent = metaTitle;
+    document.getElementById('serpDescPreview').textContent = metaDesc;
+
+    // Character counter badges
+    const titleLen = metaTitle.length;
+    const titleBadge = document.getElementById('titleCountBadge');
+    titleBadge.textContent = titleLen + '/60 chars';
+    if (titleLen >= 40 && titleLen <= 65) {
+        titleBadge.className = 'text-[10px] text-emerald-400 font-bold';
+    } else if (titleLen > 65) {
+        titleBadge.className = 'text-[10px] text-rose-400 font-bold';
+    } else {
+        titleBadge.className = 'text-[10px] text-slate-400';
+    }
+
+    const descLen = metaDesc.length;
+    const descBadge = document.getElementById('descCountBadge');
+    descBadge.textContent = descLen + '/160 chars';
+    if (descLen >= 120 && descLen <= 160) {
+        descBadge.className = 'text-[10px] text-emerald-400 font-bold';
+    } else if (descLen > 160) {
+        descBadge.className = 'text-[10px] text-rose-400 font-bold';
+    } else {
+        descBadge.className = 'text-[10px] text-slate-400';
+    }
+}
+
 function openAddProductModal() {
-    document.getElementById('modalTitle').textContent = 'Add New Product';
+    document.getElementById('modalTitle').textContent = 'Add New Product & SEO';
     document.getElementById('modalSubmitBtn').textContent = 'Save & Publish Product';
     document.getElementById('formAction').value = 'create';
     document.getElementById('formProductId').value = '';
@@ -384,6 +681,14 @@ function openAddProductModal() {
     document.getElementById('formExistingGallery').value = '';
     
     document.getElementById('pName').value = '';
+    document.getElementById('pSlug').value = '';
+    document.getElementById('pSlug').dataset.manualEdited = '';
+    document.getElementById('pMetaTitle').value = '';
+    document.getElementById('pMetaTitle').dataset.manualEdited = '';
+    document.getElementById('pMetaDesc').value = '';
+    document.getElementById('pFocusKeyword').value = '';
+    document.getElementById('pMetaKeywords').value = '';
+
     document.getElementById('pSku').value = '';
     document.getElementById('pCategory').value = '';
     document.getElementById('pSubcategory').value = '';
@@ -394,8 +699,8 @@ function openAddProductModal() {
     document.getElementById('pStock').value = '50';
     document.getElementById('pShortDesc').value = '';
     document.getElementById('pDesc').value = '';
-    document.getElementById('pSpecs').value = "Dial Diameter: 45mm\nCase Thickness: 12mm\nMaterial: Surgical Grade 316L Stainless Steel\nWater Resistance: 3ATM (30M)";
-    document.getElementById('pWhyBuy').value = "✓ 100% Original Product Guarantee\n✓ 7 Days Free Replacement Policy\n✓ Cash On Delivery Across 64 Districts\n✓ Official Warranty Card Included";
+    document.getElementById('pSpecs').value = "Material: Premium Build\nWarranty: 1 Year Official Warranty\nDelivery: All 64 Districts";
+    document.getElementById('pWhyBuy').value = "✓ 100% Original Product Guarantee\n✓ 7 Days Free Replacement Policy\n✓ Cash On Delivery Across 64 Districts\n✓ Official Warranty Included";
     document.getElementById('pIsWholesale').checked = true;
     document.getElementById('pIsFeatured').checked = true;
     document.getElementById('pIsActive').checked = true;
@@ -403,18 +708,27 @@ function openAddProductModal() {
     document.getElementById('imagePreviewContainer').classList.add('hidden');
     document.getElementById('galleryPreviewContainer').innerHTML = '';
 
+    updateSerpPreview();
     document.getElementById('productModalContainer').classList.remove('hidden');
 }
 
 function openEditProductModal(p) {
-    document.getElementById('modalTitle').textContent = 'Edit Product: ' + p.name;
-    document.getElementById('modalSubmitBtn').textContent = 'Update Product';
+    document.getElementById('modalTitle').textContent = 'Edit Product & SEO: ' + p.name;
+    document.getElementById('modalSubmitBtn').textContent = 'Update Product & SEO';
     document.getElementById('formAction').value = 'update';
     document.getElementById('formProductId').value = p.id;
-    document.getElementById('formExistingImage').value = p.image_path || '';
+    document.getElementById('formExistingImage').value = p.image_path || p.image || '';
     document.getElementById('formExistingGallery').value = p.gallery_images || '';
 
     document.getElementById('pName').value = p.name || '';
+    document.getElementById('pSlug').value = p.slug || '';
+    document.getElementById('pSlug').dataset.manualEdited = 'true';
+    document.getElementById('pMetaTitle').value = p.meta_title || '';
+    document.getElementById('pMetaTitle').dataset.manualEdited = 'true';
+    document.getElementById('pMetaDesc').value = p.meta_description || '';
+    document.getElementById('pFocusKeyword').value = p.focus_keyword || '';
+    document.getElementById('pMetaKeywords').value = p.meta_keywords || '';
+
     document.getElementById('pSku').value = p.sku || '';
     document.getElementById('pCategory').value = p.category_id || '';
     document.getElementById('pSubcategory').value = p.subcategory_id || '';
@@ -432,9 +746,10 @@ function openEditProductModal(p) {
     document.getElementById('pIsActive').checked = Boolean(Number(p.is_active));
 
     // Thumbnail Preview
-    if (p.image_path) {
+    const imgPath = p.image_path || p.image;
+    if (imgPath) {
         const preview = document.getElementById('primaryImagePreview');
-        preview.src = '/' + p.image_path.replace(/^\/+/, '');
+        preview.src = '/' + imgPath.replace(/^\/+/, '');
         document.getElementById('imagePreviewContainer').classList.remove('hidden');
     }
 
@@ -453,12 +768,17 @@ function openEditProductModal(p) {
         });
     }
 
+    updateSerpPreview();
     document.getElementById('productModalContainer').classList.remove('hidden');
 }
 
 function closeProductModal() {
     document.getElementById('productModalContainer').classList.add('hidden');
 }
+
+document.getElementById('pSlug').addEventListener('input', function() { this.dataset.manualEdited = 'true'; });
+document.getElementById('pMetaTitle').addEventListener('input', function() { this.dataset.manualEdited = 'true'; });
+document.getElementById('pFocusKeyword').addEventListener('input', function() { this.dataset.manualEdited = 'true'; });
 </script>
 
 <?php require_once __DIR__ . '/footer.php'; ?>

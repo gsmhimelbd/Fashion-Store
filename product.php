@@ -26,7 +26,10 @@ try {
     exit;
 }
 
-$pageTitle = htmlspecialchars($product['name']) . ' - OnlineBdMart';
+$pageTitle = !empty($product['meta_title']) ? $product['meta_title'] : ($product['name'] . ' - OnlineBdMart • Online Shopping BD');
+$metaDescription = !empty($product['meta_description']) ? $product['meta_description'] : (!empty($product['short_description']) ? $product['short_description'] : substr(strip_tags($product['description'] ?? ''), 0, 160));
+$metaKeywords = !empty($product['meta_keywords']) ? $product['meta_keywords'] : (!empty($product['focus_keyword']) ? $product['focus_keyword'] : ($product['name'] . ', price in bangladesh, buy online bd'));
+
 require_once 'includes/header.php';
 
 $price = ($product['sale_price'] && $product['sale_price'] > 0 && $product['sale_price'] < $product['price']) ? $product['sale_price'] : $product['price'];

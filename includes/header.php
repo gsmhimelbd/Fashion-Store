@@ -78,6 +78,15 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? ($storeName . ' - Online Shopping Bangladesh')) ?></title>
     
+    <?php if (!empty($metaDescription)): ?>
+    <meta name="description" content="<?= htmlspecialchars($metaDescription) ?>">
+    <?php else: ?>
+    <meta name="description" content="<?= htmlspecialchars($storeName ?? 'OnlineBdMart') ?> - Best online shopping platform in Bangladesh. Buy authentic gadgets, fashion, watches and accessories at wholesale & retail prices.">
+    <?php endif; ?>
+    <?php if (!empty($metaKeywords)): ?>
+    <meta name="keywords" content="<?= htmlspecialchars($metaKeywords) ?>">
+    <?php endif; ?>
+    
     <!-- Dynamic Favicon / Website Tab Icon with Browser Cache Buster -->
     <link rel="icon" type="image/png" href="/<?= ltrim($storeFavicon, '/') ?>?v=<?= $faviconVer ?>">
     <link rel="icon" type="image/x-icon" href="/<?= ltrim($storeFavicon, '/') ?>?v=<?= $faviconVer ?>">
