@@ -381,6 +381,7 @@ CREATE TABLE `reviews` (
   `rating` int(11) NOT NULL DEFAULT 5,
   `review_text` text NOT NULL,
   `district_name` varchar(100) DEFAULT 'Dhaka',
+  `phone` varchar(100) DEFAULT NULL,
   `is_approved` tinyint(1) DEFAULT 1,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)

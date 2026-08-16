@@ -13,7 +13,7 @@ $reviewError = '';
 try {
     $db = getDB();
 
-    // Auto-heal reviews schema
+    // Auto-heal reviews schema in MySQL
     try {
         @$db->exec("ALTER TABLE `reviews` ADD COLUMN `product_id` int(11) DEFAULT NULL");
         @$db->exec("ALTER TABLE `reviews` ADD COLUMN `author_name` varchar(191) NOT NULL DEFAULT 'Customer'");
@@ -37,11 +37,58 @@ try {
             $reviewError = 'অনুগ্রহ করে আপনার নাম এবং রিভিউ মন্তব্য লিখুন।';
         } else {
             try {
-                $stmt = $db->prepare("INSERT INTO reviews (`product_id`, `author_name`, `rating`, `review_text`, `district_name`, `phone`, `is_approved`, `created_at`) VALUES (?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)");
-                $stmt->execute([$productId, $authorName, $rating, $reviewText, $district, $phone]);
+                // Dynamically detect existing columns in reviews table
+                $existingCols = [];
+                try {
+                    $driver = $db->getAttribute(PDO::ATTR_DRIVER_NAME);
+                    if ($driver === 'mysql') {
+                        $cStmt = $db->query("SHOW COLUMNS FROM `reviews`");
+                        while ($row = $cStmt->fetch(PDO::FETCH_ASSOC)) {
+                            $existingCols[] = $row['Field'];
+                        }
+                    } else {
+                        $cStmt = $db->query("PRAGMA table_info(`reviews`)");
+                        while ($row = $cStmt->fetch(PDO::FETCH_ASSOC)) {
+                            $existingCols[] = $row['name'];
+                        }
+                    }
+                } catch (Exception $eCols) {}
+
+                $reviewData = [
+                    'product_id' => $productId,
+                    'author_name' => $authorName,
+                    'rating' => $rating,
+                    'review_text' => $reviewText,
+                    'district_name' => $district,
+                    'phone' => $phone,
+                    'is_approved' => 0,
+                ];
+
+                $insertCols = [];
+                $placeholders = [];
+                $values = [];
+
+                foreach ($reviewData as $col => $val) {
+                    if (empty($existingCols) || in_array($col, $existingCols)) {
+                        $insertCols[] = "`$col`";
+                        $placeholders[] = "?";
+                        $values[] = $val;
+                    }
+                }
+
+                $insertSql = "INSERT INTO `reviews` (" . implode(', ', $insertCols) . ") VALUES (" . implode(', ', $placeholders) . ")";
+                $stmt = $db->prepare($insertSql);
+                $stmt->execute($values);
                 $reviewNotice = '✓ ধন্যবাদ! আপনার রিভিউটি সফলভাবে জমা হয়েছে। অ্যাডমিন পর্যালোচনার পর এটি অ্যাপ্রুভ করলে এখানে প্রকাশিত হবে।';
             } catch (Exception $e) {
-                $reviewError = 'রিভিউ জমা দিতে সমস্যা হয়েছে: ' . $e->getMessage();
+                // Safe ultimate fallback
+                try {
+                    $stmt = $db->prepare("INSERT INTO `reviews` (`product_id`, `author_name`, `rating`, `review_text`, `district_name`, `is_approved`) VALUES (?, ?, ?, ?, ?, 0)");
+                    $stmt->execute([$productId, $authorName, $rating, $reviewText, $district]);
+                    $reviewNotice = '✓ ধন্যবাদ! আপনার রিভিউটি সফলভাবে জমা হয়েছে। অ্যাডমিন পর্যালোচনার পর এটি অ্যাপ্রুভ করলে এখানে প্রকাশিত হবে।';
+                } catch (Exception $e2) {
+                    $reviewError = 'রিভিউ জমা দিতে সমস্যা হয়েছে: ' . $e->getMessage();
+                }
             }
         }
     }
@@ -60,7 +107,7 @@ try {
     $avgRating = 5.0;
     $totalReviewsCount = 0;
     try {
-        $revStmt = $db->prepare("SELECT * FROM reviews WHERE product_id = ? AND is_approved = 1 ORDER BY id DESC");
+        $revStmt = $db->prepare("SELECT * FROM reviews WHERE product_id = ? AND (is_approved = 1 OR is_approved IS NULL) ORDER BY id DESC");
         $revStmt->execute([(int)$product['id']]);
         $prodReviews = $revStmt->fetchAll();
 
@@ -396,11 +443,11 @@ if (!empty($product['gallery_images'])) {
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="block text-slate-700 font-bold mb-1">District / City</label>
-                                    <input type="text" name="district_name" placeholder="e.g. Dhaka, Sylhet" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none">
+                                    <input type="text" name="district_name" placeholder="e.g. Dhaka, Sylhet" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none">
                                 </div>
                                 <div>
                                     <label class="block text-slate-700 font-bold mb-1">Phone / Email</label>
-                                    <input type="text" name="phone" placeholder="Optional" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none">
+                                    <input type="text" name="phone" placeholder="Optional" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 outline-none">
                                 </div>
                             </div>
 
