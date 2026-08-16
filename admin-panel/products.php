@@ -494,29 +494,31 @@ try {
                         </div>
                     </div>
 
-                    <!-- Sizes & Size-based Pricing Table -->
+                    <!-- Sizes & Liter-based Pricing Table -->
                     <div class="space-y-3 pt-3 border-t border-slate-800">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div>
-                                <label class="block text-slate-300 font-bold">Sizes & Custom Pricing (সাইজ এবং সাইজ অনুযায়ী দাম)</label>
-                                <p class="text-[10px] text-slate-400">প্রতিটি সাইজের জন্য আলাদা দাম নির্ধারণ করতে পারবেন। কাস্টমার সাইজ সিলেক্ট করলে স্বয়ংক্রিয়ভাবে ওই দাম শো করবে।</p>
+                                <label class="block text-slate-300 font-bold">Liters / Volumes / Sizes & Custom Pricing (লিটার, পরিমাপ বা সাইজ অনুযায়ী দাম)</label>
+                                <p class="text-[10px] text-slate-400">কত লিটার (যেমনঃ 1 Liter = ৳550, 2 Liter = ৳1050, 5 Liter = ৳2450) বা সাইজ নির্ধারণ করুন। কাস্টমার লিটার সিলেক্ট করলে সাথে সাথে ওই দাম পরিবর্তন হবে।</p>
                             </div>
-                            <div class="flex items-center gap-1.5 shrink-0">
-                                <button type="button" onclick="addSizePreset('apparel')" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-indigo-400 rounded-lg text-[10px] font-bold border border-slate-800">Presets: S/M/L/XL</button>
-                                <button type="button" onclick="addSizePreset('volume')" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-amber-400 rounded-lg text-[10px] font-bold border border-slate-800">50ml/100ml</button>
+                            <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+                                <button type="button" onclick="addSizePreset('liters')" class="px-2.5 py-1 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 rounded-lg text-[10px] font-bold border border-emerald-700/50">🧴 1L / 2L / 5L / 10L</button>
+                                <button type="button" onclick="addSizePreset('volume')" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-cyan-400 rounded-lg text-[10px] font-bold border border-slate-800">250ml / 500ml / 1L</button>
+                                <button type="button" onclick="addSizePreset('kg')" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-amber-400 rounded-lg text-[10px] font-bold border border-slate-800">1Kg / 2Kg / 5Kg</button>
+                                <button type="button" onclick="addSizePreset('apparel')" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-indigo-400 rounded-lg text-[10px] font-bold border border-slate-800">S / M / L / XL</button>
                                 <button type="button" onclick="addSizeRow()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-black shadow transition">
-                                    + Add Size Row
+                                    + Add Option Row
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Dynamic Sizes Repeater Table -->
+                        <!-- Dynamic Sizes / Liter Repeater Table -->
                         <div class="overflow-x-auto bg-slate-900 p-3 rounded-2xl border border-slate-800">
                             <table class="w-full text-left text-xs" id="sizesTable">
                                 <thead>
                                     <tr class="text-slate-400 font-bold text-[10px] uppercase border-b border-slate-800">
-                                        <th class="pb-2">Size / Variant Name (সাইজ)</th>
-                                        <th class="pb-2">Price (এই সাইজের দাম ৳)</th>
+                                        <th class="pb-2">Option / Liter / Size Name (কত লিটার / পরিমাপ)</th>
+                                        <th class="pb-2">Price (এই লিটারের দাম ৳)</th>
                                         <th class="pb-2 text-right">Action</th>
                                     </tr>
                                 </thead>
@@ -525,7 +527,7 @@ try {
                                 </tbody>
                             </table>
                             <div id="noSizesNotice" class="py-4 text-center text-slate-500 text-[11px]">
-                                No size variants added yet. Click <b>"+ Add Size Row"</b> or choose a preset if this product has size options.
+                                No liter/variant options added yet. Click <b>"🧴 1L / 2L / 5L / 10L"</b> or <b>"+ Add Option Row"</b> to set prices for different liters.
                             </div>
                         </div>
                     </div>
@@ -752,7 +754,7 @@ function addSizeRow(name = '', price = '') {
     tr.className = 'hover:bg-slate-800/40 transition';
     tr.innerHTML = `
         <td class="py-2 pr-2">
-            <input type="text" name="size_name[]" value="${name}" required placeholder="e.g. S, M, L, XL or 50ml, 100ml" class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-bold outline-none focus:border-indigo-500">
+            <input type="text" name="size_name[]" value="${name}" required placeholder="e.g. 1 Liter, 2 Liter, 5 Liter, 500ml" class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-bold outline-none focus:border-indigo-500">
         </td>
         <td class="py-2 pr-2">
             <div class="flex items-center">
@@ -761,7 +763,7 @@ function addSizeRow(name = '', price = '') {
             </div>
         </td>
         <td class="py-2 text-right">
-            <button type="button" onclick="this.closest('tr').remove(); checkSizesCount();" class="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 rounded-lg transition" title="Remove Size">
+            <button type="button" onclick="this.closest('tr').remove(); checkSizesCount();" class="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 rounded-lg transition" title="Remove Option">
                 <i class="fas fa-trash-can"></i>
             </button>
         </td>
@@ -771,24 +773,42 @@ function addSizeRow(name = '', price = '') {
 }
 
 function addSizePreset(type) {
-    const basePrice = parseFloat(document.getElementById('pPrice').value || 1000);
+    const basePrice = parseFloat(document.getElementById('pPrice').value || 500);
     const tbody = document.getElementById('sizesTableBody');
     tbody.innerHTML = '';
     
-    if (type === 'apparel') {
+    if (type === 'liters') {
+        const presets = [
+            { name: '1 Liter', price: basePrice },
+            { name: '2 Liter', price: basePrice * 1.95 },
+            { name: '3 Liter', price: basePrice * 2.9 },
+            { name: '5 Liter', price: basePrice * 4.7 },
+            { name: '10 Liter', price: basePrice * 9.2 }
+        ];
+        presets.forEach(p => addSizeRow(p.name, Math.round(p.price)));
+    } else if (type === 'volume') {
+        const presets = [
+            { name: '250ml', price: Math.round(basePrice * 0.55) },
+            { name: '500ml', price: Math.round(basePrice * 0.85) },
+            { name: '1 Liter', price: basePrice },
+            { name: '2 Liter', price: Math.round(basePrice * 1.9) }
+        ];
+        presets.forEach(p => addSizeRow(p.name, p.price));
+    } else if (type === 'kg') {
+        const presets = [
+            { name: '500g', price: Math.round(basePrice * 0.55) },
+            { name: '1 Kg', price: basePrice },
+            { name: '2 Kg', price: Math.round(basePrice * 1.95) },
+            { name: '5 Kg', price: Math.round(basePrice * 4.7) }
+        ];
+        presets.forEach(p => addSizeRow(p.name, p.price));
+    } else if (type === 'apparel') {
         const presets = [
             { name: 'S', price: basePrice },
             { name: 'M', price: basePrice },
             { name: 'L', price: basePrice + 100 },
             { name: 'XL', price: basePrice + 200 },
             { name: 'XXL', price: basePrice + 300 }
-        ];
-        presets.forEach(p => addSizeRow(p.name, p.price));
-    } else if (type === 'volume') {
-        const presets = [
-            { name: '50ml', price: basePrice },
-            { name: '100ml', price: basePrice + 350 },
-            { name: '200ml', price: basePrice + 700 }
         ];
         presets.forEach(p => addSizeRow(p.name, p.price));
     }

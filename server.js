@@ -2136,7 +2136,24 @@ const server = http.createServer(async (req, res) => {
             relatedProducts = [];
         }
 
-        const price = (p.sale_price && p.sale_price > 0 && p.sale_price < p.price) ? p.sale_price : p.price;
+        let productSizes = [];
+        if (p.sizes) {
+            try {
+                const parsed = JSON.parse(p.sizes);
+                if (Array.isArray(parsed)) productSizes = parsed;
+            } catch (e) {
+                p.sizes.split(',').forEach(sp => {
+                    if (sp.includes(':')) {
+                        const [sN, sP] = sp.split(':');
+                        productSizes.push({ size: sN.trim(), price: parseFloat(sP.trim()) || price });
+                    } else if (sp.trim()) {
+                        productSizes.push({ size: sp.trim(), price: price });
+                    }
+                });
+            }
+        }
+        const initialPrice = (productSizes.length > 0 && productSizes[0].price) ? productSizes[0].price : price;
+        const isLiter = productSizes.some(s => /liter|litre|ml|\bl\b/i.test(s.size));
 
         const content = `
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
@@ -2169,9 +2186,34 @@ const server = http.createServer(async (req, res) => {
                                 <h1 class="text-2xl sm:text-3xl font-extrabold font-serif text-slate-900 leading-snug">${p.name}</h1>
                                 
                                 <div class="flex items-baseline gap-3 pt-2">
-                                    <span class="text-3xl sm:text-4xl font-black text-indigo-600">৳${price.toFixed(2)}</span>
+                                    <span class="text-3xl sm:text-4xl font-black text-indigo-600" id="displayProductPrice">৳${initialPrice.toFixed(2)}</span>
                                     ${p.sale_price && p.sale_price < p.price ? `<span class="text-lg text-slate-400 line-through">৳${p.price.toFixed(2)}</span>` : ''}
                                 </div>
+
+                                ${p.colors ? `
+                                    <div class="space-y-2 pt-2 border-t border-slate-100">
+                                        <label class="text-xs font-black text-slate-800 block">🎨 Select Color: <span id="selectedColorLabel" class="text-indigo-600">${p.colors.split(',')[0].trim()}</span></label>
+                                        <div class="flex flex-wrap gap-2">
+                                            ${p.colors.split(',').map((c, i) => `
+                                                <button type="button" onclick="selectProductColor('${c.trim()}', this)" class="px-3.5 py-2 rounded-xl text-xs font-extrabold border-2 transition ${i === 0 ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-700'}">${c.trim()}</button>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                ${productSizes.length > 0 ? `
+                                    <div class="space-y-2 pt-2 border-t border-slate-100">
+                                        <label class="text-xs font-black text-slate-800 block">${isLiter ? '🧴 Select Liter / Volume (কত লিটার নির্বাচন করবেন):' : '📏 Select Size / Variant:'} <span id="selectedSizeLabel" class="text-indigo-600 font-extrabold bg-indigo-50 px-2 py-0.5 rounded">${productSizes[0].size}</span></label>
+                                        <div class="flex flex-wrap gap-2.5">
+                                            ${productSizes.map((s, i) => `
+                                                <button type="button" onclick="selectProductSize('${s.size}', ${s.price || price}, this)" class="size-pill px-4 py-2.5 rounded-2xl text-xs font-black border-2 transition flex items-center gap-2 ${i === 0 ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-md ring-2 ring-indigo-600/20' : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-400'}">
+                                                    <span>${isLiter ? '🧴 ' : ''}${s.size}</span>
+                                                    <span class="px-2 py-0.5 rounded-lg text-[11px] font-black ${i === 0 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'}">৳${(s.price || price).toFixed(0)}</span>
+                                                </button>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
 
                                 ${p.short_description ? `
                                     <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
@@ -2187,7 +2229,7 @@ const server = http.createServer(async (req, res) => {
                                         <input type="number" id="detailQty" value="1" min="1" class="w-10 sm:w-12 text-center bg-transparent font-black text-sm outline-none">
                                         <button type="button" onclick="let input=document.getElementById('detailQty'); input.value=parseInt(input.value)+1;" class="w-9 h-9 font-bold text-slate-700 hover:bg-slate-200 rounded-xl transition text-base">+</button>
                                     </div>
-                                    <button type="button" onclick="addToCart(${p.id}, parseInt(document.getElementById('detailQty').value))" class="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 transition flex items-center justify-center gap-2">
+                                    <button type="button" onclick="addVariantToCart()" class="flex-1 h-12 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-black text-xs sm:text-sm rounded-2xl shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 transition flex items-center justify-center gap-2">
                                         <i class="fas fa-bag-shopping text-sm"></i> <span>Add to Bag</span>
                                     </button>
                                 </div>
@@ -2227,43 +2269,39 @@ const server = http.createServer(async (req, res) => {
                     </div>
                 </div>
 
-                <!-- Related Products -->
-                ${relatedProducts.length > 0 ? `
-                    <div class="space-y-6 mt-12">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <span class="text-xs font-bold uppercase tracking-wider text-indigo-600">Recommendations</span>
-                                <h2 class="text-xl sm:text-2xl font-extrabold font-serif text-slate-900">You May Also Like (সম্পর্কিত প্রোডাক্ট)</h2>
-                            </div>
-                            <a href="/shop" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"><span>View More</span> &rarr;</a>
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-                            ${relatedProducts.map(rp => {
-                                const rpPrice = (rp.sale_price && rp.sale_price > 0 && rp.sale_price < rp.price) ? rp.sale_price : rp.price;
-                                return `
-                                    <div class="group bg-white rounded-3xl border border-slate-200 p-4 shadow-sm hover:shadow-xl hover:border-indigo-500/50 transition flex flex-col justify-between overflow-hidden relative">
-                                        ${rp.sale_price && rp.sale_price < rp.price ? `<span class="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow">Sale</span>` : ''}
-                                        <a href="/product/${rp.slug}" class="aspect-square bg-slate-100 rounded-2xl overflow-hidden mb-3 block">
-                                            <img src="/${(rp.image_path || 'uploads/luxury-watch.svg').replace(/^\//, '')}" alt="${rp.name}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
-                                        </a>
-                                        <div class="flex-1 flex flex-col justify-between space-y-2">
-                                            <div>
-                                                <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 block truncate">${rp.category_name || 'Accessories'}</span>
-                                                <a href="/product/${rp.slug}" class="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition line-clamp-2 block mt-0.5">${rp.name}</a>
-                                            </div>
-                                            <div class="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                                <span class="text-sm font-black text-slate-900">৳${rpPrice.toFixed(2)}</span>
-                                                <button type="button" onclick="addToCart(${rp.id})" class="w-full sm:w-auto px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs font-black rounded-xl shadow transition flex items-center justify-center gap-1.5">
-                                                    <i class="fas fa-bag-shopping text-xs"></i> <span>Add</span>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                ` : ''}
+                <script>
+                let selectedProductColor = '${p.colors ? p.colors.split(',')[0].trim() : ''}';
+                let selectedProductSize = '${productSizes.length > 0 ? productSizes[0].size : ''}';
+                let currentVariantPrice = ${initialPrice};
+                const productBaseId = ${p.id};
+
+                function selectProductColor(c, btn) {
+                    selectedProductColor = c;
+                    document.getElementById('selectedColorLabel').textContent = c;
+                    btn.parentElement.querySelectorAll('button').forEach(b => b.className = 'px-3.5 py-2 rounded-xl text-xs font-extrabold border-2 transition border-slate-200 bg-white text-slate-700');
+                    btn.className = 'px-3.5 py-2 rounded-xl text-xs font-extrabold border-2 transition border-indigo-600 bg-indigo-50 text-indigo-700';
+                }
+
+                function selectProductSize(s, priceVal, btn) {
+                    selectedProductSize = s;
+                    currentVariantPrice = parseFloat(priceVal);
+                    document.getElementById('selectedSizeLabel').textContent = s;
+                    document.getElementById('displayProductPrice').textContent = '৳' + currentVariantPrice.toFixed(2);
+                    btn.parentElement.querySelectorAll('.size-pill').forEach(b => {
+                        b.className = 'size-pill px-4 py-2.5 rounded-2xl text-xs font-black border-2 transition flex items-center gap-2 border-slate-200 bg-white text-slate-700 hover:border-indigo-400';
+                        const badge = b.querySelector('span:last-child');
+                        if (badge) badge.className = 'px-2 py-0.5 rounded-lg text-[11px] font-black bg-slate-100 text-slate-700';
+                    });
+                    btn.className = 'size-pill px-4 py-2.5 rounded-2xl text-xs font-black border-2 transition flex items-center gap-2 border-indigo-600 bg-indigo-50 text-indigo-700 shadow-md ring-2 ring-indigo-600/20';
+                    const activeBadge = btn.querySelector('span:last-child');
+                    if (activeBadge) activeBadge.className = 'px-2.5 py-0.5 rounded-lg text-[11px] font-black bg-indigo-600 text-white';
+                }
+
+                function addVariantToCart() {
+                    const qty = parseInt(document.getElementById('detailQty').value) || 1;
+                    addToCart(productBaseId, qty, false, selectedProductColor, selectedProductSize, currentVariantPrice);
+                }
+                </script>
             </div>
         `;
         return sendHtml(renderLayout(p.name, content, sessionData, 'shop'));

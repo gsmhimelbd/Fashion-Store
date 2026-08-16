@@ -149,6 +149,25 @@ try {
         }
     }
 
+    // Determine dynamic title and icon for variant selector
+    $variantLabel = 'Select Size / Variant (সাইজ / ভেরিয়েন্ট নির্বাচন করুন):';
+    $variantIcon = '📏';
+    $isLiterType = false;
+
+    if (!empty($productSizes)) {
+        foreach ($productSizes as $sItem) {
+            $nameLower = strtolower($sItem['size']);
+            if (str_contains($nameLower, 'liter') || str_contains($nameLower, 'litre') || str_contains($nameLower, ' l') || str_contains($nameLower, 'ml') || preg_match('/\b[0-9]+l\b/', $nameLower)) {
+                $isLiterType = true;
+                break;
+            }
+        }
+        if ($isLiterType) {
+            $variantLabel = 'Select Liter / Volume (কত লিটার নির্বাচন করবেন):';
+            $variantIcon = '🧴';
+        }
+    }
+
     // Initial selected price (first size price or base price)
     $initialPrice = (!empty($productSizes) && isset($productSizes[0]['price'])) ? $productSizes[0]['price'] : $basePrice;
 
@@ -355,22 +374,25 @@ if (!empty($product['gallery_images'])) {
                     </div>
                     <?php endif; ?>
 
-                    <!-- SIZE / VARIANT SELECTOR WITH DYNAMIC PRICE UPDATE -->
+                    <!-- SIZE / LITER / VARIANT SELECTOR WITH DYNAMIC PRICE UPDATE -->
                     <?php if (!empty($productSizes)): ?>
-                    <div class="space-y-2 pt-2 border-t border-slate-100">
+                    <div class="space-y-2.5 pt-2 border-t border-slate-100">
                         <div class="flex items-center justify-between text-xs">
                             <label class="font-black text-slate-800 flex items-center gap-1.5">
-                                <span>📏 Select Size / Variant (সাইজ নির্বাচন করুন):</span>
-                                <span id="selectedSizeLabel" class="text-indigo-600 font-extrabold"><?= htmlspecialchars($productSizes[0]['size']) ?></span>
+                                <span><?= $variantIcon ?> <?= htmlspecialchars($variantLabel) ?></span>
+                                <span id="selectedSizeLabel" class="text-indigo-600 font-extrabold bg-indigo-50 px-2.5 py-0.5 rounded-lg border border-indigo-100"><?= htmlspecialchars($productSizes[0]['size']) ?></span>
                             </label>
                         </div>
-                        <div class="flex flex-wrap gap-2" id="sizeOptionsContainer">
+                        <div class="flex flex-wrap gap-2.5" id="sizeOptionsContainer">
                             <?php foreach ($productSizes as $sIdx => $sItem): ?>
                             <button type="button" 
                                     onclick="selectProductSize('<?= htmlspecialchars(addslashes($sItem['size'])) ?>', <?= (float)$sItem['price'] ?>, this)" 
-                                    class="size-pill px-4 py-2.5 rounded-xl text-xs font-extrabold border-2 transition flex items-center gap-2 cursor-pointer <?= $sIdx === 0 ? 'border-indigo-600 bg-indigo-50/80 text-indigo-700 shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300' ?>">
-                                <span><?= htmlspecialchars($sItem['size']) ?></span>
-                                <span class="px-2 py-0.5 rounded-md text-[10px] font-black <?= $sIdx === 0 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600' ?>">
+                                    class="size-pill px-4 py-2.5 rounded-2xl text-xs font-black border-2 transition flex items-center gap-2 cursor-pointer <?= $sIdx === 0 ? 'border-indigo-600 bg-indigo-50/90 text-indigo-700 shadow-md ring-2 ring-indigo-600/20' : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-400 hover:bg-slate-50' ?>">
+                                <span class="flex items-center gap-1.5">
+                                    <?php if ($isLiterType): ?><span class="text-sm">🧴</span><?php endif; ?>
+                                    <span><?= htmlspecialchars($sItem['size']) ?></span>
+                                </span>
+                                <span class="px-2.5 py-0.5 rounded-lg text-[11px] font-black <?= $sIdx === 0 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700' ?>">
                                     ৳<?= number_format($sItem['price'], 0) ?>
                                 </span>
                             </button>
