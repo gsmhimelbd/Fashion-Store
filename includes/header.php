@@ -18,6 +18,7 @@ $customerName = $_SESSION['user_name'] ?? ($_SESSION['customer_name'] ?? 'Accoun
 
 $categories = [];
 $allProducts = [];
+$topHeaderCoupon = null;
 
 try {
     $db = getDB();
@@ -63,7 +64,6 @@ try {
     $allProducts = $db->query("SELECT p.id, p.name, p.slug, p.price, p.sale_price, p.image_path, c.name as category FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1")->fetchAll();
 
     // Fetch Active Top Header Coupon Banner
-    $topHeaderCoupon = null;
     try {
         $cQuery = $db->query("SELECT * FROM coupons WHERE show_in_header = 1 AND is_active = 1 AND (expiry_date IS NULL OR expiry_date >= CURDATE()) ORDER BY id DESC LIMIT 1");
         if ($cQuery) {
@@ -342,15 +342,25 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
                                 <div>
                                     <div class="flex items-start justify-between gap-2">
                                         <h4 class="text-xs font-bold text-slate-800 line-clamp-1"><?= htmlspecialchars($item['name']) ?></h4>
-                                        <button onclick="removeCartItem(<?= $item['id'] ?>)" class="text-slate-300 hover:text-rose-500"><i class="fas fa-trash-can text-xs"></i></button>
+                                        <button onclick="removeCartItem(<?= $item['id'] ?>, '<?= htmlspecialchars($item['cart_key'] ?? $item['id']) ?>')" class="text-slate-300 hover:text-rose-500"><i class="fas fa-trash-can text-xs"></i></button>
                                     </div>
-                                    <p class="text-xs font-bold text-indigo-600">৳<?= number_format($item['price'], 2) ?></p>
+                                    <?php if (!empty($item['color']) || !empty($item['size'])): ?>
+                                    <div class="flex flex-wrap items-center gap-1 mt-0.5">
+                                        <?php if (!empty($item['color'])): ?>
+                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-indigo-50 text-indigo-700 border border-indigo-100">Color: <?= htmlspecialchars($item['color']) ?></span>
+                                        <?php endif; ?>
+                                        <?php if (!empty($item['size'])): ?>
+                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-50 text-amber-800 border border-amber-200">Size: <?= htmlspecialchars($item['size']) ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <?php endif; ?>
+                                    <p class="text-xs font-bold text-indigo-600 mt-1">৳<?= number_format($item['price'], 2) ?></p>
                                 </div>
                                 <div class="flex items-center justify-between mt-2">
                                     <div class="flex items-center border rounded-lg bg-white">
-                                        <button onclick="updateCartQty(<?= $item['id'] ?>, <?= $item['quantity'] - 1 ?>)" class="w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-slate-100">-</button>
+                                        <button onclick="updateCartQty(<?= $item['id'] ?>, <?= $item['quantity'] - 1 ?>, '<?= htmlspecialchars($item['cart_key'] ?? $item['id']) ?>')" class="w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-slate-100">-</button>
                                         <span class="w-8 text-center text-xs font-bold"><?= $item['quantity'] ?></span>
-                                        <button onclick="updateCartQty(<?= $item['id'] ?>, <?= $item['quantity'] + 1 ?>)" class="w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-slate-100">+</button>
+                                        <button onclick="updateCartQty(<?= $item['id'] ?>, <?= $item['quantity'] + 1 ?>, '<?= htmlspecialchars($item['cart_key'] ?? $item['id']) ?>')" class="w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-slate-100">+</button>
                                     </div>
                                     <span class="text-xs font-extrabold">৳<?= number_format($item['price'] * $item['quantity'], 2) ?></span>
                                 </div>
