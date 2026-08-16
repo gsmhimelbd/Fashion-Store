@@ -1798,27 +1798,297 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/shop' && isGet) {
         const catSlug = parsedUrl.query.category || '';
         const search = parsedUrl.query.search || '';
-        let sql = 'SELECT p.*, c.name as category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1';
+        const sort = parsedUrl.query.sort || 'latest';
+
+        const allCategoriesRaw = db.prepare("SELECT * FROM categories ORDER BY display_order ASC, id ASC").all();
+        const parentMap = {};
+        const subMap = {};
+
+        for (const cat of allCategoriesRaw) {
+            const cid = cat.id;
+            const pCount = db.prepare("SELECT COUNT(*) as cnt FROM products WHERE is_active = 1 AND (category_id = ? OR subcategory_id = ?)").get(cid, cid).cnt;
+            cat.products_count = pCount;
+            cat.subcategories = [];
+            if (!cat.parent_id || cat.parent_id === 0) {
+                parentMap[cid] = cat;
+            } else {
+                if (!subMap[cat.parent_id]) subMap[cat.parent_id] = [];
+                subMap[cat.parent_id].push(cat);
+            }
+        }
+
+        for (const pid in parentMap) {
+            if (subMap[pid]) {
+                parentMap[pid].subcategories = subMap[pid];
+                let subTotal = 0;
+                for (const sc of subMap[pid]) subTotal += sc.products_count;
+                parentMap[pid].total_products_count = parentMap[pid].products_count + subTotal;
+            } else {
+                parentMap[pid].total_products_count = parentMap[pid].products_count;
+            }
+        }
+
+        const parentCategories = Object.values(parentMap);
+
+        let activeCategoryInfo = null;
+        let activeParentId = null;
+
+        if (catSlug) {
+            for (const p of parentCategories) {
+                if (p.slug === catSlug) {
+                    activeCategoryInfo = { ...p, is_parent: true };
+                    activeParentId = p.id;
+                    break;
+                }
+                if (p.subcategories) {
+                    for (const sc of p.subcategories) {
+                        if (sc.slug === catSlug) {
+                            activeCategoryInfo = { ...sc, is_parent: false, parent_name: p.name, parent_slug: p.slug };
+                            activeParentId = p.id;
+                            break;
+                        }
+                    }
+                }
+                if (activeCategoryInfo) break;
+            }
+        }
+
+        let sql = 'SELECT p.*, c.name as category_name, c.slug as category_slug FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1';
         const params = [];
-        if (catSlug) { sql += ' AND c.slug = ?'; params.push(catSlug); }
-        if (search) { sql += ' AND (p.name LIKE ? OR p.description LIKE ?)'; params.push(`%${search}%`, `%${search}%`); }
-        sql += ' ORDER BY p.id DESC';
+
+        if (activeCategoryInfo) {
+            if (activeCategoryInfo.is_parent && activeCategoryInfo.subcategories && activeCategoryInfo.subcategories.length > 0) {
+                const ids = [activeCategoryInfo.id, ...activeCategoryInfo.subcategories.map(s => s.id)];
+                const inList = ids.map(() => '?').join(',');
+                sql += ` AND (p.category_id IN (${inList}) OR p.subcategory_id IN (${inList}) OR c.slug = ?)`;
+                params.push(...ids, ...ids, catSlug);
+            } else {
+                sql += ' AND (p.category_id = ? OR p.subcategory_id = ? OR c.slug = ?)';
+                params.push(activeCategoryInfo.id, activeCategoryInfo.id, catSlug);
+            }
+        } else if (catSlug) {
+            sql += ' AND (c.slug = ? OR p.category_id = (SELECT id FROM categories WHERE slug = ? LIMIT 1))';
+            params.push(catSlug, catSlug);
+        }
+
+        if (search) {
+            sql += ' AND (p.name LIKE ? OR p.description LIKE ?)';
+            params.push(`%${search}%`, `%${search}%`);
+        }
+
+        if (sort === 'price_low') sql += ' ORDER BY p.price ASC';
+        else if (sort === 'price_high') sql += ' ORDER BY p.price DESC';
+        else sql += ' ORDER BY p.id DESC';
 
         const products = db.prepare(sql).all(...params);
 
         const content = `
-            <div class="max-w-7xl mx-auto px-4 py-10">
-                <h1 class="text-2xl sm:text-3xl font-extrabold font-serif mb-6">All Products (${products.length})</h1>
-                <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-                    ${products.map(p => `
-                        <div class="bg-white rounded-2xl border p-4 flex flex-col justify-between">
-                            <a href="/product/${p.slug}"><img src="/${p.image_path}" class="w-full aspect-square object-cover rounded-xl mb-3 bg-slate-100"></a>
-                            <div><span class="text-[10px] text-slate-400 font-bold uppercase">${p.category_name || 'Accessories'}</span><h4 class="font-bold text-xs text-slate-900"><a href="/product/${p.slug}">${p.name}</a></h4><p class="text-sm font-black text-indigo-600 mt-2">৳${(p.sale_price || p.price).toFixed(2)}</p></div>
-                            <button type="button" onclick="addToCart(${p.id})" class="w-full mt-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow">Add to Cart</button>
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+                ${activeCategoryInfo ? `
+                    <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 mb-8 shadow-lg border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div class="flex items-center gap-4 text-center sm:text-left">
+                            <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-indigo-600/30 border border-indigo-500/30 flex items-center justify-center text-3xl shrink-0 shadow-inner">
+                                <span>${activeCategoryInfo.emoji || '🛍️'}</span>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2 justify-center sm:justify-start text-[11px] uppercase tracking-widest text-indigo-400 font-extrabold">
+                                    <span>Category</span>
+                                    ${activeCategoryInfo.parent_name ? `<span>&rsaquo;</span><a href="/shop?category=${activeCategoryInfo.parent_slug}" class="hover:underline text-slate-300">${activeCategoryInfo.parent_name}</a>` : ''}
+                                </div>
+                                <h1 class="text-2xl sm:text-3xl font-extrabold font-serif">${activeCategoryInfo.name}</h1>
+                                <p class="text-xs text-slate-300 mt-1">${activeCategoryInfo.description || 'Explore all products in this category with official warranty & fast delivery in BD.'}</p>
+                            </div>
                         </div>
-                    `).join('')}
+                        <a href="/shop" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition flex items-center gap-2 border border-slate-700 shrink-0">
+                            <i class="fas fa-xmark"></i> Clear Filter
+                        </a>
+                    </div>
+                ` : ''}
+
+                <!-- Mobile Horizontal Category Bar -->
+                <div class="block lg:hidden mb-6 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black uppercase tracking-wider text-slate-500">Categories</span>
+                        <a href="/categories" class="text-xs font-bold text-indigo-600 hover:underline">All &rarr;</a>
+                    </div>
+                    <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                        <a href="/shop" class="px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition shrink-0 ${!catSlug ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'}">
+                            🛍️ All Products
+                        </a>
+                        ${parentCategories.map(p => {
+                            const isSel = (catSlug === p.slug || activeParentId === p.id);
+                            return `
+                                <a href="/shop?category=${p.slug}" class="px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition shrink-0 ${isSel ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'}">
+                                    <span>${p.emoji || '🛍️'}</span>
+                                    <span>${p.name}</span>
+                                    <span class="text-[10px] opacity-75">(${p.total_products_count || 0})</span>
+                                </a>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    ${activeParentId && parentMap[activeParentId] && parentMap[activeParentId].subcategories && parentMap[activeParentId].subcategories.length > 0 ? `
+                        <div class="p-3 bg-indigo-50/80 rounded-2xl border border-indigo-100 space-y-2">
+                            <div class="text-[11px] font-extrabold text-indigo-900 flex items-center gap-1.5">
+                                <i class="fas fa-folder-tree text-indigo-600"></i>
+                                <span>Subcategories of <strong>${parentMap[activeParentId].name}</strong>:</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                                <a href="/shop?category=${parentMap[activeParentId].slug}" class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition shrink-0 ${catSlug === parentMap[activeParentId].slug ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 border border-slate-200'}">
+                                    All ${parentMap[activeParentId].name}
+                                </a>
+                                ${parentMap[activeParentId].subcategories.map(sc => `
+                                    <a href="/shop?category=${sc.slug}" class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap flex items-center gap-1 transition shrink-0 ${catSlug === sc.slug ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 border border-slate-200'}">
+                                        <span>${sc.emoji || '🏷️'}</span>
+                                        <span>${sc.name}</span>
+                                        <span class="text-[9px] opacity-75">(${sc.products_count || 0})</span>
+                                    </a>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                    <!-- Desktop Hierarchical Sidebar -->
+                    <div class="hidden lg:block lg:col-span-1 space-y-6">
+                        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                                    <i class="fas fa-layer-group text-indigo-600"></i> Categories
+                                </h3>
+                                <a href="/categories" class="text-[11px] font-bold text-indigo-600 hover:underline">All &rarr;</a>
+                            </div>
+
+                            <a href="/shop" class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl transition font-bold text-xs ${!catSlug ? 'bg-indigo-600 text-white shadow' : 'bg-slate-50 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 border border-slate-100'}">
+                                <span class="flex items-center gap-2"><span>🛍️</span> <span>All Products</span></span>
+                                <i class="fas fa-chevron-right text-[10px] ${!catSlug ? 'text-white' : 'text-slate-300'}"></i>
+                            </a>
+
+                            <div class="space-y-2">
+                                ${parentCategories.map(p => {
+                                    const hasSubs = p.subcategories && p.subcategories.length > 0;
+                                    const isParentActive = (catSlug === p.slug);
+                                    const isSubActive = hasSubs && p.subcategories.some(sc => sc.slug === catSlug);
+                                    const shouldExpand = (isParentActive || isSubActive || activeParentId === p.id);
+
+                                    return `
+                                        <div class="rounded-2xl border border-slate-100 bg-white overflow-hidden transition-all hover:border-slate-200">
+                                            <div class="flex items-center justify-between p-2 ${(isParentActive && !isSubActive) ? 'bg-indigo-50/90 text-indigo-700 font-black' : 'text-slate-700 hover:bg-slate-50'}">
+                                                <a href="/shop?category=${p.slug}" class="flex items-center gap-2.5 min-w-0 flex-1 py-1 px-1.5">
+                                                    <span class="text-lg shrink-0 select-none">${p.emoji || '🛍️'}</span>
+                                                    <span class="truncate text-xs font-bold">${p.name}</span>
+                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${(isParentActive && !isSubActive) ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}">
+                                                        ${p.total_products_count || 0}
+                                                    </span>
+                                                </a>
+                                                ${hasSubs ? `
+                                                    <button type="button" onclick="toggleSubmenu(${p.id}, event)" class="p-2 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-100/60 transition ml-1 shrink-0 cursor-pointer">
+                                                        <i id="subcat-icon-${p.id}" class="fas fa-chevron-down text-[11px] transform transition-transform duration-300 ${shouldExpand ? 'rotate-180 text-indigo-600' : ''}"></i>
+                                                    </button>
+                                                ` : ''}
+                                            </div>
+
+                                            ${hasSubs ? `
+                                                <div id="subcat-list-${p.id}" class="space-y-1 py-2 px-2.5 bg-slate-50/80 border-t border-slate-100 ${shouldExpand ? '' : 'hidden'}">
+                                                    <a href="/shop?category=${p.slug}" class="flex items-center justify-between px-3 py-1.5 rounded-xl text-[11px] font-bold transition ${catSlug === p.slug ? 'text-indigo-600 bg-indigo-100/60 font-black' : 'text-slate-600 hover:text-slate-900 hover:bg-white'}">
+                                                        <span class="flex items-center gap-1.5">
+                                                            <i class="fas fa-arrow-right text-[9px] text-indigo-500"></i>
+                                                            <span>All ${p.name}</span>
+                                                        </span>
+                                                        <span class="text-[10px] text-slate-400">(${p.total_products_count || 0})</span>
+                                                    </a>
+                                                    ${p.subcategories.map(sc => `
+                                                        <a href="/shop?category=${sc.slug}" class="flex items-center justify-between px-3 py-1.5 rounded-xl text-[11px] font-bold transition ${catSlug === sc.slug ? 'text-indigo-600 bg-indigo-100/80 font-black shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-white'}">
+                                                            <span class="flex items-center gap-2 truncate">
+                                                                <span class="text-xs">${sc.emoji || '🏷️'}</span>
+                                                                <span class="truncate">${sc.name}</span>
+                                                            </span>
+                                                            <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold ${catSlug === sc.slug ? 'bg-indigo-600 text-white' : 'bg-slate-200/70 text-slate-500'}">
+                                                                ${sc.products_count || 0}
+                                                            </span>
+                                                        </a>
+                                                    `).join('')}
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Catalog Grid -->
+                    <div class="lg:col-span-3 space-y-6">
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-sm">
+                            <span class="text-slate-600">Showing <strong class="text-slate-900">${products.length}</strong> products ${catSlug ? `in <strong>${activeCategoryInfo ? activeCategoryInfo.name : catSlug}</strong>` : ''}</span>
+                            <form method="GET" action="/shop" class="flex items-center gap-2">
+                                ${catSlug ? `<input type="hidden" name="category" value="${catSlug}">` : ''}
+                                ${search ? `<input type="hidden" name="search" value="${search}">` : ''}
+                                <label class="text-slate-500 font-bold shrink-0">Sort By:</label>
+                                <select name="sort" onchange="this.form.submit()" class="border border-slate-200 rounded-xl px-3 py-1.5 bg-slate-50 font-bold text-slate-700 outline-none cursor-pointer focus:border-indigo-500">
+                                    <option value="latest" ${sort === 'latest' ? 'selected' : ''}>Newest Arrival</option>
+                                    <option value="price_low" ${sort === 'price_low' ? 'selected' : ''}>Price: Low to High</option>
+                                    <option value="price_high" ${sort === 'price_high' ? 'selected' : ''}>Price: High to Low</option>
+                                </select>
+                            </form>
+                        </div>
+
+                        ${products.length > 0 ? `
+                            <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+                                ${products.map(p => {
+                                    const price = (p.sale_price && p.sale_price > 0 && p.sale_price < p.price) ? p.sale_price : p.price;
+                                    return `
+                                        <div class="group bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-500/50 transition flex flex-col justify-between overflow-hidden relative p-4">
+                                            ${p.sale_price && p.sale_price < p.price ? `<span class="absolute top-3 left-3 z-10 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow">Sale</span>` : ''}
+                                            <a href="/product/${p.slug}" class="relative block aspect-square bg-slate-100 rounded-2xl overflow-hidden mb-3">
+                                                <img src="/${p.image_path.replace(/^\//, '')}" alt="${p.name}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                                            </a>
+                                            <div class="flex-1 flex flex-col justify-between space-y-3">
+                                                <div>
+                                                    <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 block">${p.category_name || 'Accessories'}</span>
+                                                    <a href="/product/${p.slug}" class="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition line-clamp-2 block mt-0.5">${p.name}</a>
+                                                </div>
+                                                <div class="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                                    <span class="text-sm sm:text-base font-black text-slate-900">৳${price.toFixed(2)}</span>
+                                                    <button type="button" onclick="addToCart(${p.id})" class="w-full sm:w-auto px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs font-black rounded-xl shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/40 transition flex items-center justify-center gap-1.5 active:scale-95">
+                                                        <i class="fas fa-bag-shopping text-xs"></i> <span>Add to Bag</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        ` : `
+                            <div class="bg-white p-12 rounded-3xl border border-slate-200 text-center text-slate-400 text-xs space-y-3">
+                                <i class="fas fa-box-open text-4xl text-slate-300"></i>
+                                <p class="font-bold text-slate-700 text-sm">No products found matching your filter.</p>
+                                <a href="/shop" class="px-5 py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs inline-block">View All Products</a>
+                            </div>
+                        `}
+                    </div>
                 </div>
             </div>
+
+            <script>
+            function toggleSubmenu(catId, event) {
+                if (event) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                }
+                var subEl = document.getElementById('subcat-list-' + catId);
+                var iconEl = document.getElementById('subcat-icon-' + catId);
+                if (!subEl) return;
+                if (subEl.classList.contains('hidden')) {
+                    subEl.classList.remove('hidden');
+                    if (iconEl) iconEl.classList.add('rotate-180');
+                } else {
+                    subEl.classList.add('hidden');
+                    if (iconEl) iconEl.classList.remove('rotate-180');
+                }
+            }
+            </script>
         `;
         return sendHtml(renderLayout('Shop', content, sessionData, 'shop'));
     }
