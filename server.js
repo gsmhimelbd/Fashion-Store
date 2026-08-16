@@ -23,6 +23,8 @@ const db = new DatabaseSync(DB_PATH);
 
 try { db.exec("ALTER TABLE categories ADD COLUMN show_on_homepage INTEGER DEFAULT 1"); } catch(e) {}
 try { db.exec("ALTER TABLE categories ADD COLUMN is_featured INTEGER DEFAULT 1"); } catch(e) {}
+try { db.exec("CREATE TABLE IF NOT EXISTS coupons (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE, discount_type TEXT DEFAULT 'fixed', discount_value REAL DEFAULT 0, min_spend REAL DEFAULT 0, product_id INTEGER, show_in_header INTEGER DEFAULT 1, header_banner_text TEXT, expiry_date TEXT, used_count INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at TEXT DEFAULT CURRENT_TIMESTAMP)"); } catch(e) {}
+try { db.exec("INSERT OR IGNORE INTO coupons (id, code, discount_type, discount_value, min_spend, show_in_header, header_banner_text, is_active) VALUES (1, 'SPECIAL100', 'fixed', 100, 1000, 1, '🎁 Special Offer: Use Code \"SPECIAL100\" to get ৳100 OFF on orders above ৳1000!', 1)"); } catch(e) {}
 try { db.exec("ALTER TABLE products ADD COLUMN colors TEXT"); } catch(e) {}
 try { db.exec("ALTER TABLE products ADD COLUMN sizes TEXT"); } catch(e) {}
 try { db.exec("ALTER TABLE products ADD COLUMN meta_title TEXT"); } catch(e) {}

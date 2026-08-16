@@ -263,6 +263,8 @@ CREATE TABLE `orders` (
   `subtotal` decimal(10,2) NOT NULL DEFAULT 0.00,
   `delivery_cost` decimal(10,2) NOT NULL DEFAULT 120.00,
   `delivery_charge` decimal(10,2) NOT NULL DEFAULT 120.00,
+  `discount_amount` decimal(10,2) DEFAULT 0.00,
+  `coupon_code` varchar(50) DEFAULT NULL,
   `total_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
   `grand_total` decimal(10,2) NOT NULL DEFAULT 0.00,
   `payment_method` varchar(50) DEFAULT 'cod',
@@ -292,6 +294,29 @@ CREATE TABLE `order_items` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 7.1 Discount Coupons Table
+DROP TABLE IF EXISTS `coupons`;
+CREATE TABLE `coupons` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `code` varchar(50) NOT NULL,
+  `discount_type` varchar(20) NOT NULL DEFAULT 'fixed',
+  `discount_value` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `min_spend` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `product_id` int(11) DEFAULT NULL,
+  `show_in_header` tinyint(1) DEFAULT 1,
+  `header_banner_text` varchar(255) DEFAULT NULL,
+  `expiry_date` date DEFAULT NULL,
+  `usage_limit` int(11) DEFAULT NULL,
+  `used_count` int(11) DEFAULT 0,
+  `is_active` tinyint(1) DEFAULT 1,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `coupons` (`id`, `code`, `discount_type`, `discount_value`, `min_spend`, `product_id`, `show_in_header`, `header_banner_text`, `is_active`) VALUES
+(1, 'SPECIAL100', 'fixed', 100.00, 1000.00, NULL, 1, '🎁 Special Offer: Use Code "SPECIAL100" to get ৳100 OFF on orders above ৳1000!', 1);
 
 -- 8. Users Table
 DROP TABLE IF EXISTS `users`;

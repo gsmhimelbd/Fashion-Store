@@ -10,8 +10,103 @@ if (empty($cart)) {
     exit;
 }
 
+$subtotal = 0.0;
+foreach ($cart as $item) {
+    $subtotal += (float)$item['price'] * (int)$item['quantity'];
+}
+
+// Handle AJAX Coupon Actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['coupon_action'])) {
+    header('Content-Type: application/json');
+    $cAction = $_POST['coupon_action'];
+
+    if ($cAction === 'apply') {
+        $code = strtoupper(trim(preg_replace('/[^A-Za-z0-9_-]/', '', $_POST['coupon_code'] ?? '')));
+        if (empty($code)) {
+            echo json_encode(['success' => false, 'message' => 'অনুগ্রহ করে কুপন কোড লিখুন।']);
+            exit;
+        }
+
+        try {
+            $db = getDB();
+            $stmt = $db->prepare("SELECT * FROM coupons WHERE code = ? AND is_active = 1 AND (expiry_date IS NULL OR expiry_date >= CURDATE()) LIMIT 1");
+            $stmt->execute([$code]);
+            $coupon = $stmt->fetch();
+
+            if (!$coupon) {
+                echo json_encode(['success' => false, 'message' => 'দুঃখিত! কুপন কোডটি সঠিক নয় অথবা মেয়াদ শেষ হয়ে গেছে।']);
+                exit;
+            }
+
+            // Check Minimum Spend
+            if ($subtotal < (float)$coupon['min_spend']) {
+                echo json_encode(['success' => false, 'message' => "এই কুপনটি ব্যবহার করতে সর্বনিম্ন ৳" . number_format($coupon['min_spend'], 0) . " টাকার অর্ডার করতে হবে।"]);
+                exit;
+            }
+
+            // Check Product Scope
+            if (!empty($coupon['product_id'])) {
+                $hasMatchingProduct = false;
+                foreach ($cart as $it) {
+                    if ((int)$it['id'] === (int)$coupon['product_id']) {
+                        $hasMatchingProduct = true;
+                        break;
+                    }
+                }
+                if (!$hasMatchingProduct) {
+                    echo json_encode(['success' => false, 'message' => 'এই কুপনটি আপনার কার্টের প্রোডাক্টের জন্য প্রযোজ্য নয়।']);
+                    exit;
+                }
+            }
+
+            // Calculate Discount Amount
+            $discount = 0.0;
+            if ($coupon['discount_type'] === 'percent') {
+                $discount = round(($subtotal * (float)$coupon['discount_value']) / 100, 2);
+            } else {
+                $discount = min($subtotal, (float)$coupon['discount_value']);
+            }
+
+            $_SESSION['applied_coupon'] = [
+                'code' => $coupon['code'],
+                'discount' => $discount,
+                'type' => $coupon['discount_type'],
+                'value' => $coupon['discount_value'],
+                'min_spend' => $coupon['min_spend']
+            ];
+
+            echo json_encode([
+                'success' => true,
+                'message' => "✓ কুপন \"{$coupon['code']}\" সফলভাবে যুক্ত হয়েছে! (-৳" . number_format($discount, 2) . ")",
+                'code' => $coupon['code'],
+                'discount' => $discount,
+                'new_subtotal' => max(0, $subtotal - $discount)
+            ]);
+            exit;
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'কুপন ভ্যালিডেট করতে সমস্যা হয়েছে: ' . $e->getMessage()]);
+            exit;
+        }
+    } elseif ($cAction === 'remove') {
+        unset($_SESSION['applied_coupon']);
+        echo json_encode([
+            'success' => true,
+            'message' => 'কুপনটি রিমুভ করা হয়েছে।',
+            'new_subtotal' => $subtotal
+        ]);
+        exit;
+    }
+}
+
 try {
     $db = getDB();
+
+    // Auto-heal orders & coupons schema
+    try {
+        @$db->exec("ALTER TABLE `orders` ADD COLUMN `coupon_code` varchar(50) DEFAULT NULL");
+        @$db->exec("ALTER TABLE `orders` ADD COLUMN `discount_amount` decimal(10,2) DEFAULT 0.00");
+    } catch (Exception $ex) {}
+
     $districts = $db->query("SELECT * FROM districts ORDER BY division_name ASC, name ASC")->fetchAll();
     $settings = getAllSettings();
 
@@ -34,7 +129,6 @@ try {
         $uStmt->execute([$uId, $uEmail, $uPhone]);
         $loggedUser = $uStmt->fetch();
 
-        // Fallback to recent order history if profile fields are empty
         if (!$loggedUser && $uPhone) {
             $lastOrd = $db->prepare("SELECT customer_name as name, COALESCE(customer_phone, phone) as phone, customer_email as email, COALESCE(district_name, district) as district, upazila, post_office, COALESCE(delivery_address, address) as address FROM orders WHERE customer_phone = ? OR phone = ? ORDER BY id DESC LIMIT 1");
             $lastOrd->execute([$uPhone, $uPhone]);
@@ -76,13 +170,18 @@ try {
     $isLoggedIn = false;
 }
 
-$subtotal = 0.0;
-foreach ($cart as $item) {
-    $subtotal += $item['price'] * $item['quantity'];
+// Calculate Applied Coupon Discount
+$appliedCoupon = $_SESSION['applied_coupon'] ?? null;
+$discountAmount = 0.0;
+$couponCode = null;
+
+if (!empty($appliedCoupon)) {
+    $couponCode = $appliedCoupon['code'];
+    $discountAmount = (float)($appliedCoupon['discount'] ?? 0.0);
 }
 
 $error = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['coupon_action'])) {
     $name = trim($_POST['customer_name'] ?? '');
     $phone = trim($_POST['customer_phone'] ?? '');
     $email = trim($_POST['customer_email'] ?? '');
@@ -115,18 +214,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $deliveryCost = 0.0;
             }
 
-            $total = $subtotal + $deliveryCost;
+            $total = max(0, ($subtotal - $discountAmount)) + $deliveryCost;
             $orderNumber = 'OBM-' . strtoupper(bin2hex(random_bytes(4)));
 
             $orderStmt = $db->prepare("INSERT INTO orders (
                 order_number, customer_name, customer_email, customer_phone, phone, whatsapp, 
                 delivery_address, address, district_name, district, upazila, post_office, country,
-                subtotal, delivery_cost, delivery_charge, total_amount, grand_total, 
+                subtotal, delivery_cost, delivery_charge, discount_amount, coupon_code, total_amount, grand_total, 
                 payment_method, payment_number, transaction_id, status, notes, created_at, updated_at
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, 
                 ?, ?, ?, ?, ?, ?, 'Bangladesh',
-                ?, ?, ?, ?, ?, 
+                ?, ?, ?, ?, ?, ?, ?, 
                 ?, ?, ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             )");
             
@@ -146,6 +245,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $subtotal,
                 $deliveryCost,
                 $deliveryCost,
+                $discountAmount,
+                $couponCode,
                 $total,
                 $total,
                 $paymentMethod,
@@ -155,6 +256,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
 
             $orderId = $db->lastInsertId();
+
+            // Update Coupon usage count
+            if (!empty($couponCode)) {
+                try {
+                    $db->prepare("UPDATE coupons SET used_count = used_count + 1 WHERE code = ?")->execute([$couponCode]);
+                } catch (Exception $exCp) {}
+            }
 
             // Auto-heal missing order_items columns for legacy MySQL tables
             try {
@@ -189,26 +297,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // Mark any cart abandonment session as recovered
+            // Mark cart abandonment session as recovered
             try {
                 $db->prepare("UPDATE cart_abandonments SET recovered = 1 WHERE session_id = ? OR customer_phone = ?")->execute([session_id(), $phone]);
             } catch (Exception $ex) {}
 
-            // Trigger Realtime Telegram Push Notification with Interactive Action Buttons
+            // Trigger Realtime Telegram Push Notification
             require_once __DIR__ . '/includes/telegram_bot.php';
             @sendTelegramOrderAlert($orderId);
 
-            // Trigger Automated SMTP Email Confirmation & Admin Invoice
+            // Trigger Automated SMTP Email Confirmation
             require_once __DIR__ . '/includes/smtp_mailer.php';
             @sendOrderEmailNotifications($orderId);
 
-            // Clear Cart
+            // Clear session cart and applied coupon
             unset($_SESSION['cart']);
+            unset($_SESSION['applied_coupon']);
 
-            header('Location: order-success.php?id=' . $orderId . '&order_number=' . urlencode($orderNumber));
+            header('Location: order-success.php?order=' . $orderNumber);
             exit;
         } catch (Exception $e) {
-            $error = 'Failed to create order: ' . $e->getMessage();
+            $error = 'Failed to process order: ' . $e->getMessage();
         }
     }
 }
@@ -216,19 +325,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $pageTitle = 'Express Checkout - OnlineBdMart';
 require_once 'includes/header.php';
 
-$bkashNum = $settings['payment_bkash_number'] ?? '01775153740';
-$nagadNum = $settings['payment_nagad_number'] ?? '01775153740';
-$rocketNum = $settings['payment_rocket_number'] ?? '01775153740';
-$bankName = $settings['payment_bank_name'] ?? 'Islami Bank Bangladesh Ltd';
-$bankAcc = $settings['payment_bank_acc_no'] ?? '2050123456789012';
-$bankTitle = $settings['payment_bank_acc_name'] ?? 'OnlineBdMart Enterprise';
-$bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
+// Payment gateway numbers
+$bkashNum = $settings['bkash_number'] ?? '01700000000';
+$nagadNum = $settings['nagad_number'] ?? '01700000000';
+$rocketNum = $settings['rocket_number'] ?? '01700000000';
+$bankName = $settings['bank_name'] ?? 'City Bank Ltd';
+$bankAcc = $settings['bank_account_number'] ?? '1102938481001';
 ?>
 
-<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
     <div class="mb-8">
         <h1 class="text-2xl sm:text-3xl font-extrabold font-serif text-slate-900">Complete Your Order</h1>
-        <p class="text-xs text-slate-500 mt-1">Cash on delivery available across all 64 districts with digital & bank payment options.</p>
+        <p class="text-xs text-slate-500 mt-1">Cash on delivery available across all 64 districts with digital coupon & bank payment options.</p>
     </div>
 
     <?php if ($error): ?>
@@ -248,7 +356,7 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
                     </h2>
                 </div>
 
-                <!-- 2 Options for Logged in Customers vs Sign in Banner for Guests -->
+                <!-- 2 Options for Logged in Customers -->
                 <?php if ($isLoggedIn): ?>
                 <div class="p-4 bg-indigo-50/70 border border-indigo-100 rounded-2xl space-y-3 text-xs">
                     <span class="font-extrabold text-indigo-950 uppercase tracking-wider text-[10px] block">Choose Delivery Address Option:</span>
@@ -263,93 +371,84 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
                         <label class="flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-slate-200 hover:border-indigo-400" id="optNewLabel">
                             <input type="radio" name="address_choice" value="new" onchange="toggleAddressChoice('new')" class="text-indigo-600">
                             <div>
-                                <span class="font-bold text-slate-900 block">Ship to a Different Address</span>
-                                <span class="text-[11px] text-slate-500">For friend, office or gift</span>
+                                <span class="font-bold text-slate-900 block">+ Ship to Different Address</span>
+                                <span class="text-[11px] text-slate-500">Enter a new receiver address</span>
                             </div>
                         </label>
                     </div>
                 </div>
                 <?php else: ?>
-                <div class="p-3.5 bg-indigo-50/80 border border-indigo-100 rounded-2xl flex items-center justify-between text-xs text-indigo-900">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-user-circle text-indigo-600 text-base"></i>
-                        <span>Have an account? <a href="login.php?redirect=checkout.php" class="font-extrabold text-indigo-600 underline">Sign In</a> to auto-fill your saved address.</span>
+                <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-2.5">
+                        <i class="fas fa-user-circle text-indigo-600 text-lg"></i>
+                        <span>Already have an account? <a href="login.php" class="text-indigo-600 font-bold hover:underline">Log in</a> for 1-click address auto-fill.</span>
                     </div>
                 </div>
                 <?php endif; ?>
 
-                <!-- Form Fields (Auto-filled when logged in) -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Full Name (গ্রাহকের নাম) *</label>
-                        <input type="text" name="customer_name" id="inCustomerName" value="<?= htmlspecialchars($custName) ?>" required placeholder="e.g. Arif Hossain" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <label class="block font-bold text-slate-700 mb-1">Your Full Name (আপনার নাম) *</label>
+                        <input type="text" name="customer_name" id="inpCustName" value="<?= htmlspecialchars($custName) ?>" required placeholder="e.g. Arif Hossain" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Mobile Phone Number (সচল মোবাইল নাম্বার) *</label>
-                        <input type="tel" name="customer_phone" id="inCustomerPhone" value="<?= htmlspecialchars($custPhone) ?>" required placeholder="017xxxxxxxx" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none font-mono">
+                        <label class="block font-bold text-slate-700 mb-1">Phone Number (সচল মোবাইল নাম্বার) *</label>
+                        <input type="tel" name="customer_phone" id="inpCustPhone" value="<?= htmlspecialchars($custPhone) ?>" required placeholder="017xxxxxxxx" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none font-bold text-indigo-600">
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Email Address (ইমেইল - optional)</label>
-                        <input type="email" name="customer_email" id="inCustomerEmail" value="<?= htmlspecialchars($custEmail) ?>" placeholder="arif@example.com" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <label class="block font-bold text-slate-700 mb-1">Email Address (ইমেইল - Optional)</label>
+                        <input type="email" name="customer_email" id="inpCustEmail" value="<?= htmlspecialchars($custEmail) ?>" placeholder="arif@example.com" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Select Delivery District (জেলা) *</label>
-                        <select name="district" id="districtSelect" onchange="updateDeliveryFee()" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50">
+                        <label class="block font-bold text-slate-700 mb-1">District / City (জেলা) *</label>
+                        <select name="district" id="inpCustDistrict" onchange="updateDeliveryCharge(this.value)" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none font-bold text-slate-800 bg-white">
                             <?php foreach ($districts as $d): ?>
-                            <option value="<?= htmlspecialchars($d['name']) ?>" data-fee="<?= $d['delivery_fee'] ?>" data-time="<?= htmlspecialchars($d['estimated_days'] ?? '2-4 days') ?>" <?= ($d['name'] === $custDistrict) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($d['name']) ?> (<?= htmlspecialchars($d['division_name']) ?>) - ৳<?= number_format($d['delivery_fee'], 0) ?> [<?= htmlspecialchars($d['estimated_days'] ?? '2-4 days') ?>]
+                            <option value="<?= htmlspecialchars($d['name']) ?>" data-fee="<?= $d['delivery_fee'] ?>" data-days="<?= htmlspecialchars($d['estimated_days']) ?>" <?= $d['name'] === $custDistrict ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($d['name']) ?> (<?= htmlspecialchars($d['division_name']) ?>) - ৳<?= number_format($d['delivery_fee'], 0) ?>
                             </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                 </div>
 
-                <!-- Upazila, Post Office, Country -->
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Upazila / Thana (উপজেলা / থানা) *</label>
-                        <input type="text" name="upazila" id="inCustomerUpazila" value="<?= htmlspecialchars($custUpazila) ?>" placeholder="e.g. Tangail Sadar / Mirpur" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <label class="block font-bold text-slate-700 mb-1">Thana / Upazila (থানা / উপজেলা)</label>
+                        <input type="text" name="upazila" id="inpCustUpazila" value="<?= htmlspecialchars($custUpazila) ?>" placeholder="e.g. Mirpur, Dhanmondi, Savar" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Post Office / Zip Code (ডাকঘর)</label>
-                        <input type="text" name="post_office" id="inCustomerPostOffice" value="<?= htmlspecialchars($custPostOffice) ?>" placeholder="e.g. Tangail 1900" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Country (দেশ)</label>
-                        <input type="text" name="country" value="Bangladesh" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 outline-none" readonly>
+                        <label class="block font-bold text-slate-700 mb-1">Post Office / Area (পোস্ট অফিস / এলাকা)</label>
+                        <input type="text" name="post_office" id="inpCustPostOffice" value="<?= htmlspecialchars($custPostOffice) ?>" placeholder="e.g. Mirpur-10" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none">
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Full Street Address / Village / Landmark (বাড়ি / গ্রাম / রোড নং) *</label>
-                    <textarea name="delivery_address" id="inCustomerAddress" rows="2" required placeholder="House/Flat No, Road Name, Area/Thana, Landmark..." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none"><?= htmlspecialchars($custAddress) ?></textarea>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Delivery Instructions / Notes (Optional)</label>
-                    <input type="text" name="notes" placeholder="e.g. Call before delivery, deliver after 2 PM" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                <div class="text-xs">
+                    <label class="block font-bold text-slate-700 mb-1">Full Detailed Delivery Address (সম্পূর্ণ ঠিকানা - বাসা নং, রোড নং, এলাকা) *</label>
+                    <textarea name="delivery_address" id="inpCustAddress" rows="2" required placeholder="House # 12, Road # 4, Block # B, Mirpur-10, Dhaka" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none"><?= htmlspecialchars($custAddress) ?></textarea>
                 </div>
             </div>
 
             <!-- Payment Method Selection -->
-            <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-4 shadow-sm">
-                <h2 class="text-base font-extrabold text-slate-900 border-b pb-3 flex items-center gap-2">
-                    <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">2</span>
-                    Select Payment Method
-                </h2>
+            <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-sm">
+                <div class="border-b pb-3 flex items-center justify-between">
+                    <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">2</span>
+                        Payment Method (পেমেন্ট পদ্ধতি)
+                    </h2>
+                </div>
 
                 <div class="space-y-3 text-xs">
                     <!-- COD -->
-                    <label class="flex items-center gap-3 p-4 rounded-2xl border-2 border-indigo-600 bg-indigo-50/40 cursor-pointer">
+                    <label class="flex items-center gap-3 p-4 rounded-2xl border-2 border-indigo-600 bg-indigo-50/50 cursor-pointer">
                         <input type="radio" name="payment_method" value="cod" checked onchange="togglePaymentInputs('cod')" class="text-indigo-600 focus:ring-indigo-500">
                         <div class="flex-1">
-                            <span class="font-extrabold text-slate-900 block">Cash on Delivery (COD)</span>
-                            <span class="text-slate-500 text-[11px]">Pay cash to the courier rider upon delivery at your doorstep.</span>
+                            <span class="font-extrabold text-slate-900 block text-sm">Cash on Delivery (ক্যাশ অন ডেলিভারি)</span>
+                            <span class="text-slate-500 text-[11px]">Pay with cash when the delivery rider arrives at your doorstep. Open parcel inspection available.</span>
                         </div>
-                        <i class="fas fa-hand-holding-dollar text-2xl text-emerald-600"></i>
+                        <i class="fas fa-hand-holding-dollar text-xl text-indigo-600"></i>
                     </label>
 
                     <!-- bKash -->
@@ -392,25 +491,25 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
                         <i class="fas fa-building-columns text-xl text-cyan-600"></i>
                     </label>
 
-                    <!-- TrxID / Deposit reference input box -->
+                    <!-- TrxID input box -->
                     <div id="trxIdContainer" class="hidden p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 mb-1">Sender Mobile Number (যে নাম্বার থেকে টাকা পাঠিয়েছেন) *</label>
                             <input type="tel" name="payment_number" placeholder="017xxxxxxxx" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold outline-none bg-white">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1" id="trxLabel">Enter Transaction ID (TrxID) / Deposit Slip Reference *</label>
-                            <input type="text" name="transaction_id" id="trxInput" placeholder="e.g. 9J8A7D6F5E" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold outline-none uppercase bg-white">
-                            <p class="text-[10px] text-slate-500 mt-1" id="trxHelp">We will verify the transaction reference before dispatching your parcel.</p>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Enter Transaction ID (TrxID) / Deposit Slip Reference *</label>
+                            <input type="text" name="transaction_id" placeholder="e.g. 9J8A7D6F5E" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold outline-none uppercase bg-white">
+                            <p class="text-[10px] text-slate-500 mt-1">We will verify the transaction reference before dispatching your parcel.</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Order Summary & Place Button -->
+        <!-- Right Column: Order Summary, Coupon Box & Checkout Button -->
         <div class="space-y-6">
-            <div class="bg-white rounded-3xl border border-slate-200 p-6 space-y-6 shadow-sm">
+            <div class="bg-white rounded-3xl border border-slate-200 p-6 space-y-5 shadow-sm">
                 <h3 class="text-base font-extrabold text-slate-900 border-b pb-3">Your Items (<?= count($cart) ?>)</h3>
                 
                 <div class="space-y-3 max-h-64 overflow-y-auto pr-1">
@@ -438,119 +537,206 @@ $bankBranch = $settings['payment_bank_branch'] ?? 'Tangail Branch';
                     <?php endforeach; ?>
                 </div>
 
+                <!-- Interactive Coupon Discount Box -->
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                    <label class="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <i class="fas fa-ticket text-indigo-600"></i> Have a Coupon Code? (কুপন কোড)
+                    </label>
+                    
+                    <div id="couponAppliedBox" class="<?= !empty($appliedCoupon) ? '' : 'hidden' ?> flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <i class="fas fa-circle-check text-emerald-600"></i>
+                            <span class="font-mono font-black text-emerald-800" id="appliedCouponCodeDisplay"><?= htmlspecialchars($appliedCoupon['code'] ?? '') ?></span>
+                            <span class="text-emerald-700 font-bold" id="appliedCouponDiscountDisplay">(-৳<?= number_format($discountAmount, 2) ?>)</span>
+                        </div>
+                        <button type="button" onclick="removeCouponAjax()" class="text-rose-600 hover:text-rose-800 font-bold text-xs p-1">✕ Remove</button>
+                    </div>
+
+                    <div id="couponInputBox" class="<?= empty($appliedCoupon) ? '' : 'hidden' ?> flex items-center gap-2">
+                        <input type="text" id="couponCodeInput" placeholder="Enter Code (e.g. SPECIAL100)" class="flex-1 px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-mono font-bold uppercase outline-none focus:border-indigo-500 bg-white">
+                        <button type="button" onclick="applyCouponAjax()" id="applyCouponBtn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow transition shrink-0">
+                            Apply
+                        </button>
+                    </div>
+                    <div id="couponFeedbackMsg" class="hidden text-[11px] font-bold"></div>
+                </div>
+
+                <!-- Price Calculations Breakdown -->
                 <div class="pt-4 border-t border-slate-100 space-y-2.5 text-xs">
                     <div class="flex justify-between text-slate-600">
                         <span>Items Subtotal</span>
-                        <span class="font-bold text-slate-900">৳<?= number_format($subtotal, 2) ?></span>
+                        <span class="font-bold text-slate-900" id="subtotalDisplay">৳<?= number_format($subtotal, 2) ?></span>
                     </div>
+
+                    <div id="discountRow" class="<?= $discountAmount > 0 ? '' : 'hidden' ?> flex justify-between text-emerald-600 font-bold">
+                        <span>Coupon Discount</span>
+                        <span id="discountDisplay">-৳<?= number_format($discountAmount, 2) ?></span>
+                    </div>
+
                     <div class="flex justify-between text-slate-600">
                         <span>Delivery Charge</span>
-                        <span id="checkoutDeliveryFee" class="font-bold text-slate-900">৳80.00</span>
+                        <span id="checkoutDeliveryFee" class="font-bold text-slate-900">৳120.00</span>
                     </div>
+                    
                     <div class="flex justify-between text-slate-600">
                         <span>Estimated Arrival</span>
                         <span id="checkoutEstDays" class="font-bold text-emerald-600">1-2 days</span>
                     </div>
-                    <div class="pt-3 border-t flex justify-between text-sm font-black text-slate-900">
+
+                    <div class="pt-3 border-t flex justify-between text-base font-black text-slate-900">
                         <span>Total Payable</span>
-                        <span id="checkoutTotalAmount" class="text-indigo-600 text-base">৳<?= number_format($subtotal + 80, 2) ?></span>
+                        <span class="text-indigo-600 font-black text-lg" id="checkoutTotalPayable">৳<?= number_format(max(0, $subtotal - $discountAmount) + 120.0, 2) ?></span>
                     </div>
                 </div>
 
-                <button type="submit" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-2xl shadow-xl transition flex items-center justify-center gap-2">
-                    <i class="fas fa-lock"></i> Confirm & Place Order
+                <button type="submit" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm rounded-2xl shadow-xl shadow-indigo-600/25 transition active:scale-98 flex items-center justify-center gap-2">
+                    <i class="fas fa-lock text-xs"></i> <span>Confirm & Place Order</span>
                 </button>
 
-                <p class="text-[10px] text-center text-slate-400">By placing this order, you agree to OnlineBdMart's terms & return policy.</p>
+                <p class="text-center text-[10px] text-slate-400">By placing order, you agree to our 7-day return & replacement policy.</p>
             </div>
         </div>
     </form>
 </div>
 
 <script>
-    const subtotal = <?= $subtotal ?>;
-    const savedData = {
-        name: <?= json_encode($custName) ?>,
-        phone: <?= json_encode($custPhone) ?>,
-        email: <?= json_encode($custEmail) ?>,
-        district: <?= json_encode($custDistrict) ?>,
-        upazila: <?= json_encode($custUpazila) ?>,
-        post_office: <?= json_encode($custPostOffice) ?>,
-        address: <?= json_encode($custAddress) ?>
-    };
+let currentSubtotal = <?= (float)$subtotal ?>;
+let currentDiscount = <?= (float)$discountAmount ?>;
+let currentDeliveryFee = 120.0;
 
-    function toggleAddressChoice(choice) {
-        const inName = document.getElementById('inCustomerName');
-        const inPhone = document.getElementById('inCustomerPhone');
-        const inEmail = document.getElementById('inCustomerEmail');
-        const inUpazila = document.getElementById('inCustomerUpazila');
-        const inPost = document.getElementById('inCustomerPostOffice');
-        const inAddr = document.getElementById('inCustomerAddress');
-        const selDist = document.getElementById('districtSelect');
-        const optSaved = document.getElementById('optSavedLabel');
-        const optNew = document.getElementById('optNewLabel');
+function updateDeliveryCharge(districtName) {
+    const sel = document.getElementById('inpCustDistrict');
+    const opt = sel.options[sel.selectedIndex];
+    let fee = parseFloat(opt.getAttribute('data-fee') || 120);
+    const days = opt.getAttribute('data-days') || '1-2 days';
 
-        if (choice === 'saved') {
-            if (inName) inName.value = savedData.name || '';
-            if (inPhone) inPhone.value = savedData.phone || '';
-            if (inEmail) inEmail.value = savedData.email || '';
-            if (inUpazila) inUpazila.value = savedData.upazila || '';
-            if (inPost) inPost.value = savedData.post_office || '';
-            if (inAddr) inAddr.value = savedData.address || '';
-            if (selDist && savedData.district) selDist.value = savedData.district;
+    if (currentSubtotal >= 2000) {
+        fee = 0.0;
+        document.getElementById('checkoutDeliveryFee').textContent = 'FREE (৳0.00)';
+    } else {
+        document.getElementById('checkoutDeliveryFee').textContent = '৳' + fee.toFixed(2);
+    }
+
+    currentDeliveryFee = fee;
+    document.getElementById('checkoutEstDays').textContent = days;
+    recalculateTotal();
+}
+
+function recalculateTotal() {
+    const payable = Math.max(0, currentSubtotal - currentDiscount) + currentDeliveryFee;
+    document.getElementById('checkoutTotalPayable').textContent = '৳' + payable.toFixed(2);
+}
+
+function applyCouponAjax() {
+    const input = document.getElementById('couponCodeInput');
+    const code = input.value.trim();
+    const msg = document.getElementById('couponFeedbackMsg');
+    const btn = document.getElementById('applyCouponBtn');
+
+    if (!code) {
+        msg.textContent = 'অনুগ্রহ করে কুপন কোড লিখুন।';
+        msg.className = 'text-[11px] font-bold text-rose-500 block mt-1';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    const formData = new FormData();
+    formData.append('coupon_action', 'apply');
+    formData.append('coupon_code', code);
+
+    fetch('checkout.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.textContent = 'Apply';
+
+        if (data.success) {
+            currentDiscount = parseFloat(data.discount);
+            document.getElementById('appliedCouponCodeDisplay').textContent = data.code;
+            document.getElementById('appliedCouponDiscountDisplay').textContent = '(-৳' + currentDiscount.toFixed(2) + ')';
+            document.getElementById('discountDisplay').textContent = '-৳' + currentDiscount.toFixed(2);
+            document.getElementById('discountRow').classList.remove('hidden');
+
+            document.getElementById('couponInputBox').classList.add('hidden');
+            document.getElementById('couponAppliedBox').classList.remove('hidden');
             
-            if (optSaved) { optSaved.className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-indigo-600 shadow-sm ring-1 ring-indigo-600/20'; }
-            if (optNew) { optNew.className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-slate-200 hover:border-indigo-400'; }
+            msg.textContent = data.message;
+            msg.className = 'text-[11px] font-bold text-emerald-600 block mt-1';
+
+            recalculateTotal();
         } else {
-            if (inName) inName.value = '';
-            if (inPhone) inPhone.value = '';
-            if (inUpazila) inUpazila.value = '';
-            if (inPost) inPost.value = '';
-            if (inAddr) inAddr.value = '';
-
-            if (optSaved) { optSaved.className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-slate-200 hover:border-indigo-400'; }
-            if (optNew) { optNew.className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-indigo-600 shadow-sm ring-1 ring-indigo-600/20'; }
+            msg.textContent = data.message;
+            msg.className = 'text-[11px] font-bold text-rose-500 block mt-1';
         }
-        updateDeliveryFee();
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.textContent = 'Apply';
+        msg.textContent = 'কুপন প্রয়োগ করতে ত্রুটি হয়েছে।';
+        msg.className = 'text-[11px] font-bold text-rose-500 block mt-1';
+    });
+}
+
+function removeCouponAjax() {
+    const formData = new FormData();
+    formData.append('coupon_action', 'remove');
+
+    fetch('checkout.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        currentDiscount = 0.0;
+        document.getElementById('discountRow').classList.add('hidden');
+        document.getElementById('couponAppliedBox').classList.add('hidden');
+        document.getElementById('couponInputBox').classList.remove('hidden');
+        document.getElementById('couponCodeInput').value = '';
+        
+        const msg = document.getElementById('couponFeedbackMsg');
+        msg.textContent = data.message;
+        msg.className = 'text-[11px] font-bold text-slate-500 block mt-1';
+
+        recalculateTotal();
+    });
+}
+
+function togglePaymentInputs(method) {
+    const trxBox = document.getElementById('trxIdContainer');
+    if (method === 'cod') {
+        trxBox.classList.add('hidden');
+    } else {
+        trxBox.classList.remove('hidden');
     }
+}
 
-    function updateDeliveryFee() {
-        const sel = document.getElementById('districtSelect');
-        if (!sel || sel.selectedIndex < 0) return;
-        const opt = sel.options[sel.selectedIndex];
-        let fee = parseFloat(opt.getAttribute('data-fee') || 80);
-        const days = opt.getAttribute('data-time') || '1-2 days';
-
-        if (subtotal >= 2000) {
-            fee = 0;
-            document.getElementById('checkoutDeliveryFee').textContent = 'FREE';
-        } else {
-            document.getElementById('checkoutDeliveryFee').textContent = '৳' + fee.toFixed(2);
-        }
-
-        document.getElementById('checkoutEstDays').textContent = days;
-        document.getElementById('checkoutTotalAmount').textContent = '৳' + (subtotal + fee).toFixed(2);
+function toggleAddressChoice(type) {
+    const isSaved = (type === 'saved');
+    document.getElementById('inpCustName').value = isSaved ? '<?= addslashes($custName) ?>' : '';
+    document.getElementById('inpCustPhone').value = isSaved ? '<?= addslashes($custPhone) ?>' : '';
+    document.getElementById('inpCustEmail').value = isSaved ? '<?= addslashes($custEmail) ?>' : '';
+    document.getElementById('inpCustAddress').value = isSaved ? '<?= addslashes($custAddress) ?>' : '';
+    document.getElementById('inpCustUpazila').value = isSaved ? '<?= addslashes($custUpazila) ?>' : '';
+    document.getElementById('inpCustPostOffice').value = isSaved ? '<?= addslashes($custPostOffice) ?>' : '';
+    
+    if (isSaved) {
+        document.getElementById('optSavedLabel').className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-indigo-600 shadow-sm ring-1 ring-indigo-600/20';
+        document.getElementById('optNewLabel').className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-slate-200 hover:border-indigo-400';
+    } else {
+        document.getElementById('optSavedLabel').className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-slate-200 hover:border-indigo-400';
+        document.getElementById('optNewLabel').className = 'flex items-center gap-2.5 p-3 rounded-xl border bg-white cursor-pointer border-indigo-600 shadow-sm ring-1 ring-indigo-600/20';
     }
+}
 
-    function togglePaymentInputs(method) {
-        const box = document.getElementById('trxIdContainer');
-        const label = document.getElementById('trxLabel');
-        const help = document.getElementById('trxHelp');
-
-        if (method === 'cod') {
-            box.classList.add('hidden');
-        } else if (method === 'bank') {
-            box.classList.remove('hidden');
-            label.textContent = 'Enter Bank Deposit Slip Number / Ref No *';
-            help.textContent = 'Bank: <?= addslashes($bankName) ?> | Acc No: <?= addslashes($bankAcc) ?> (<?= addslashes($bankTitle) ?>)';
-        } else {
-            box.classList.remove('hidden');
-            label.textContent = 'Enter ' + method.toUpperCase() + ' Transaction ID (TrxID) *';
-            help.textContent = 'Enter the 10-character transaction reference code from your SMS.';
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', updateDeliveryFee);
+// Initial calculation on load
+window.addEventListener('DOMContentLoaded', () => {
+    updateDeliveryCharge(document.getElementById('inpCustDistrict').value);
+});
 </script>
 
 <?php require_once 'includes/footer.php'; ?>

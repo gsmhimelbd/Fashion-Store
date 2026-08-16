@@ -61,6 +61,16 @@ try {
     }
 
     $allProducts = $db->query("SELECT p.id, p.name, p.slug, p.price, p.sale_price, p.image_path, c.name as category FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.is_active = 1")->fetchAll();
+
+    // Fetch Active Top Header Coupon Banner
+    $topHeaderCoupon = null;
+    try {
+        $cQuery = $db->query("SELECT * FROM coupons WHERE show_in_header = 1 AND is_active = 1 AND (expiry_date IS NULL OR expiry_date >= CURDATE()) ORDER BY id DESC LIMIT 1");
+        if ($cQuery) {
+            $topHeaderCoupon = $cQuery->fetch();
+        }
+    } catch (Exception $exC) {}
+
 } catch (Exception $e) {
     $categories = [];
     $allProducts = [];
@@ -108,6 +118,23 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-600 selection:text-white overflow-x-hidden w-full max-w-full">
+
+    <!-- 0. TOP PROMO / COUPON ANNOUNCEMENT BANNER -->
+    <?php if (!empty($topHeaderCoupon)): ?>
+    <div class="bg-gradient-to-r from-amber-500 via-rose-600 to-indigo-700 text-white text-xs py-2 px-3 sm:px-4 shadow-sm border-b border-white/20">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-center sm:text-left">
+            <div class="flex items-center gap-2 mx-auto sm:mx-0 min-w-0">
+                <span class="px-2 py-0.5 rounded-full bg-slate-950 text-amber-300 font-black text-[10px] uppercase tracking-wider animate-pulse shrink-0">Special Promo</span>
+                <p class="font-bold text-[11px] sm:text-xs truncate"><?= htmlspecialchars($topHeaderCoupon['header_banner_text'] ?: ('Use Promo Code "' . $topHeaderCoupon['code'] . '" to get discount at checkout!')) ?></p>
+            </div>
+            <div class="hidden md:flex items-center gap-2.5 shrink-0">
+                <span class="text-xs">Coupon: <strong class="bg-slate-950 text-amber-300 font-mono font-black px-2.5 py-0.5 rounded-lg border border-amber-300/40 select-all cursor-pointer tracking-wider" onclick="navigator.clipboard.writeText('<?= addslashes($topHeaderCoupon['code']) ?>'); alert('✓ Copied coupon code: <?= addslashes($topHeaderCoupon['code']) ?>');"><?= htmlspecialchars($topHeaderCoupon['code']) ?></strong></span>
+                <span class="text-white/60">|</span>
+                <a href="shop.php" class="underline hover:text-amber-200 font-extrabold text-xs">Shop Now &rarr;</a>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- 1. TOP UTILITY BAR -->
     <div class="bg-slate-900 text-slate-300 text-xs py-2 px-3 sm:px-4 border-b border-slate-800">
