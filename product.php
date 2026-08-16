@@ -14,10 +14,10 @@ try {
     $db = getDB();
 
     // Auto-heal schema
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `colors` text DEFAULT NULL"); } catch (Exception $ex) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `sizes` text DEFAULT NULL"); } catch (Exception $ex) {}
-    try { $db->exec("ALTER TABLE `reviews` ADD COLUMN `product_id` int(11) DEFAULT NULL"); } catch (Exception $ex) {}
-    try { $db->exec("ALTER TABLE `reviews` ADD COLUMN `is_approved` tinyint(1) DEFAULT 0"); } catch (Exception $ex) {}
+    try { $db->exec("ALTER TABLE `products` ADD `colors` text DEFAULT NULL"); } catch (Exception $ex) {}
+    try { $db->exec("ALTER TABLE `products` ADD `sizes` text DEFAULT NULL"); } catch (Exception $ex) {}
+    try { $db->exec("ALTER TABLE `reviews` ADD `product_id` int(11) DEFAULT NULL"); } catch (Exception $ex) {}
+    try { $db->exec("ALTER TABLE `reviews` ADD `is_approved` tinyint(1) DEFAULT 0"); } catch (Exception $ex) {}
 
     // Handle Customer Review Submission
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review'])) {
@@ -95,19 +95,20 @@ try {
         exit;
     }
 
-    // Parse Available Colors
+    $basePrice = ($product['sale_price'] && $product['sale_price'] > 0 && $product['sale_price'] < $product['price']) ? (float)$product['sale_price'] : (float)$product['price'];
+
+    // 1. Parse Available Colors
     $productColors = [];
     if (!empty($product['colors'])) {
         $productColors = array_filter(array_map('trim', explode(',', $product['colors'])));
     }
 
-    // Parse Available Sizes / Liters & Custom Price Mapping
+    // 2. Parse Available Sizes / Liters & Custom Price Mapping
     $productSizes = [];
-    $basePrice = ($product['sale_price'] && $product['sale_price'] > 0 && $product['sale_price'] < $product['price']) ? (float)$product['sale_price'] : (float)$product['price'];
-    
     if (!empty($product['sizes'])) {
-        try {
-            $parsed = json_decode($product['sizes'], true);
+        $rawS = trim($product['sizes']);
+        if (str_starts_with($rawS, '[') || str_starts_with($rawS, '{')) {
+            $parsed = json_decode($rawS, true);
             if (is_array($parsed)) {
                 foreach ($parsed as $item) {
                     $sName = trim($item['size'] ?? ($item['name'] ?? ''));
@@ -120,22 +121,38 @@ try {
                     }
                 }
             }
-        } catch (Exception $exS) {}
+        }
 
         if (empty($productSizes)) {
-            $rawParts = explode(',', $product['sizes']);
+            $rawParts = explode(',', $rawS);
             foreach ($rawParts as $rp) {
+                $rp = trim($rp);
                 if (str_contains($rp, ':')) {
                     [$sN, $sP] = explode(':', $rp);
                     $productSizes[] = [
                         'size' => trim($sN),
                         'price' => is_numeric(trim($sP)) ? (float)trim($sP) : $basePrice
                     ];
-                } elseif (trim($rp) !== '') {
+                } elseif ($rp !== '') {
                     $productSizes[] = [
-                        'size' => trim($rp),
+                        'size' => $rp,
                         'price' => $basePrice
                     ];
+                }
+            }
+        }
+    }
+
+    // Auto-detect Liters from Title/Specs if not yet configured in DB
+    if (empty($productSizes)) {
+        $textToScan = ($product['name'] ?? '') . ' ' . ($product['short_description'] ?? '') . ' ' . ($product['specifications'] ?? '');
+        if (preg_match_all('/\b([0-9]+(?:\.[0-9]+)?\s*(?:Liter|Litre|L|ml))\b/i', $textToScan, $matches)) {
+            $foundUnits = array_unique(array_map('trim', $matches[1]));
+            if (!empty($foundUnits)) {
+                // If only 1 unit found like 8L, also add common companions if cooker/bottle
+                $uList = array_values($foundUnits);
+                foreach ($uList as $u) {
+                    $productSizes[] = ['size' => $u, 'price' => $basePrice];
                 }
             }
         }
@@ -161,7 +178,7 @@ try {
     }
 
     // Initial selected price (first size price or base price)
-    $initialPrice = (!empty($productSizes) && isset($productSizes[0]['price'])) ? $productSizes[0]['price'] : $basePrice;
+    $initialPrice = (!empty($productSizes) && isset($productSizes[0]['price'])) ? (float)$productSizes[0]['price'] : $basePrice;
 
     // Fetch Approved Reviews for this Product
     $prodReviews = [];

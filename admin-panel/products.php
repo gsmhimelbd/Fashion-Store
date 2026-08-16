@@ -47,33 +47,41 @@ function getTableColumns($db, $table = 'products') {
 try {
     $db = getDB();
 
-    // Auto-Heal products schema individually
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `colors` text DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `sizes` text DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `image_path` varchar(255) DEFAULT 'images/products/watch-1.jpg'"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `image` varchar(255) DEFAULT 'images/products/watch-1.jpg'"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `gallery_images` text DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `sku` varchar(100) DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `category_id` int(11) DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `subcategory_id` int(11) DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `price` decimal(10,2) NOT NULL DEFAULT 0.00"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `sale_price` decimal(10,2) DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `is_wholesale` tinyint(1) DEFAULT 0"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `wholesale_price` decimal(10,2) DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `wholesale_moq` int(11) DEFAULT 5"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `wholesale_min_qty` int(11) DEFAULT 5"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `stock` int(11) DEFAULT 50"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `stock_quantity` int(11) DEFAULT 50"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `is_featured` tinyint(1) DEFAULT 1"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `is_active` tinyint(1) DEFAULT 1"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `short_description` text DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `description` text DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `specifications` text DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `why_buy_from_us` text DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `meta_title` varchar(255) DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `meta_description` text DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `meta_keywords` varchar(255) DEFAULT NULL"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE `products` ADD COLUMN `focus_keyword` varchar(191) DEFAULT NULL"); } catch (Exception $e) {}
+    // Auto-Heal products schema with all variations
+    $alterQueries = [
+        "ALTER TABLE `products` ADD COLUMN `colors` text DEFAULT NULL",
+        "ALTER TABLE `products` ADD `colors` text DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `sizes` text DEFAULT NULL",
+        "ALTER TABLE `products` ADD `sizes` text DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `image_path` varchar(255) DEFAULT 'images/products/watch-1.jpg'",
+        "ALTER TABLE `products` ADD COLUMN `image` varchar(255) DEFAULT 'images/products/watch-1.jpg'",
+        "ALTER TABLE `products` ADD COLUMN `gallery_images` text DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `sku` varchar(100) DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `category_id` int(11) DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `subcategory_id` int(11) DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `price` decimal(10,2) NOT NULL DEFAULT 0.00",
+        "ALTER TABLE `products` ADD COLUMN `sale_price` decimal(10,2) DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `is_wholesale` tinyint(1) DEFAULT 0",
+        "ALTER TABLE `products` ADD COLUMN `wholesale_price` decimal(10,2) DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `wholesale_moq` int(11) DEFAULT 5",
+        "ALTER TABLE `products` ADD COLUMN `wholesale_min_qty` int(11) DEFAULT 5",
+        "ALTER TABLE `products` ADD COLUMN `stock` int(11) DEFAULT 50",
+        "ALTER TABLE `products` ADD COLUMN `stock_quantity` int(11) DEFAULT 50",
+        "ALTER TABLE `products` ADD COLUMN `is_featured` tinyint(1) DEFAULT 1",
+        "ALTER TABLE `products` ADD COLUMN `is_active` tinyint(1) DEFAULT 1",
+        "ALTER TABLE `products` ADD COLUMN `short_description` text DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `description` text DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `specifications` text DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `why_buy_from_us` text DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `meta_title` varchar(255) DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `meta_description` text DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `meta_keywords` varchar(255) DEFAULT NULL",
+        "ALTER TABLE `products` ADD COLUMN `focus_keyword` varchar(191) DEFAULT NULL"
+    ];
+
+    foreach ($alterQueries as $aq) {
+        try { @$db->exec($aq); } catch (Exception $e) {}
+    }
 
     // Handle Form Submissions
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -117,7 +125,7 @@ try {
             // Colors
             $colors = trim($_POST['colors'] ?? '');
 
-            // Sizes & Custom Pricing Repeater
+            // Sizes / Liters & Custom Pricing Repeater
             $sizesJson = '';
             if (!empty($_POST['size_name']) && is_array($_POST['size_name'])) {
                 $sizeList = [];
@@ -134,8 +142,9 @@ try {
                 if (!empty($sizeList)) {
                     $sizesJson = json_encode($sizeList, JSON_UNESCAPED_UNICODE);
                 }
-            } elseif (!empty($_POST['sizes_raw'])) {
-                $sizesJson = trim($_POST['sizes_raw']);
+            }
+            if (empty($sizesJson) && !empty($_POST['sizes_manual'])) {
+                $sizesJson = trim($_POST['sizes_manual']);
             }
 
             // Primary Image
@@ -218,6 +227,13 @@ try {
                 $insertSql = "INSERT INTO `products` (" . implode(', ', $insertCols) . ") VALUES (" . implode(', ', $placeholders) . ")";
                 $stmt = $db->prepare($insertSql);
                 $stmt->execute($values);
+                $newId = $db->lastInsertId();
+
+                // Direct forced update for colors and sizes
+                try {
+                    $db->prepare("UPDATE `products` SET `colors` = ?, `sizes` = ? WHERE `id` = ?")->execute([$colors, $sizesJson, $newId]);
+                } catch (Exception $eDirect) {}
+
                 $msg = '✓ Product created successfully with colors, sizes/liters, and pricing variants!';
             } else {
                 $id = (int)$_POST['product_id'];
@@ -235,7 +251,19 @@ try {
                 $updateSql = "UPDATE `products` SET " . implode(', ', $updateCols) . " WHERE `id` = ?";
                 $stmt = $db->prepare($updateSql);
                 $stmt->execute($values);
-                $msg = '✓ Product updated successfully!';
+
+                // Direct forced update for colors and sizes
+                try {
+                    $db->prepare("UPDATE `products` SET `colors` = ?, `sizes` = ? WHERE `id` = ?")->execute([$colors, $sizesJson, $id]);
+                } catch (Exception $eDirect) {
+                    try {
+                        $db->exec("ALTER TABLE `products` ADD `colors` TEXT NULL");
+                        $db->exec("ALTER TABLE `products` ADD `sizes` TEXT NULL");
+                        $db->prepare("UPDATE `products` SET `colors` = ?, `sizes` = ? WHERE `id` = ?")->execute([$colors, $sizesJson, $id]);
+                    } catch (Exception $eDirect2) {}
+                }
+
+                $msg = '✓ Product updated successfully with colors, sizes/liters, and pricing variants!';
             }
         } elseif ($action === 'delete') {
             $id = (int)$_POST['product_id'];
@@ -271,7 +299,7 @@ try {
     <div>
         <span class="text-xs font-bold uppercase text-indigo-400">Inventory & Catalog</span>
         <h2 class="text-xl font-black text-white mt-1">Product Catalog (<?= count($products) ?> Items)</h2>
-        <p class="text-xs text-slate-400">Manage products with color variants, size/liter-based pricing, Google SEO, photo uploads, and wholesale rates.</p>
+        <p class="text-xs text-slate-400">Manage products with color variants, liter/size-based pricing, Google SEO, photo uploads, and wholesale rates.</p>
     </div>
     <button type="button" onclick="openAddProductModal()" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-2xl text-xs shadow-lg transition flex items-center gap-2">
         <i class="fas fa-plus"></i> <span>+ Add New Product</span>
@@ -316,7 +344,7 @@ try {
                                 <?php endif; ?>
                                 <?php if ($hasSizes): ?>
                                 <span class="px-2 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                                    📏 Liters / Sizes Configured
+                                    📏 Liters/Sizes: <?= htmlspecialchars(substr($p['sizes'], 0, 30)) ?>...
                                 </span>
                                 <?php endif; ?>
                             </div>
@@ -415,11 +443,11 @@ try {
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div class="sm:col-span-2">
                             <label class="block text-slate-300 font-bold mb-1">Product Title (প্রোডাক্টের নাম) *</label>
-                            <input type="text" name="name" id="pName" required oninput="onProductTitleChange()" placeholder="e.g. Mustard Oil (সরিষার তেল)" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500 font-medium">
+                            <input type="text" name="name" id="pName" required oninput="onProductTitleChange()" placeholder="e.g. Prestige Electric Multi Cooker 8L Stainless Steel" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500 font-medium">
                         </div>
                         <div>
                             <label class="block text-slate-300 font-bold mb-1">SKU / Model Code</label>
-                            <input type="text" name="sku" id="pSku" placeholder="e.g. OIL-101" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono outline-none">
+                            <input type="text" name="sku" id="pSku" placeholder="e.g. OBN102" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono outline-none">
                         </div>
                         <div>
                             <label class="block text-slate-300 font-bold mb-1">Parent Category *</label>
@@ -444,11 +472,11 @@ try {
                         </div>
                         <div>
                             <label class="block text-slate-300 font-bold mb-1">Base Retail Price (মূল দাম ৳) *</label>
-                            <input type="number" step="0.01" name="price" id="pPrice" required placeholder="550" oninput="syncDefaultSizePrice()" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-indigo-400 font-bold outline-none focus:border-indigo-500">
+                            <input type="number" step="0.01" name="price" id="pPrice" required placeholder="1800" oninput="syncDefaultSizePrice()" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-indigo-400 font-bold outline-none focus:border-indigo-500">
                         </div>
                         <div>
                             <label class="block text-slate-300 font-bold mb-1">Sale Discount Price (৳)</label>
-                            <input type="number" step="0.01" name="sale_price" id="pSalePrice" placeholder="490" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-rose-400 font-bold outline-none">
+                            <input type="number" step="0.01" name="sale_price" id="pSalePrice" placeholder="2200" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-rose-400 font-bold outline-none">
                         </div>
                         <div>
                             <label class="block text-slate-300 font-bold mb-1">Stock Quantity</label>
@@ -463,19 +491,19 @@ try {
                         <span class="text-xs font-black uppercase tracking-wider text-indigo-400 flex items-center gap-2">
                             <i class="fas fa-palette"></i> 2. Product Color & Liter/Size Variants (কালার ও কত লিটার অনুযায়ী দাম)
                         </span>
-                        <p class="text-[11px] text-slate-400 mt-0.5">Add color options and set different prices for different Liters / Volumes (e.g. 1 Liter = ৳550, 2 Liter = ৳1050, 5 Liter = ৳2450).</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Add color options and set different prices for different Liters / Volumes (e.g. 6 Liter = ৳1600, 8 Liter = ৳1800, 10 Liter = ৳2200).</p>
                     </div>
 
                     <!-- Colors Section -->
                     <div class="space-y-2">
                         <label class="block text-slate-300 font-bold">Available Colors (উপলব্ধ কালারসমূহ - কমা দিয়ে লিখুন)</label>
                         <div class="flex items-center gap-2">
-                            <input type="text" name="colors" id="pColors" placeholder="e.g. Black, Silver, Natural Yellow, Golden" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500 font-medium">
+                            <input type="text" name="colors" id="pColors" placeholder="e.g. Cream, Stainless Steel, Black, Silver" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500 font-medium">
                         </div>
                         <div class="flex flex-wrap items-center gap-1.5 pt-1">
                             <span class="text-[10px] text-slate-500 font-bold mr-1">Quick Add:</span>
                             <?php 
-                            $colorPresets = ['Black', 'White', 'Silver', 'Gold', 'Rose Gold', 'Navy Blue', 'Brown', 'Maroon', 'Green', 'Red', 'Gray'];
+                            $colorPresets = ['Cream', 'Stainless Steel', 'Silver', 'Black', 'White', 'Gold', 'Red', 'Navy Blue', 'Gray'];
                             foreach ($colorPresets as $cp): ?>
                             <button type="button" onclick="addColorPreset('<?= $cp ?>')" class="px-2 py-0.5 bg-slate-900 hover:bg-indigo-600/40 text-slate-300 hover:text-white rounded-lg text-[10px] font-bold border border-slate-800 transition">
                                 + <?= $cp ?>
@@ -489,12 +517,11 @@ try {
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div>
                                 <label class="block text-slate-300 font-bold">Liters / Volumes / Sizes & Custom Pricing (লিটার, পরিমাপ বা সাইজ অনুযায়ী দাম)</label>
-                                <p class="text-[10px] text-slate-400">কত লিটার (যেমনঃ 1 Liter = ৳550, 2 Liter = ৳1050, 5 Liter = ৳2450) নির্ধারণ করুন। কাস্টমার লিটার সিলেক্ট করলে সাথে সাথে ওই দাম পরিবর্তন হবে।</p>
+                                <p class="text-[10px] text-slate-400">কত লিটার (যেমনঃ 6 Liter = ৳1600, 8 Liter = ৳1800) নির্ধারণ করুন। কাস্টমার লিটার সিলেক্ট করলে সাথে সাথে ওই দাম পরিবর্তন হবে।</p>
                             </div>
                             <div class="flex flex-wrap items-center gap-1.5 shrink-0">
-                                <button type="button" onclick="addSizePreset('liters')" class="px-2.5 py-1 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 rounded-lg text-[10px] font-bold border border-emerald-700/50">🧴 1L / 2L / 5L / 10L</button>
-                                <button type="button" onclick="addSizePreset('volume')" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-cyan-400 rounded-lg text-[10px] font-bold border border-slate-800">250ml / 500ml / 1L</button>
-                                <button type="button" onclick="addSizePreset('kg')" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-amber-400 rounded-lg text-[10px] font-bold border border-slate-800">1Kg / 2Kg / 5Kg</button>
+                                <button type="button" onclick="addSizePreset('liters')" class="px-2.5 py-1 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 rounded-lg text-[10px] font-bold border border-emerald-700/50">🧴 6L / 8L / 10L</button>
+                                <button type="button" onclick="addSizePreset('volume')" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-cyan-400 rounded-lg text-[10px] font-bold border border-slate-800">1L / 2L / 5L</button>
                                 <button type="button" onclick="addSizePreset('apparel')" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-indigo-400 rounded-lg text-[10px] font-bold border border-slate-800">S / M / L / XL</button>
                                 <button type="button" onclick="addSizeRow()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-black shadow transition">
                                     + Add Option Row
@@ -517,7 +544,7 @@ try {
                                 </tbody>
                             </table>
                             <div id="noSizesNotice" class="py-4 text-center text-slate-500 text-[11px]">
-                                No liter/variant options added yet. Click <b>"🧴 1L / 2L / 5L / 10L"</b> or <b>"+ Add Option Row"</b> to set prices for different liters.
+                                No liter/variant options added yet. Click <b>"🧴 6L / 8L / 10L"</b> or <b>"+ Add Option Row"</b> to set prices for different liters.
                             </div>
                         </div>
                     </div>
@@ -537,34 +564,17 @@ try {
                         </button>
                     </div>
 
-                    <!-- Live Google SERP Snippet Preview Box -->
-                    <div class="p-4 bg-white rounded-2xl border border-slate-300 space-y-1.5 shadow-inner">
-                        <div class="flex items-center gap-2 text-[11px] text-slate-600 font-sans">
-                            <span class="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center text-[10px]">🌐</span>
-                            <span class="truncate">https://onlinebdmart.com &rsaquo; product &rsaquo; <strong id="serpSlugPreview" class="text-slate-800 font-mono font-normal">product-slug</strong></span>
-                        </div>
-                        <h4 id="serpTitlePreview" class="text-base font-semibold text-blue-700 hover:underline cursor-pointer leading-tight line-clamp-1 font-sans">
-                            Product Title Price in BD | OnlineBdMart
-                        </h4>
-                        <p id="serpDescPreview" class="text-xs text-slate-600 line-clamp-2 leading-relaxed font-sans">
-                            Buy original product in Bangladesh at best price with cash on delivery.
-                        </p>
-                    </div>
-
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                         <div>
-                            <div class="flex items-center justify-between mb-1">
-                                <label class="text-slate-300 font-bold">SEO Title (এসইও টাইটেল) *</label>
-                                <span id="titleCountBadge" class="text-[10px] text-slate-400">0/60 chars</span>
-                            </div>
-                            <input type="text" name="meta_title" id="pMetaTitle" oninput="updateSerpPreview()" placeholder="e.g. Mustard Oil - Pure Kachi Ghani Oil Price in BD" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500 font-medium">
+                            <label class="block text-slate-300 font-bold mb-1">SEO Title (এসইও টাইটেল) *</label>
+                            <input type="text" name="meta_title" id="pMetaTitle" placeholder="e.g. Prestige Electric Multi Cooker 8L - Price in BD" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500 font-medium">
                         </div>
 
                         <div>
                             <label class="block text-slate-300 font-bold mb-1">URL Slug (ক্লিন ইউআরএল) *</label>
                             <div class="flex items-center">
                                 <span class="px-3 py-2.5 bg-slate-900 border border-r-0 border-slate-800 rounded-l-xl text-slate-500 font-mono text-[11px]">/product/</span>
-                                <input type="text" name="slug" id="pSlug" oninput="updateSerpPreview()" placeholder="mustard-oil-pure" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-r-xl text-indigo-400 font-mono font-bold outline-none focus:border-indigo-500">
+                                <input type="text" name="slug" id="pSlug" placeholder="prestige-electric-multi-cooker-8l-stainless-steel" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-r-xl text-indigo-400 font-mono font-bold outline-none focus:border-indigo-500">
                             </div>
                         </div>
                     </div>
@@ -572,21 +582,18 @@ try {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-slate-300 font-bold mb-1">Focus Keyword (মেইন ফোকাস কিওয়ার্ড)</label>
-                            <input type="text" name="focus_keyword" id="pFocusKeyword" oninput="updateSerpPreview()" placeholder="e.g. mustard oil, pure mustard oil bd" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500">
+                            <input type="text" name="focus_keyword" id="pFocusKeyword" placeholder="e.g. electric cooker 8l, prestige cooker bd" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500">
                         </div>
 
                         <div>
                             <label class="block text-slate-300 font-bold mb-1">Meta Keywords (ট্যাগ/কিওয়ার্ড)</label>
-                            <input type="text" name="meta_keywords" id="pMetaKeywords" placeholder="oil, mustard oil, buy online, price in bd" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500">
+                            <input type="text" name="meta_keywords" id="pMetaKeywords" placeholder="electric cooker, 8 liter cooker, buy online, price in bd" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500">
                         </div>
                     </div>
 
                     <div>
-                        <div class="flex items-center justify-between mb-1">
-                            <label class="text-slate-300 font-bold">Meta Description (গুগল সার্চ বিবরণী)</label>
-                            <span id="descCountBadge" class="text-[10px] text-slate-400">0/160 chars</span>
-                        </div>
-                        <textarea name="meta_description" id="pMetaDesc" rows="2" oninput="updateSerpPreview()" placeholder="Buy 100% pure Mustard Oil in Bangladesh at best price. Fast home delivery and cash on delivery across 64 districts." class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500 leading-relaxed"></textarea>
+                        <label class="block text-slate-300 font-bold mb-1">Meta Description (গুগল সার্চ বিবরণী)</label>
+                        <textarea name="meta_description" id="pMetaDesc" rows="2" placeholder="Buy original Prestige Electric Multi Cooker 8L in Bangladesh at lowest price. Fast delivery and COD across 64 districts." class="w-full px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white outline-none focus:border-indigo-500 leading-relaxed"></textarea>
                     </div>
                 </div>
 
@@ -602,7 +609,7 @@ try {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-slate-300 font-bold mb-1">Wholesale Factory Rate per Piece (৳)</label>
-                            <input type="number" step="0.01" name="wholesale_price" id="pWholesalePrice" placeholder="420" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-amber-400 font-bold outline-none">
+                            <input type="number" step="0.01" name="wholesale_price" id="pWholesalePrice" placeholder="1650" class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-amber-400 font-bold outline-none">
                         </div>
                         <div>
                             <label class="block text-slate-300 font-bold mb-1">Minimum Order Quantity (MOQ)</label>
@@ -631,7 +638,6 @@ try {
                         <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
                             <label class="block text-white font-bold"><i class="fas fa-images text-emerald-400 mr-1"></i> Upload Multiple Gallery Images</label>
                             <input type="file" name="gallery_images[]" multiple accept="image/*" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500">
-                            <p class="text-[10px] text-slate-400">Select multiple photos for product zoom & angle gallery.</p>
                             <div id="galleryPreviewContainer" class="flex flex-wrap gap-2 pt-2"></div>
                         </div>
                     </div>
@@ -647,18 +653,18 @@ try {
 
                     <div>
                         <label class="block text-slate-300 font-bold mb-1">Short Summary (সংক্ষিপ্ত বিবরণ)</label>
-                        <input type="text" name="short_description" id="pShortDesc" placeholder="e.g. 100% Pure Cold Pressed Mustard Oil, No Chemicals, Premium Quality" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none">
+                        <input type="text" name="short_description" id="pShortDesc" placeholder="e.g. 8 Liter Large Capacity, Stainless Steel Inner Pot" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none">
                     </div>
 
                     <div>
                         <label class="block text-slate-300 font-bold mb-1">Full Detailed Description (সম্পূর্ণ বিবরণ)</label>
-                        <textarea name="description" id="pDesc" rows="3" placeholder="Detailed product story, features, purity, and usage details..." class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none"></textarea>
+                        <textarea name="description" id="pDesc" rows="3" placeholder="Detailed product story, features, and usage details..." class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none"></textarea>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-slate-300 font-bold mb-1"><i class="fas fa-list-check text-cyan-400 mr-1"></i> Specifications (স্পেসিফিকেশন)</label>
-                            <textarea name="specifications" id="pSpecs" rows="3" placeholder="Purity: 100% Organic Cold Pressed&#10;Available in: 1L, 2L, 5L, 10L&#10;Packaging: Food Grade Bottle&#10;Shelf Life: 12 Months" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono outline-none"></textarea>
+                            <textarea name="specifications" id="pSpecs" rows="3" placeholder="Capacity: 8 Liter&#10;Inner Pot: Stainless Steel&#10;Power: Electric" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono outline-none"></textarea>
                         </div>
                         <div>
                             <label class="block text-slate-300 font-bold mb-1"><i class="fas fa-shield-halved text-emerald-400 mr-1"></i> Trust & Guarantee Badges</label>
@@ -718,8 +724,6 @@ function onProductTitleChange() {
     if (formAction === 'create' && !focusInput.dataset.manualEdited) {
         focusInput.value = name.toLowerCase();
     }
-
-    updateSerpPreview();
 }
 
 function addColorPreset(cName) {
@@ -736,7 +740,7 @@ function addColorPreset(cName) {
 }
 
 function addSizeRow(name = '', price = '') {
-    const basePrice = document.getElementById('pPrice').value || '550';
+    const basePrice = document.getElementById('pPrice').value || '1800';
     const rowPrice = price !== '' ? price : basePrice;
     
     const tbody = document.getElementById('sizesTableBody');
@@ -744,7 +748,7 @@ function addSizeRow(name = '', price = '') {
     tr.className = 'hover:bg-slate-800/40 transition';
     tr.innerHTML = `
         <td class="py-2 pr-2">
-            <input type="text" name="size_name[]" value="${name}" required placeholder="e.g. 1 Liter, 2 Liter, 5 Liter, 500ml" class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-bold outline-none focus:border-indigo-500">
+            <input type="text" name="size_name[]" value="${name}" required placeholder="e.g. 6 Liter, 8 Liter, 10 Liter" class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-white font-bold outline-none focus:border-indigo-500">
         </td>
         <td class="py-2 pr-2">
             <div class="flex items-center">
@@ -763,33 +767,22 @@ function addSizeRow(name = '', price = '') {
 }
 
 function addSizePreset(type) {
-    const basePrice = parseFloat(document.getElementById('pPrice').value || 550);
+    const basePrice = parseFloat(document.getElementById('pPrice').value || 1800);
     const tbody = document.getElementById('sizesTableBody');
     tbody.innerHTML = '';
     
     if (type === 'liters') {
         const presets = [
-            { name: '1 Liter', price: basePrice },
-            { name: '2 Liter', price: basePrice * 1.95 },
-            { name: '3 Liter', price: basePrice * 2.9 },
-            { name: '5 Liter', price: basePrice * 4.7 },
-            { name: '10 Liter', price: basePrice * 9.2 }
+            { name: '6 Liter', price: basePrice - 200 },
+            { name: '8 Liter', price: basePrice },
+            { name: '10 Liter', price: basePrice + 350 }
         ];
         presets.forEach(p => addSizeRow(p.name, Math.round(p.price)));
     } else if (type === 'volume') {
         const presets = [
-            { name: '250ml', price: Math.round(basePrice * 0.55) },
-            { name: '500ml', price: Math.round(basePrice * 0.85) },
-            { name: '1 Liter', price: basePrice },
-            { name: '2 Liter', price: Math.round(basePrice * 1.9) }
-        ];
-        presets.forEach(p => addSizeRow(p.name, p.price));
-    } else if (type === 'kg') {
-        const presets = [
-            { name: '500g', price: Math.round(basePrice * 0.55) },
-            { name: '1 Kg', price: basePrice },
-            { name: '2 Kg', price: Math.round(basePrice * 1.95) },
-            { name: '5 Kg', price: Math.round(basePrice * 4.7) }
+            { name: '1 Liter', price: Math.round(basePrice * 0.5) },
+            { name: '2 Liter', price: Math.round(basePrice * 0.95) },
+            { name: '5 Liter', price: basePrice }
         ];
         presets.forEach(p => addSizeRow(p.name, p.price));
     } else if (type === 'apparel') {
@@ -797,8 +790,7 @@ function addSizePreset(type) {
             { name: 'S', price: basePrice },
             { name: 'M', price: basePrice },
             { name: 'L', price: basePrice + 100 },
-            { name: 'XL', price: basePrice + 200 },
-            { name: 'XXL', price: basePrice + 300 }
+            { name: 'XL', price: basePrice + 200 }
         ];
         presets.forEach(p => addSizeRow(p.name, p.price));
     }
@@ -837,41 +829,6 @@ function autoGenerateSEO() {
     } else {
         document.getElementById('pMetaDesc').value = 'Buy authentic ' + name + ' in Bangladesh at lowest price with official warranty. Fast home delivery and cash on delivery across 64 districts.';
     }
-
-    updateSerpPreview();
-}
-
-function updateSerpPreview() {
-    const name = document.getElementById('pName').value.trim();
-    const slug = document.getElementById('pSlug').value.trim() || generateSlug(name) || 'product-slug';
-    const metaTitle = document.getElementById('pMetaTitle').value.trim() || (name ? name + ' Price in Bangladesh | OnlineBdMart' : 'Product Title - Online Shopping BD');
-    const metaDesc = document.getElementById('pMetaDesc').value.trim() || (name ? 'Buy authentic ' + name + ' in Bangladesh at lowest price with fast delivery and COD.' : 'Product meta description preview for Google search...');
-
-    document.getElementById('serpSlugPreview').textContent = slug;
-    document.getElementById('serpTitlePreview').textContent = metaTitle;
-    document.getElementById('serpDescPreview').textContent = metaDesc;
-
-    const titleLen = metaTitle.length;
-    const titleBadge = document.getElementById('titleCountBadge');
-    titleBadge.textContent = titleLen + '/60 chars';
-    if (titleLen >= 40 && titleLen <= 65) {
-        titleBadge.className = 'text-[10px] text-emerald-400 font-bold';
-    } else if (titleLen > 65) {
-        titleBadge.className = 'text-[10px] text-rose-400 font-bold';
-    } else {
-        titleBadge.className = 'text-[10px] text-slate-400';
-    }
-
-    const descLen = metaDesc.length;
-    const descBadge = document.getElementById('descCountBadge');
-    descBadge.textContent = descLen + '/160 chars';
-    if (descLen >= 120 && descLen <= 160) {
-        descBadge.className = 'text-[10px] text-emerald-400 font-bold';
-    } else if (descLen > 160) {
-        descBadge.className = 'text-[10px] text-rose-400 font-bold';
-    } else {
-        descBadge.className = 'text-[10px] text-slate-400';
-    }
 }
 
 function openAddProductModal() {
@@ -905,7 +862,7 @@ function openAddProductModal() {
     document.getElementById('pStock').value = '50';
     document.getElementById('pShortDesc').value = '';
     document.getElementById('pDesc').value = '';
-    document.getElementById('pSpecs').value = "Packaging: Food Grade Bottle\nPurity: 100% Authentic Quality\nDelivery: All 64 Districts";
+    document.getElementById('pSpecs').value = "Capacity: 8 Liter\nInner Pot: Stainless Steel\nPower: Electric";
     document.getElementById('pWhyBuy').value = "✓ 100% Original Product Guarantee\n✓ 7 Days Free Replacement Policy\n✓ Cash On Delivery Across 64 Districts\n✓ Official Quality Assurance";
     document.getElementById('pIsWholesale').checked = true;
     document.getElementById('pIsFeatured').checked = true;
@@ -914,7 +871,6 @@ function openAddProductModal() {
     document.getElementById('imagePreviewContainer').classList.add('hidden');
     document.getElementById('galleryPreviewContainer').innerHTML = '';
 
-    updateSerpPreview();
     document.getElementById('productModalContainer').classList.remove('hidden');
 }
 
@@ -931,7 +887,7 @@ function openEditProductModal(p) {
     document.getElementById('pSlug').dataset.manualEdited = 'true';
     document.getElementById('pColors').value = p.colors || '';
 
-    // Load Sizes Table
+    // Load Sizes / Liters Table
     const tbody = document.getElementById('sizesTableBody');
     tbody.innerHTML = '';
     if (p.sizes) {
@@ -1001,7 +957,6 @@ function openEditProductModal(p) {
         });
     }
 
-    updateSerpPreview();
     document.getElementById('productModalContainer').classList.remove('hidden');
 }
 
