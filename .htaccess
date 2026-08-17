@@ -1,6 +1,10 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # Directly serve static sitemap.xml and robots.txt
+    RewriteRule ^sitemap\.xml$ sitemap.xml [L]
+    RewriteRule ^robots\.txt$ robots.txt [L]
+
     # If the requested file or directory exists in root, serve it directly
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d

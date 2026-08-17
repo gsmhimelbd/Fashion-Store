@@ -1,10 +1,15 @@
 <?php
+if (ob_get_level()) {
+    ob_end_clean();
+}
 header("Content-Type: application/xml; charset=utf-8");
+header("X-Robots-Tag: noindex, follow");
+
 require_once __DIR__ . '/config/database.php';
 
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || ($_SERVER['SERVER_PORT'] ?? 80) == 443) ? 'https://' : 'http://';
 $host = $_SERVER['HTTP_HOST'] ?? 'onlinebdmart.com';
-$baseUrl = $protocol . $host;
+$baseUrl = rtrim($protocol . $host, '/');
 
 try {
     $db = getDB();
@@ -20,7 +25,7 @@ try {
 echo '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL;
 ?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-    <!-- Static Core Pages -->
+    <!-- Core Static Pages -->
     <url>
         <loc><?= $baseUrl ?>/</loc>
         <changefreq>daily</changefreq>
@@ -62,7 +67,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL;
         $cDate = !empty($c['updated_at']) ? date('Y-m-d', strtotime($c['updated_at'])) : date('Y-m-d');
     ?>
     <url>
-        <loc><?= $baseUrl ?>/shop.php?category=<?= urlencode($c['slug']) ?></loc>
+        <loc><?= $baseUrl ?>/shop.php?category=<?= htmlspecialchars(urlencode($c['slug'])) ?></loc>
         <lastmod><?= $cDate ?></lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
@@ -74,7 +79,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL;
         $pDate = !empty($p['updated_at']) ? date('Y-m-d', strtotime($p['updated_at'])) : (!empty($p['created_at']) ? date('Y-m-d', strtotime($p['created_at'])) : date('Y-m-d'));
     ?>
     <url>
-        <loc><?= $baseUrl ?>/product.php?slug=<?= urlencode($p['slug']) ?></loc>
+        <loc><?= $baseUrl ?>/product.php?slug=<?= htmlspecialchars(urlencode($p['slug'])) ?></loc>
         <lastmod><?= $pDate ?></lastmod>
         <changefreq>daily</changefreq>
         <priority>0.9</priority>
@@ -86,7 +91,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL;
         $bDate = !empty($b['created_at']) ? date('Y-m-d', strtotime($b['created_at'])) : date('Y-m-d');
     ?>
     <url>
-        <loc><?= $baseUrl ?>/blog.php?slug=<?= urlencode($b['slug']) ?></loc>
+        <loc><?= $baseUrl ?>/blog.php?slug=<?= htmlspecialchars(urlencode($b['slug'])) ?></loc>
         <lastmod><?= $bDate ?></lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
