@@ -664,7 +664,7 @@ $advanceCodEnabled = ($settings['payment_cod_advance_delivery_charge'] ?? '1') =
                     <i class="fas fa-lock text-xs"></i> <span>Confirm & Place Order</span>
                 </button>
 
-                <p class="text-center text-[10px] text-slate-400">By placing order, you agree to our 7-day return & replacement policy.</p>
+                <p class="text-center text-[10px] text-slate-400">By placing order, you agree to our Terms & Delivery conditions.</p>
             </div>
         </div>
     </form>

@@ -668,7 +668,7 @@ try {
                         </div>
                         <div>
                             <label class="block text-slate-300 font-bold mb-1"><i class="fas fa-shield-halved text-emerald-400 mr-1"></i> Trust & Guarantee Badges</label>
-                            <textarea name="why_buy_from_us" id="pWhyBuy" rows="3" placeholder="✓ 100% Original Product Guarantee&#10;✓ 7 Days Free Replacement Policy&#10;✓ Open Parcel Before Payment (COD)&#10;✓ Official Quality Assurance" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none"></textarea>
+                            <textarea name="why_buy_from_us" id="pWhyBuy" rows="3" placeholder="✓ 100% Original Product Guarantee&#10;✓ 100% Quality Checked Before Dispatch&#10;✓ Open Parcel Before Payment (COD)&#10;✓ Official Quality Assurance" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none"></textarea>
                         </div>
                     </div>
                 </div>
@@ -863,7 +863,7 @@ function openAddProductModal() {
     document.getElementById('pShortDesc').value = '';
     document.getElementById('pDesc').value = '';
     document.getElementById('pSpecs').value = "Capacity: 8 Liter\nInner Pot: Stainless Steel\nPower: Electric";
-    document.getElementById('pWhyBuy').value = "✓ 100% Original Product Guarantee\n✓ 7 Days Free Replacement Policy\n✓ Cash On Delivery Across 64 Districts\n✓ Official Quality Assurance";
+    document.getElementById('pWhyBuy').value = "✓ 100% Original Product Guarantee\n✓ 100% Quality Checked Before Dispatch\n✓ Cash On Delivery Across 64 Districts\n✓ Official Quality Assurance";
     document.getElementById('pIsWholesale').checked = true;
     document.getElementById('pIsFeatured').checked = true;
     document.getElementById('pIsActive').checked = true;
