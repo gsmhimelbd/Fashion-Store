@@ -1,27 +1,29 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # 1. Directly serve webhooks, API endpoints, sitemap, robots
-    RewriteRule ^courier-webhook\.php$ courier-webhook.php [L]
-    RewriteRule ^sitemap\.xml$ sitemap.xml [L]
-    RewriteRule ^robots\.txt$ robots.txt [L]
-
-    # 2. Pass Authorization Headers for Bearer Tokens (Steadfast Webhook)
+    # Pass Authorization Header for LiteSpeed & Apache (Steadfast Bearer Auth)
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # 3. If file or directory exists directly, serve it
+    # 1. Directly serve webhooks, API endpoints, sitemap, robots
+    RewriteRule ^courier-webhook\.php$ courier-webhook.php [L]
+    RewriteRule ^test-webhook\.php$ test-webhook.php [L]
+    RewriteRule ^api/(.*)$ api/$1 [L]
+    RewriteRule ^sitemap\.xml$ sitemap.xml [L]
+    RewriteRule ^robots\.txt$ robots.txt [L]
+
+    # 2. If file or directory exists directly, serve it
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # 4. Handle API and Admin-Panel directly
     RewriteCond %{REQUEST_URI} ^/api/ [OR]
     RewriteCond %{REQUEST_URI} ^/admin-panel/ [OR]
     RewriteCond %{REQUEST_URI} ^/admin/
     RewriteRule ^ - [L]
 
-    # 5. Otherwise forward to public/ directory
+    # 3. Otherwise forward to public/
     RewriteRule ^$ public/index.php [L]
     RewriteRule ^((?!public/).*)$ public/$1 [L,NC]
 </IfModule>
