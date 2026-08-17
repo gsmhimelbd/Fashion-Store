@@ -1,0 +1,42 @@
+# robots.txt for OnlineBdMart (https://onlinebdmart.com)
+# Standard eCommerce Search Engine Crawler Directives
+
+User-agent: *
+Allow: /
+Allow: /shop.php
+Allow: /product.php
+Allow: /categories.php
+Allow: /deals.php
+Allow: /wholesale.php
+Allow: /blog.php
+Allow: /contact.php
+Allow: /uploads/
+Allow: /images/
+
+# Disallow Private & Administrative Areas
+Disallow: /admin-panel/
+Disallow: /config/
+Disallow: /includes/
+Disallow: /bootstrap/
+Disallow: /app/
+Disallow: /database/
+Disallow: /resources/
+Disallow: /routes/
+
+# Disallow User Account & Checkout Processing
+Disallow: /account.php
+Disallow: /login.php
+Disallow: /register.php
+Disallow: /logout.php
+Disallow: /cart.php
+Disallow: /checkout.php
+Disallow: /order-success.php
+Disallow: /invoice.php
+Disallow: /track-order.php
+
+# Disallow Search Query URLs to prevent duplicate indexing
+Disallow: /*?*search=*
+Disallow: /*?*filter=*
+
+# Sitemap Index URL for Google & Bing
+Sitemap: https://onlinebdmart.com/sitemap.xml

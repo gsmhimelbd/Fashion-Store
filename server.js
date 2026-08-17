@@ -2310,6 +2310,22 @@ const server = http.createServer(async (req, res) => {
         return sendHtml(renderLayout(p.name, content, sessionData, 'shop'));
     }
 
+    if (pathname === '/robots.txt') {
+        const rPath = path.join(__dirname, 'robots.txt');
+        if (fs.existsSync(rPath)) {
+            res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+            return res.end(fs.readFileSync(rPath, 'utf8'));
+        }
+    }
+
+    if (pathname === '/sitemap.xml') {
+        const sPath = path.join(__dirname, 'sitemap.xml');
+        if (fs.existsSync(sPath)) {
+            res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8' });
+            return res.end(fs.readFileSync(sPath, 'utf8'));
+        }
+    }
+
     if (pathname === '/search-suggestions' && isGet) {
         const q = parsedUrl.query.q || '';
         const items = db.prepare('SELECT id, name, slug, price, sale_price, image_path FROM products WHERE is_active = 1 AND name LIKE ? LIMIT 6').all(`%${q}%`);
