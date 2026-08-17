@@ -68,6 +68,9 @@ try {
                 <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow transition">Update Status</button>
             </form>
 
+            <a href="shipping-label.php?id=<?= $order['id'] ?>" target="_blank" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs shadow flex items-center gap-1.5 transition">
+                <i class="fas fa-barcode"></i> <span>Print Shipping Sticker</span>
+            </a>
             <a href="../invoice.php?id=<?= $order['id'] ?>" target="_blank" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs shadow flex items-center gap-1.5 border border-slate-700">
                 <i class="fas fa-print"></i> <span>Print Tax Invoice</span>
             </a>

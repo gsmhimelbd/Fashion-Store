@@ -103,11 +103,14 @@ try {
                                 </select>
                             </form>
                         </td>
-                        <td class="py-3.5 text-right space-x-2">
-                            <a href="order-detail.php?id=<?= $o['id'] ?>" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-white font-bold text-[11px] inline-flex items-center gap-1">
-                                <i class="fas fa-eye"></i> View
+                        <td class="py-3.5 text-right space-x-1.5">
+                            <a href="order-detail.php?id=<?= $o['id'] ?>" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-white font-bold text-[11px] inline-flex items-center gap-1" title="View Order">
+                                <i class="fas fa-eye"></i> <span class="hidden sm:inline">View</span>
                             </a>
-                            <a href="../invoice.php?id=<?= $o['id'] ?>" target="_blank" class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold text-[11px] inline-flex items-center gap-1">
+                            <a href="shipping-label.php?id=<?= $o['id'] ?>" target="_blank" class="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-[11px] inline-flex items-center gap-1 shadow" title="Print Parcel Barcode Shipping Sticker">
+                                <i class="fas fa-barcode"></i> <span class="hidden sm:inline">Sticker</span>
+                            </a>
+                            <a href="../invoice.php?id=<?= $o['id'] ?>" target="_blank" class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold text-[11px] inline-flex items-center gap-1" title="Print Invoice">
                                 <i class="fas fa-print"></i>
                             </a>
                         </td>
