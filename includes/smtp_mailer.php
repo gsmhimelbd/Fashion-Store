@@ -117,7 +117,6 @@ class SocketSMTPMailer {
             $this->sendCommand("DATA", 354);
 
             // Message Data & Headers
-            $boundary = '=_obm_' . md5(uniqid(microtime(true), true));
             $headers = [];
             $headers[] = "Date: " . date('r');
             $headers[] = "From: =?UTF-8?B?" . base64_encode($this->fromName) . "?= <{$from}>";
@@ -125,12 +124,14 @@ class SocketSMTPMailer {
             $headers[] = "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=";
             $headers[] = "MIME-Version: 1.0";
             $headers[] = "Content-Type: text/html; charset=UTF-8";
-            $headers[] = "Content-Transfer-Encoding: 8bit";
+            $headers[] = "Content-Transfer-Encoding: base64";
             $headers[] = "X-Mailer: OnlineBdMart SMTP Engine";
 
-            $messagePayload = implode("\r\n", $headers) . "\r\n\r\n" . $htmlBody . "\r\n.";
+            // Use chunk_split base64 to prevent SMTP line-length truncation and email clipping
+            $encodedBody = rtrim(chunk_split(base64_encode($htmlBody), 76, "\r\n"));
+            $messagePayload = implode("\r\n", $headers) . "\r\n\r\n" . $encodedBody . "\r\n.";
             
-            $this->log("Transmitting message body (" . strlen($htmlBody) . " bytes)...");
+            $this->log("Transmitting message body (" . strlen($htmlBody) . " bytes, base64 encoded)...");
             fwrite($this->socket, $messagePayload . "\r\n");
             $resp = $this->readResponse();
             if ((int)substr($resp, 0, 3) !== 250) {
@@ -216,72 +217,151 @@ function sendOrderEmailNotifications($orderId) {
         $address = $order['delivery_address'] ?: $order['address'];
         $district = $order['district_name'] ?: ($order['district'] ?: 'Bangladesh');
 
+        $subtotalVal = number_format((float)($order['subtotal'] ?? 0), 2);
+        $deliveryCostVal = number_format((float)($order['delivery_cost'] ?? ($order['delivery_charge'] ?? 120)), 2);
+        $discountVal = number_format((float)($order['discount_amount'] ?? 0), 2);
+        $grandTotalVal = number_format((float)($order['grand_total'] ?: ($order['total_amount'] ?? 0)), 2);
+        $isCod = strtolower($order['payment_method'] ?? 'cod') === 'cod';
+
         // Items HTML rows
         $itemsRows = '';
         foreach ($items as $item) {
             $itemTotal = number_format($item['price'] * $item['quantity'], 2);
             $variantTag = '';
-            if (!empty($item['color'])) $variantTag .= "<div style='font-size: 11px; color: #6366f1; font-weight: bold;'>Color: " . htmlspecialchars($item['color']) . "</div>";
-            if (!empty($item['size'])) $variantTag .= "<div style='font-size: 11px; color: #d97706; font-weight: bold;'>Size/Liter: " . htmlspecialchars($item['size']) . "</div>";
+            if (!empty($item['color'])) $variantTag .= "<span style='display:inline-block; font-size:10px; font-weight:bold; color:#4338ca; background:#e0e7ff; padding:2px 6px; border-radius:4px; margin-right:4px;'>Color: " . htmlspecialchars($item['color']) . "</span>";
+            if (!empty($item['size'])) $variantTag .= "<span style='display:inline-block; font-size:10px; font-weight:bold; color:#b45309; background:#fef3c7; padding:2px 6px; border-radius:4px;'>Size: " . htmlspecialchars($item['size']) . "</span>";
+            
             $itemsRows .= "<tr>
-                <td style='padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #1e293b;'>
-                    <div>{$item['product_name']}</div>
+                <td style='padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #1e293b;'>
+                    <div style='font-weight: bold; color: #0f172a; margin-bottom: 3px;'>{$item['product_name']}</div>
                     {$variantTag}
                 </td>
-                <td style='padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: center; color: #64748b;'>{$item['quantity']}</td>
-                <td style='padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; color: #1e293b;'>৳" . number_format($item['price'], 2) . "</td>
-                <td style='padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; font-weight: bold; color: #4338ca;'>৳{$itemTotal}</td>
+                <td style='padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: center; color: #475569; font-weight: bold;'>{$item['quantity']}</td>
+                <td style='padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; color: #1e293b;'>৳" . number_format($item['price'], 2) . "</td>
+                <td style='padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; font-weight: bold; color: #4338ca;'>৳{$itemTotal}</td>
             </tr>";
         }
 
         $emailHtml = "
-        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden;'>
-            <div style='background: linear-gradient(135deg, #0f172a, #312e81); padding: 25px; text-align: center; color: #ffffff;'>
-                <h1 style='margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 1px;'>{$storeName}</h1>
-                <p style='margin: 6px 0 0 0; font-size: 13px; color: #cbd5e1;'>Order Confirmation • #{$orderNo}</p>
-            </div>
-            
-            <div style='padding: 25px;'>
-                <h2 style='font-size: 18px; color: #0f172a; margin-top: 0;'>Thank you for your order, {$name}!</h2>
-                <p style='font-size: 13px; color: #475569; line-height: 1.6;'>Your order has been received and is being prepared for packaging and fast dispatch.</p>
-                
-                <div style='background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; margin: 20px 0;'>
-                    <h3 style='margin: 0 0 10px 0; font-size: 14px; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;'>Shipping & Contact Info</h3>
-                    <p style='margin: 4px 0; font-size: 13px; color: #334155;'><strong>Recipient:</strong> {$name}</p>
-                    <p style='margin: 4px 0; font-size: 13px; color: #334155;'><strong>Phone:</strong> {$phone}</p>
-                    <p style='margin: 4px 0; font-size: 13px; color: #334155;'><strong>Address:</strong> {$address}, {$district}</p>
-                    <p style='margin: 4px 0; font-size: 13px; color: #334155;'><strong>Payment Method:</strong> " . strtoupper($order['payment_method'] ?? 'COD') . "</p>
-                </div>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='utf-8'>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+            <title>Order Invoice #{$orderNo}</title>
+        </head>
+        <body style='margin: 0; padding: 20px 0; background-color: #f1f5f9; font-family: Helvetica, Arial, sans-serif;'>
+            <table role='presentation' width='100%' border='0' cellspacing='0' cellpadding='0'>
+                <tr>
+                    <td align='center'>
+                        <table role='presentation' width='600' border='0' cellspacing='0' cellpadding='0' style='max-width: 600px; width: 100%; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;'>
+                            
+                            <!-- Header Banner -->
+                            <tr>
+                                <td style='background: linear-gradient(135deg, #0f172a, #312e81); padding: 30px 25px; text-align: center; color: #ffffff;'>
+                                    <h1 style='margin: 0; font-size: 24px; font-weight: 900; letter-spacing: 0.5px;'>{$storeName}</h1>
+                                    <p style='margin: 6px 0 0 0; font-size: 13px; color: #cbd5e1;'>Official Order Invoice & Tax Confirmation</p>
+                                    <div style='margin-top: 12px;'>
+                                        <span style='background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; font-family: monospace;'>#{$orderNo}</span>
+                                    </div>
+                                </td>
+                            </tr>
 
-                <table style='width: 100%; border-collapse: collapse; margin: 20px 0;'>
-                    <thead>
-                        <tr style='background: #f1f5f9; text-align: left;'>
-                            <th style='padding: 10px 12px; font-size: 12px; color: #475569; border-radius: 8px 0 0 0;'>Item</th>
-                            <th style='padding: 10px 12px; font-size: 12px; color: #475569; text-align: center;'>Qty</th>
-                            <th style='padding: 10px 12px; font-size: 12px; color: #475569; text-align: right;'>Price</th>
-                            <th style='padding: 10px 12px; font-size: 12px; color: #475569; text-align: right; border-radius: 0 8px 0 0;'>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {$itemsRows}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan='3' style='padding: 12px; text-align: right; font-size: 13px; font-weight: bold; color: #0f172a;'>Grand Total:</td>
-                            <td style='padding: 12px; text-align: right; font-size: 16px; font-weight: 800; color: #4f46e5;'>৳{$total}</td>
-                        </tr>
-                    </tfoot>
-                </table>
+                            <!-- Order Greeting & Status -->
+                            <tr>
+                                <td style='padding: 25px 25px 15px 25px;'>
+                                    <h2 style='font-size: 17px; color: #0f172a; margin: 0 0 8px 0;'>Thank you for your order, {$name}!</h2>
+                                    <p style='font-size: 13px; color: #475569; line-height: 1.5; margin: 0;'>Your order has been verified and is being packaged for dispatch to your delivery address.</p>
+                                </td>
+                            </tr>
 
-                <div style='text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid #e2e8f0;'>
-                    <a href='https://onlinebdmart.com/track-order.php?order=" . urlencode($orderNo) . "' style='background: #4f46e5; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 10px; font-size: 13px; font-weight: bold; display: inline-block;'>Track Order Status Live &rarr;</a>
-                </div>
-            </div>
+                            <!-- Customer & Delivery Address Card -->
+                            <tr>
+                                <td style='padding: 0 25px;'>
+                                    <table role='presentation' width='100%' border='0' cellspacing='0' cellpadding='0' style='background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 10px 0;'>
+                                        <tr>
+                                            <td style='font-size: 12px; color: #475569; line-height: 1.6;'>
+                                                <div style='font-weight: bold; color: #0f172a; font-size: 13px; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;'>📍 Delivery & Contact Information:</div>
+                                                <div><strong>Customer:</strong> {$name}</div>
+                                                <div><strong>Mobile Phone:</strong> <span style='font-family: monospace; font-weight: bold; color: #4338ca;'>{$phone}</span></div>
+                                                <div><strong>Delivery Address:</strong> {$address}, {$district}</div>
+                                                <div><strong>Payment Method:</strong> <strong style='text-transform: uppercase; color: #0f172a;'>" . strtoupper($order['payment_method'] ?? 'COD') . "</strong></div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
 
-            <div style='background: #f8fafc; padding: 15px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0;'>
-                &copy; " . date('Y') . " {$storeName}. All rights reserved.
-            </div>
-        </div>";
+                            <!-- Items Table -->
+                            <tr>
+                                <td style='padding: 10px 25px;'>
+                                    <table role='presentation' width='100%' border='0' cellspacing='0' cellpadding='0' style='border-collapse: collapse; margin: 10px 0;'>
+                                        <thead>
+                                            <tr style='background: #f1f5f9;'>
+                                                <th style='padding: 10px 12px; font-size: 11px; text-transform: uppercase; color: #475569; text-align: left;'>Product Item</th>
+                                                <th style='padding: 10px 12px; font-size: 11px; text-transform: uppercase; color: #475569; text-align: center;'>Qty</th>
+                                                <th style='padding: 10px 12px; font-size: 11px; text-transform: uppercase; color: #475569; text-align: right;'>Unit Price</th>
+                                                <th style='padding: 10px 12px; font-size: 11px; text-transform: uppercase; color: #475569; text-align: right;'>Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {$itemsRows}
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>
+
+                            <!-- Price Breakdown Box -->
+                            <tr>
+                                <td style='padding: 0 25px;'>
+                                    <table role='presentation' width='100%' border='0' cellspacing='0' cellpadding='0' style='border-top: 2px solid #e2e8f0; padding-top: 10px;'>
+                                        <tr>
+                                            <td style='font-size: 13px; color: #64748b; padding: 4px 0;'>Items Subtotal:</td>
+                                            <td style='font-size: 13px; color: #1e293b; font-weight: bold; text-align: right; padding: 4px 0;'>৳{$subtotalVal}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style='font-size: 13px; color: #64748b; padding: 4px 0;'>Delivery Charge:</td>
+                                            <td style='font-size: 13px; color: #1e293b; font-weight: bold; text-align: right; padding: 4px 0;'>৳{$deliveryCostVal}</td>
+                                        </tr>";
+
+        if ((float)($order['discount_amount'] ?? 0) > 0) {
+            $emailHtml .= "
+                                        <tr>
+                                            <td style='font-size: 13px; color: #059669; padding: 4px 0;'>Coupon Discount:</td>
+                                            <td style='font-size: 13px; color: #059669; font-weight: bold; text-align: right; padding: 4px 0;'>-৳{$discountVal}</td>
+                                        </tr>";
+        }
+
+        $emailHtml .= "
+                                        <tr>
+                                            <td style='font-size: 15px; font-weight: 900; color: #0f172a; padding: 10px 0 4px 0; border-top: 1px solid #e2e8f0;'>Grand Total:</td>
+                                            <td style='font-size: 17px; font-weight: 900; color: #4338ca; text-align: right; padding: 10px 0 4px 0; border-top: 1px solid #e2e8f0;'>৳{$grandTotalVal}</td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+
+                            <!-- Live Tracking Call to Action Button -->
+                            <tr>
+                                <td style='padding: 25px; text-align: center;'>
+                                    <a href='https://onlinebdmart.com/track-order.php?order=" . urlencode($orderNo) . "' style='background: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-size: 13px; font-weight: bold; display: inline-block; box-shadow: 0 4px 10px rgba(79,70,229,0.3);'>Track Order Live Status &rarr;</a>
+                                </td>
+                            </tr>
+
+                            <!-- Footer -->
+                            <tr>
+                                <td style='background: #f8fafc; padding: 20px 25px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0;'>
+                                    <div>&copy; " . date('Y') . " {$storeName}. All rights reserved.</div>
+                                    <div style='margin-top: 4px;'>Helpline: {$phone} | Web: https://onlinebdmart.com</div>
+                                </td>
+                            </tr>
+
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>";
 
         // 1. Send to Customer if email is provided and notify setting enabled
         if (!empty($order['customer_email']) && filter_var($order['customer_email'], FILTER_VALIDATE_EMAIL)) {
