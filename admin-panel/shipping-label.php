@@ -52,37 +52,61 @@ foreach ($items as $it) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shipping Sticker #<?= htmlspecialchars($orderNo) ?> - <?= htmlspecialchars($storeName) ?></title>
+    <title>80mm POS Shipping Sticker #<?= htmlspecialchars($orderNo) ?> - <?= htmlspecialchars($storeName) ?></title>
     
-    <!-- Tailwind CSS for UI -->
+    <!-- Tailwind CSS for UI Controls -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- JsBarcode for High-Resolution Vector Barcode Rendering -->
+    <!-- JsBarcode for Vector Barcode -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 
     <style>
+        /* 80mm POS Thermal Sticker Default Print Style */
         @media print {
             body {
                 background: white !important;
                 padding: 0 !important;
                 margin: 0 !important;
+                color: #000 !important;
             }
             .no-print {
                 display: none !important;
             }
-            .label-container {
+            
+            /* 80mm POS Thermal Page Size */
+            @page {
+                size: 80mm auto;
+                margin: 2mm;
+            }
+            
+            .sticker-80mm {
+                width: 76mm !important;
+                max-width: 76mm !important;
+                padding: 2mm !important;
+                margin: 0 auto !important;
                 border: 2px solid #000 !important;
                 box-shadow: none !important;
-                margin: 0 auto !important;
                 page-break-inside: avoid;
             }
-            @page {
-                size: 4in 6in;
-                margin: 0.15in;
+
+            .sticker-4x6 {
+                width: 4in !important;
+                max-width: 4in !important;
+                border: 2px solid #000 !important;
             }
         }
+
+        /* Screen Preview Styles */
+        .pos-80mm-preview {
+            width: 80mm;
+            max-width: 320px;
+        }
+        .pos-4x6-preview {
+            width: 100mm;
+            max-width: 440px;
+        }
         .barcode-svg {
-            max-height: 48px;
+            max-height: 44px;
             width: 100%;
         }
     </style>
@@ -90,78 +114,83 @@ foreach ($items as $it) {
 <body class="bg-slate-100 min-h-screen py-6 px-4 font-sans text-slate-900">
 
     <!-- Top Action Toolbar (Hidden during Print) -->
-    <div class="max-w-md mx-auto mb-5 no-print flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl shadow-md border border-slate-200">
-        <div class="flex items-center gap-2">
-            <a href="order-detail.php?id=<?= $order['id'] ?>" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1">
-                <i class="fas fa-arrow-left"></i> Back
-            </a>
-            <span class="text-xs font-black text-slate-800 font-mono">#<?= htmlspecialchars($orderNo) ?></span>
-        </div>
+    <div class="max-w-md mx-auto mb-6 no-print space-y-3">
+        <div class="bg-white p-4 rounded-3xl shadow-lg border border-slate-200 space-y-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <a href="order-detail.php?id=<?= $order['id'] ?>" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                    <span class="text-xs font-black text-slate-800 font-mono">#<?= htmlspecialchars($orderNo) ?></span>
+                </div>
 
-        <div class="flex items-center gap-2">
-            <button onclick="window.print()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow transition flex items-center gap-1.5">
-                <i class="fas fa-print"></i> <span>Print Sticker</span>
-            </button>
-            <a href="../invoice.php?id=<?= $order['id'] ?>" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
-                <i class="fas fa-file-invoice"></i> Invoice
-            </a>
+                <div class="flex items-center gap-2">
+                    <button onclick="window.print()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center gap-1.5 active:scale-95">
+                        <i class="fas fa-print"></i> <span>Print Sticker</span>
+                    </button>
+                    <a href="../invoice.php?id=<?= $order['id'] ?>" target="_blank" class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
+                        <i class="fas fa-file-invoice"></i> Invoice
+                    </a>
+                </div>
+            </div>
+
+            <!-- Printer Mode Selector Switch -->
+            <div class="pt-2 border-t flex items-center justify-between text-xs">
+                <span class="text-[11px] font-bold text-slate-500">Sticker Size (স্টিকার সাইজ):</span>
+                <div class="flex items-center gap-1.5">
+                    <button type="button" id="btnMode80" onclick="setLabelMode('80mm')" class="px-3 py-1 bg-amber-500 text-slate-950 font-black rounded-lg text-xs shadow-sm transition">
+                        🏷️ 80mm POS Thermal
+                    </button>
+                    <button type="button" id="btnMode4x6" onclick="setLabelMode('4x6')" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs transition">
+                        📦 4" × 6" Sticker
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- 4" x 6" Thermal Courier Shipping Sticker Card -->
-    <div class="label-container max-w-md mx-auto bg-white rounded-2xl border-2 border-slate-900 shadow-xl overflow-hidden text-black text-xs">
+    <!-- 80mm POS THERMAL STICKER / 4x6 SHIPPING LABEL CONTAINER -->
+    <div id="stickerContainer" class="label-container pos-80mm-preview mx-auto bg-white rounded-2xl border-2 border-black shadow-2xl overflow-hidden text-black text-xs font-sans transition-all duration-200">
         
-        <!-- 1. Header: Store Logo & Barcode Area -->
-        <div class="p-3.5 border-b-2 border-slate-900 flex items-center justify-between gap-3 bg-slate-50">
-            <div class="min-w-0">
-                <h1 class="text-base font-black uppercase tracking-tight text-slate-950 font-serif leading-tight truncate"><?= htmlspecialchars($storeName) ?></h1>
-                <p class="text-[10px] font-bold text-slate-700 font-mono">Hotline: <?= htmlspecialchars($storePhone) ?></p>
-                <p class="text-[9px] text-slate-500 truncate">www.onlinebdmart.com</p>
-            </div>
-            <div class="text-right shrink-0">
-                <span class="inline-block px-2.5 py-1 text-[11px] font-black uppercase rounded-lg border-2 border-slate-900 <?= $isCod ? 'bg-slate-900 text-white' : 'bg-emerald-600 text-white' ?>">
-                    <?= $isCod ? 'CASH ON DELIVERY' : 'PREPAID ORDER' ?>
-                </span>
-                <p class="text-[10px] font-bold font-mono mt-0.5 text-slate-800"><?= date('d-M-Y h:i A', strtotime($order['created_at'])) ?></p>
+        <!-- 1. Header: Store Name, Hotline & COD Status -->
+        <div class="p-2.5 border-b-2 border-black text-center bg-white space-y-1">
+            <h1 class="text-base font-black uppercase tracking-tight text-black font-serif leading-tight truncate"><?= htmlspecialchars($storeName) ?></h1>
+            <div class="flex items-center justify-between text-[10px] font-bold font-mono px-1">
+                <span>📞 <?= htmlspecialchars($storePhone) ?></span>
+                <span class="px-2 py-0.5 rounded bg-black text-white font-black uppercase text-[9px]"><?= $isCod ? 'CASH ON DELIVERY' : 'PAID ORDER' ?></span>
             </div>
         </div>
 
-        <!-- 2. Big Vector Code128 Barcode & Order Number -->
-        <div class="py-2.5 px-3 border-b-2 border-slate-900 text-center bg-white">
+        <!-- 2. Scannable Code128 Vector Barcode & Order Number -->
+        <div class="py-2 px-2 border-b-2 border-black text-center bg-white">
             <svg id="orderBarcode" class="barcode-svg mx-auto"></svg>
-            <div class="flex items-center justify-between text-[11px] font-mono font-black mt-0.5 px-2">
+            <div class="flex items-center justify-between text-[10px] font-mono font-black mt-0.5 px-1">
                 <span>ORDER: <?= htmlspecialchars($orderNo) ?></span>
-                <span>ITEMS: <?= $totalQty ?> PCS</span>
                 <span>DEST: <?= strtoupper(htmlspecialchars($order['district_name'] ?: ($order['district'] ?: 'DHAKA'))) ?></span>
             </div>
         </div>
 
         <!-- 3. Consignee / Delivery Address (প্রাপক / কাস্টমার বিস্তারিত) -->
-        <div class="p-3.5 border-b-2 border-slate-900 space-y-2 bg-white">
+        <div class="p-2.5 border-b-2 border-black space-y-1.5 bg-white">
             <div class="flex items-center justify-between">
-                <span class="px-2 py-0.5 rounded bg-slate-900 text-white font-black uppercase text-[10px] tracking-wider">
+                <span class="px-1.5 py-0.2 rounded bg-black text-white font-black uppercase text-[9px]">
                     SHIP TO (প্রাপক)
                 </span>
-                <span class="text-[11px] font-black text-slate-900 uppercase">
+                <span class="text-[10px] font-black text-black uppercase">
                     📍 <?= htmlspecialchars($order['district_name'] ?: ($order['district'] ?: 'Dhaka')) ?>
                 </span>
             </div>
 
             <div>
-                <h2 class="text-sm font-black text-slate-950 uppercase leading-snug"><?= htmlspecialchars($order['customer_name']) ?></h2>
-                <div class="flex flex-wrap items-center gap-2 mt-0.5 text-xs font-black font-mono">
-                    <span class="bg-slate-100 px-2 py-0.5 rounded border border-slate-300">📞 <?= htmlspecialchars($order['customer_phone'] ?: ($order['phone'] ?: 'N/A')) ?></span>
-                    <?php if (!empty($order['whatsapp']) && $order['whatsapp'] !== $order['customer_phone']): ?>
-                    <span class="bg-slate-100 px-2 py-0.5 rounded border border-slate-300">WA: <?= htmlspecialchars($order['whatsapp']) ?></span>
-                    <?php endif; ?>
-                </div>
+                <h2 class="text-xs font-black text-black uppercase leading-tight"><?= htmlspecialchars($order['customer_name']) ?></h2>
+                <p class="text-xs font-black font-mono mt-0.5">📞 <?= htmlspecialchars($order['customer_phone'] ?: ($order['phone'] ?: 'N/A')) ?></p>
             </div>
 
             <!-- Full Address Box -->
-            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-300 text-xs font-bold leading-relaxed text-slate-900">
+            <div class="p-2 rounded-lg bg-slate-50 border border-black/80 text-[11px] font-bold leading-snug text-black">
                 <p><?= htmlspecialchars($order['delivery_address'] ?: ($order['address'] ?: 'N/A')) ?></p>
-                <p class="text-[11px] text-slate-700 mt-1">
-                    <?php if (!empty($order['upazila'])): ?><strong>Thana/Upazila:</strong> <?= htmlspecialchars($order['upazila']) ?> • <?php endif; ?>
+                <p class="text-[10px] text-slate-800 mt-1 border-t border-slate-300 pt-0.5">
+                    <?php if (!empty($order['upazila'])): ?><strong>Thana:</strong> <?= htmlspecialchars($order['upazila']) ?> • <?php endif; ?>
                     <?php if (!empty($order['post_office'])): ?><strong>Post:</strong> <?= htmlspecialchars($order['post_office']) ?> • <?php endif; ?>
                     <strong>District:</strong> <?= htmlspecialchars($order['district_name'] ?: ($order['district'] ?: 'Dhaka')) ?>
                 </p>
@@ -169,30 +198,26 @@ foreach ($items as $it) {
         </div>
 
         <!-- 4. Product Details & Variants Breakdown (কালার, সাইজ ও পরিমাণ) -->
-        <div class="p-3.5 border-b-2 border-slate-900 space-y-2 bg-white">
-            <span class="text-[10px] font-black uppercase text-slate-500 tracking-wider block">
-                PRODUCT CONTENTS & VARIANTS (পণ্যের বিবরণ):
-            </span>
+        <div class="p-2.5 border-b-2 border-black space-y-1 bg-white">
+            <div class="flex items-center justify-between text-[9px] font-black uppercase text-slate-700">
+                <span>ITEMS (পণ্যের বিবরণ):</span>
+                <span>QTY: <?= $totalQty ?> PCS</span>
+            </div>
 
             <div class="space-y-1.5 divide-y divide-slate-200">
-                <?php foreach ($items as $idx => $it): 
-                    $pTotal = (float)($it['total_price'] ?: ($it['price'] * $it['quantity']));
-                ?>
-                <div class="pt-1.5 first:pt-0 flex items-start justify-between gap-2">
+                <?php foreach ($items as $idx => $it): ?>
+                <div class="pt-1 first:pt-0 flex items-start justify-between gap-1 text-[11px]">
                     <div class="min-w-0 flex-1">
-                        <p class="font-black text-slate-950 text-xs leading-tight"><?= htmlspecialchars($it['product_name']) ?></p>
+                        <p class="font-black text-black leading-tight"><?= htmlspecialchars($it['product_name']) ?></p>
                         <?php if (!empty($it['color']) || !empty($it['size'])): ?>
-                        <div class="flex flex-wrap items-center gap-1 mt-0.5">
-                            <?php if (!empty($it['color'])): ?>
-                            <span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-indigo-50 text-indigo-900 border border-indigo-200">Color: <?= htmlspecialchars($it['color']) ?></span>
-                            <?php endif; ?>
-                            <?php if (!empty($it['size'])): ?>
-                            <span class="px-1.5 py-0.2 rounded text-[9px] font-black bg-amber-50 text-amber-900 border border-amber-200">Size: <?= htmlspecialchars($it['size']) ?></span>
-                            <?php endif; ?>
+                        <div class="flex flex-wrap items-center gap-1 mt-0.5 text-[9px] font-bold text-slate-800">
+                            <?php if (!empty($it['color'])): ?><span>Color: <?= htmlspecialchars($it['color']) ?></span><?php endif; ?>
+                            <?php if (!empty($it['color']) && !empty($it['size'])): ?><span>•</span><?php endif; ?>
+                            <?php if (!empty($it['size'])): ?><span>Size: <?= htmlspecialchars($it['size']) ?></span><?php endif; ?>
                         </div>
                         <?php endif; ?>
                     </div>
-                    <div class="text-right shrink-0 font-mono font-black text-xs">
+                    <div class="text-right shrink-0 font-mono font-black text-xs pl-1">
                         <span><?= $it['quantity'] ?> × ৳<?= number_format($it['price'], 0) ?></span>
                     </div>
                 </div>
@@ -200,31 +225,27 @@ foreach ($items as $it) {
             </div>
         </div>
 
-        <!-- 5. Big Highlights: COD Cash Collection & Instructions -->
-        <div class="p-3.5 bg-slate-50 flex items-center justify-between gap-3 border-b-2 border-slate-900">
+        <!-- 5. Big Highlights: COD Cash Collection (কুরিয়ার কত টাকা ক্যাশ সংগ্রহ করবে) -->
+        <div class="p-2.5 bg-slate-50 flex items-center justify-between gap-2 border-b-2 border-black">
             <div>
-                <span class="text-[10px] font-black uppercase text-slate-500 block">Total Amount Payable:</span>
-                <div class="text-xs font-bold text-slate-700">
-                    <span>Sub: ৳<?= number_format($subtotal, 0) ?></span>
-                    <span>+ Del: ৳<?= number_format($deliveryCost, 0) ?></span>
-                    <?php if ($discount > 0): ?><span>- Disc: ৳<?= number_format($discount, 0) ?></span><?php endif; ?>
-                </div>
+                <span class="text-[9px] font-black uppercase text-slate-600 block">BILLING BREAKDOWN:</span>
+                <p class="text-[10px] font-bold text-slate-800">
+                    ৳<?= number_format($subtotal, 0) ?> + Del: ৳<?= number_format($deliveryCost, 0) ?>
+                    <?php if ($discount > 0): ?> - Disc: ৳<?= number_format($discount, 0) ?><?php endif; ?>
+                </p>
             </div>
-            <div class="text-right p-2 rounded-xl bg-slate-900 text-white shrink-0 border border-slate-900">
-                <span class="text-[9px] font-extrabold uppercase text-amber-300 block tracking-wider"><?= $isCod ? 'CASH TO COLLECT (COD)' : 'PAID IN FULL' ?></span>
-                <span class="text-lg font-black font-mono tracking-tight text-white leading-none">৳<?= number_format($grandTotal, 0) ?></span>
+            <div class="text-right p-1.5 rounded-lg bg-black text-white shrink-0 border border-black">
+                <span class="text-[8px] font-black uppercase text-amber-300 block tracking-wider"><?= $isCod ? 'CASH TO COLLECT (COD)' : 'PAID IN FULL' ?></span>
+                <span class="text-base font-black font-mono tracking-tight text-white leading-none">৳<?= number_format($grandTotal, 0) ?></span>
             </div>
         </div>
 
-        <!-- 6. Courier Instructions & Return Address Footer -->
-        <div class="p-3 bg-white text-[9px] font-bold text-slate-700 leading-tight space-y-1">
-            <div class="flex items-center gap-1.5 text-rose-700">
-                <i class="fas fa-triangle-exclamation"></i>
-                <span class="uppercase font-black">Instruction: ডেলিভারির পূর্বে কাস্টমারকে কল করুন। পণ্য দেখে চেক করার সুযোগ দিন।</span>
-            </div>
-            <div class="border-t pt-1 flex justify-between text-slate-500">
-                <span>Return to: <strong><?= htmlspecialchars($storeName) ?> Dispatch Hub</strong>, Dhaka</span>
-                <span>Helpline: <strong><?= htmlspecialchars($storePhone) ?></strong></span>
+        <!-- 6. Delivery Instruction for Rider -->
+        <div class="p-2 bg-white text-[8px] font-bold text-black leading-tight space-y-0.5">
+            <p class="text-rose-900 font-black uppercase">⚠️ কুরিয়ার রাইডার ডেলিভারির পূর্বে কল করুন ও পার্সেল চেক করার সুযোগ দিন।</p>
+            <div class="border-t border-slate-300 pt-0.5 flex justify-between text-slate-600 text-[8px]">
+                <span>Hub: <strong><?= htmlspecialchars($storeName) ?></strong></span>
+                <span>Date: <?= date('d/m/Y') ?></span>
             </div>
         </div>
 
@@ -232,15 +253,36 @@ foreach ($items as $it) {
 
     <!-- Render Vector Barcode with JsBarcode -->
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        function renderBarcode() {
             JsBarcode("#orderBarcode", "<?= addslashes($orderNo) ?>", {
                 format: "CODE128",
                 lineColor: "#000000",
                 width: 2,
-                height: 42,
+                height: 38,
                 displayValue: false,
                 margin: 0
             });
+        }
+
+        function setLabelMode(mode) {
+            const container = document.getElementById('stickerContainer');
+            const btn80 = document.getElementById('btnMode80');
+            const btn4x6 = document.getElementById('btnMode4x6');
+
+            if (mode === '4x6') {
+                container.className = 'label-container pos-4x6-preview mx-auto bg-white rounded-2xl border-2 border-black shadow-2xl overflow-hidden text-black text-xs font-sans transition-all duration-200';
+                btn4x6.className = 'px-3 py-1 bg-amber-500 text-slate-950 font-black rounded-lg text-xs shadow-sm transition';
+                btn80.className = 'px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs transition';
+            } else {
+                container.className = 'label-container pos-80mm-preview mx-auto bg-white rounded-2xl border-2 border-black shadow-2xl overflow-hidden text-black text-xs font-sans transition-all duration-200';
+                btn80.className = 'px-3 py-1 bg-amber-500 text-slate-950 font-black rounded-lg text-xs shadow-sm transition';
+                btn4x6.className = 'px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs transition';
+            }
+            renderBarcode();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderBarcode();
         });
     </script>
 </body>
