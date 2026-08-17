@@ -98,6 +98,14 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
     <?php if (!empty($metaKeywords)): ?>
     <meta name="keywords" content="<?= htmlspecialchars($metaKeywords) ?>">
     <?php endif; ?>
+
+    <!-- Google Search Console HTML Meta Verification Tag -->
+    <?php 
+    $gVerificationCode = getSetting('seo_google_site_verification', '9lPgPEuCpNIUVBp4ijCE2LOWq3rCuG_puGXUyHKuuC8');
+    if (!empty($gVerificationCode)):
+    ?>
+    <meta name="google-site-verification" content="<?= htmlspecialchars($gVerificationCode) ?>" />
+    <?php endif; ?>
     
     <!-- Dynamic Favicon / Website Tab Icon with Browser Cache Buster -->
     <link rel="icon" type="image/png" href="/<?= ltrim($storeFavicon, '/') ?>?v=<?= $faviconVer ?>">

@@ -183,6 +183,7 @@ function renderLayout(title, content, sessionData, activeNav = '') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-site-verification" content="9lPgPEuCpNIUVBp4ijCE2LOWq3rCuG_puGXUyHKuuC8" />
     <title>${title} - ${s.store_name || 'OnlineBdMart'}</title>
     
     <!-- Dynamic Favicon / Website Tab Icon -->

@@ -39,6 +39,7 @@ try {
             'seo_meta_title' => $_POST['seo_meta_title'] ?? 'OnlineBdMart • Best Online Shopping & Wholesale in Bangladesh',
             'seo_meta_description' => $_POST['seo_meta_description'] ?? 'Buy original accessories, luxury chronograph watches, leather wallets, and smart gadgets at lowest prices across 64 districts in Bangladesh with Cash on Delivery.',
             'seo_meta_keywords' => $_POST['seo_meta_keywords'] ?? 'online shopping bd, onlinebdmart, wholesale bangladesh, watches bd, leather wallet, accessories bangladesh, cash on delivery',
+            'seo_google_site_verification' => trim($_POST['seo_google_site_verification'] ?? '9lPgPEuCpNIUVBp4ijCE2LOWq3rCuG_puGXUyHKuuC8'),
             'seo_og_image' => $ogPath,
             'seo_google_analytics' => $_POST['seo_google_analytics'] ?? '',
             'seo_header_tags' => $_POST['seo_header_tags'] ?? '',
@@ -110,6 +111,12 @@ $ogImage = $settings['seo_og_image'] ?? 'images/hero/hero-1.jpg';
         <div>
             <label class="block text-slate-300 font-bold mb-1">Meta Keywords (Comma separated tags)</label>
             <input type="text" name="seo_meta_keywords" value="<?= htmlspecialchars($settings['seo_meta_keywords'] ?? 'online shopping bd, onlinebdmart, wholesale bangladesh, watches bd, leather wallet, accessories bangladesh, cash on delivery') ?>" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none">
+        </div>
+
+        <div>
+            <label class="block text-slate-300 font-bold mb-1"><i class="fab fa-google text-emerald-400 mr-1"></i> Google Search Console Verification Tag / Meta Code</label>
+            <input type="text" name="seo_google_site_verification" value="<?= htmlspecialchars($settings['seo_google_site_verification'] ?? '9lPgPEuCpNIUVBp4ijCE2LOWq3rCuG_puGXUyHKuuC8') ?>" placeholder="e.g. 9lPgPEuCpNIUVBp4ijCE2LOWq3rCuG_puGXUyHKuuC8" class="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-emerald-400 font-mono text-xs outline-none focus:border-emerald-500">
+            <p class="text-[10px] text-slate-400 mt-1">Google Search Console HTML tag ভেরিফিকেশনের জন্য <code>content="..."</code> এর ভেতরের কোডটি এখানে দিন।</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
