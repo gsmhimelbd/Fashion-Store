@@ -347,6 +347,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['coupon_action'])) {
             require_once __DIR__ . '/includes/smtp_mailer.php';
             @sendOrderEmailNotifications($orderId);
 
+            // Server-side Meta Conversions API (CAPI) Purchase Event Dispatch with Deduplicated Event ID
+            if ((getSetting('track_purchase', '1') === '1') && (getSetting('meta_capi_enabled', '1') === '1')) {
+                require_once __DIR__ . '/includes/meta_capi.php';
+                $purchaseEventId = 'purchase_' . $orderNumber;
+                
+                $contentIds = [];
+                $contents = [];
+                foreach ($cart as $ci) {
+                    $contentIds[] = (string)$ci['id'];
+                    $contents[] = [
+                        'id' => (string)$ci['id'],
+                        'quantity' => (int)$ci['quantity'],
+                        'item_price' => (float)$ci['price']
+                    ];
+                }
+
+                $cData = [
+                    'currency' => 'BDT',
+                    'value' => (float)$total,
+                    'content_type' => 'product',
+                    'content_ids' => $contentIds,
+                    'contents' => $contents,
+                    'num_items' => count($cart),
+                    'order_id' => $orderNumber
+                ];
+
+                $uData = [
+                    'email' => $email,
+                    'phone' => $phone,
+                    'name' => $name,
+                    'city' => $districtName,
+                    'district' => $districtName,
+                    'country' => 'bd'
+                ];
+
+                @MetaConversionsAPI::trackServerEvent('Purchase', $purchaseEventId, $cData, $uData);
+            }
+
             // Clear session cart and applied coupon
             unset($_SESSION['cart']);
             unset($_SESSION['applied_coupon']);
@@ -360,6 +398,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['coupon_action'])) {
 }
 
 $pageTitle = 'Express Checkout - OnlineBdMart';
+
+// Server-side Meta CAPI InitiateCheckout Dispatch
+require_once __DIR__ . '/includes/meta_capi.php';
+$initiateCheckoutEventId = 'initiate_checkout_' . (session_id() ?: rand(1000, 9999)) . '_' . time();
+if ((getSetting('track_initiate_checkout', '1') === '1') && (getSetting('meta_capi_enabled', '1') === '1')) {
+    $cIds = array_map(fn($it) => (string)$it['id'], $cart);
+    $cData = [
+        'currency' => 'BDT',
+        'value' => (float)$subtotal,
+        'content_type' => 'product',
+        'content_ids' => $cIds,
+        'num_items' => count($cart)
+    ];
+    $uData = [];
+    if (!empty($custEmail)) $uData['email'] = $custEmail;
+    if (!empty($custPhone)) $uData['phone'] = $custPhone;
+    if (!empty($custName)) $uData['name'] = $custName;
+    if (!empty($custDistrict)) $uData['city'] = $custDistrict;
+    @MetaConversionsAPI::trackServerEvent('InitiateCheckout', $initiateCheckoutEventId, $cData, $uData);
+}
+
 require_once 'includes/header.php';
 
 // Payment gateway numbers
@@ -671,6 +730,39 @@ $advanceCodEnabled = ($settings['payment_cod_advance_delivery_charge'] ?? '1') =
 </div>
 
 <script>
+// DataLayer & Meta Pixel InitiateCheckout Event with Deduplicated event_id
+window.dataLayer = window.dataLayer || [];
+window.dataLayer.push({
+    event: 'begin_checkout',
+    ecommerce: {
+        currency: 'BDT',
+        value: <?= (float)$subtotal ?>,
+        items: <?= json_encode(array_values(array_map(fn($it) => [
+            'item_id' => (string)$it['id'],
+            'item_name' => $it['name'],
+            'price' => (float)$it['price'],
+            'quantity' => (int)$it['quantity'],
+            'item_variant' => (!empty($it['color']) ? 'Color: ' . $it['color'] : '') . (!empty($it['size']) ? ' Size: ' . $it['size'] : '')
+        ], $cart))) ?>
+    },
+    meta_event: 'InitiateCheckout',
+    event_id: '<?= $initiateCheckoutEventId ?>',
+    content_ids: <?= json_encode(array_values(array_map(fn($it) => (string)$it['id'], $cart))) ?>,
+    content_type: 'product',
+    value: <?= (float)$subtotal ?>,
+    currency: 'BDT'
+});
+
+if (typeof fbq === 'function') {
+    fbq('track', 'InitiateCheckout', {
+        content_ids: <?= json_encode(array_values(array_map(fn($it) => (string)$it['id'], $cart))) ?>,
+        content_type: 'product',
+        value: <?= (float)$subtotal ?>,
+        currency: 'BDT',
+        num_items: <?= count($cart) ?>
+    }, { eventID: '<?= $initiateCheckoutEventId ?>' });
+}
+
 let currentSubtotal = <?= (float)$subtotal ?>;
 let currentDiscount = <?= (float)$discountAmount ?>;
 let currentDeliveryFee = 120.0;

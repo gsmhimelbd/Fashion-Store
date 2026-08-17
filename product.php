@@ -247,6 +247,25 @@ $pageTitle = !empty($product['meta_title']) ? $product['meta_title'] : ($product
 $metaDescription = !empty($product['meta_description']) ? $product['meta_description'] : (!empty($product['short_description']) ? $product['short_description'] : substr(strip_tags($product['description'] ?? ''), 0, 160));
 $metaKeywords = !empty($product['meta_keywords']) ? $product['meta_keywords'] : (!empty($product['focus_keyword']) ? $product['focus_keyword'] : ($product['name'] . ', price in bangladesh, buy online bd'));
 
+// Server-side Meta CAPI ViewContent Dispatch
+require_once __DIR__ . '/includes/meta_capi.php';
+$viewContentEventId = 'view_content_' . $product['id'] . '_' . (session_id() ?: rand(1000, 9999));
+if ((getSetting('track_view_content', '1') === '1') && (getSetting('meta_capi_enabled', '1') === '1')) {
+    $cData = [
+        'content_name' => $product['name'],
+        'content_ids' => [(string)$product['id']],
+        'content_type' => 'product',
+        'content_category' => $product['category_name'] ?? 'General',
+        'value' => (float)$initialPrice,
+        'currency' => 'BDT'
+    ];
+    $uData = [];
+    if (!empty($_SESSION['user_email'])) $uData['email'] = $_SESSION['user_email'];
+    if (!empty($_SESSION['user_phone'])) $uData['phone'] = $_SESSION['user_phone'];
+    if (!empty($_SESSION['user_name'])) $uData['name'] = $_SESSION['user_name'];
+    @MetaConversionsAPI::trackServerEvent('ViewContent', $viewContentEventId, $cData, $uData);
+}
+
 require_once 'includes/header.php';
 
 // Gallery images array
@@ -655,6 +674,42 @@ if (!empty($product['gallery_images'])) {
 </div>
 
 <script>
+// DataLayer & Meta Pixel ViewContent Event with Deduplicated event_id
+window.dataLayer = window.dataLayer || [];
+window.dataLayer.push({
+    event: 'view_item',
+    ecommerce: {
+        currency: 'BDT',
+        value: <?= (float)$initialPrice ?>,
+        items: [{
+            item_id: '<?= (int)$product['id'] ?>',
+            item_name: '<?= addslashes($product['name']) ?>',
+            price: <?= (float)$initialPrice ?>,
+            item_category: '<?= addslashes($product['category_name'] ?? 'General') ?>',
+            quantity: 1
+        }]
+    },
+    meta_event: 'ViewContent',
+    event_id: '<?= $viewContentEventId ?>',
+    content_name: '<?= addslashes($product['name']) ?>',
+    content_ids: ['<?= (int)$product['id'] ?>'],
+    content_type: 'product',
+    content_category: '<?= addslashes($product['category_name'] ?? 'General') ?>',
+    value: <?= (float)$initialPrice ?>,
+    currency: 'BDT'
+});
+
+if (typeof fbq === 'function') {
+    fbq('track', 'ViewContent', {
+        content_name: '<?= addslashes($product['name']) ?>',
+        content_ids: ['<?= (int)$product['id'] ?>'],
+        content_type: 'product',
+        content_category: '<?= addslashes($product['category_name'] ?? 'General') ?>',
+        value: <?= (float)$initialPrice ?>,
+        currency: 'BDT'
+    }, { eventID: '<?= $viewContentEventId ?>' });
+}
+
 let selectedProductColor = '<?= !empty($productColors[0]) ? addslashes($productColors[0]) : '' ?>';
 let selectedProductSize = '<?= !empty($productSizes[0]['size']) ? addslashes($productSizes[0]['size']) : '' ?>';
 let currentVariantPrice = <?= (float)$initialPrice ?>;

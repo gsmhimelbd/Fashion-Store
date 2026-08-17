@@ -64,6 +64,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'is_wholesale' => $isWholesale
                         ];
                     }
+
+                    // Server-side Meta CAPI AddToCart Dispatch
+                    $passedEventId = trim((string)($input['event_id'] ?? ''));
+                    $cartEventId = $passedEventId ?: ('add_to_cart_' . $p['id'] . '_' . time());
+                    if ((getSetting('track_add_to_cart', '1') === '1') && (getSetting('meta_capi_enabled', '1') === '1')) {
+                        require_once __DIR__ . '/includes/meta_capi.php';
+                        $cData = [
+                            'content_name' => $p['name'],
+                            'content_ids' => [(string)$p['id']],
+                            'content_type' => 'product',
+                            'value' => (float)($itemPrice * $qty),
+                            'currency' => 'BDT',
+                            'num_items' => $qty
+                        ];
+                        $uData = [];
+                        if (!empty($_SESSION['user_email'])) $uData['email'] = $_SESSION['user_email'];
+                        if (!empty($_SESSION['user_phone'])) $uData['phone'] = $_SESSION['user_phone'];
+                        if (!empty($_SESSION['user_name'])) $uData['name'] = $_SESSION['user_name'];
+                        @MetaConversionsAPI::trackServerEvent('AddToCart', $cartEventId, $cData, $uData);
+                    }
                 }
             } elseif ($action === 'update') {
                 $targetKey = $cartKeyInput ?: (string)$productId;

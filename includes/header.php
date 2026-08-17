@@ -82,6 +82,11 @@ $cartItems = getCartItems();
 $cartCount = getCartCount();
 $subtotal = getCartSubtotal();
 $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
+
+$gtmId = trim(getSetting('gtm_container_id', ''));
+$isGtmActive = (getSetting('gtm_enabled', '1') === '1') && !empty($gtmId) && $gtmId !== 'GTM-';
+$pixelId = trim(getSetting('facebook_pixel_id', ''));
+$isPixelActive = (getSetting('facebook_pixel_enabled', '1') === '1') && !empty($pixelId);
 ?>
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
@@ -90,6 +95,39 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? ($storeName . ' - Online Shopping Bangladesh')) ?></title>
     
+    <!-- Google Tag Manager (DataLayer Initialization) -->
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+    </script>
+    <?php if ($isGtmActive): ?>
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','<?= htmlspecialchars($gtmId) ?>');</script>
+    <!-- End Google Tag Manager -->
+    <?php endif; ?>
+
+    <?php if ($isPixelActive): ?>
+    <!-- Meta Pixel Code (Browser-Side with Deduplication Support) -->
+    <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '<?= htmlspecialchars($pixelId) ?>');
+    fbq('track', 'PageView');
+    </script>
+    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=<?= htmlspecialchars($pixelId) ?>&ev=PageView&noscript=1"/></noscript>
+    <!-- End Meta Pixel Code -->
+    <?php endif; ?>
+
     <?php if (!empty($metaDescription)): ?>
     <meta name="description" content="<?= htmlspecialchars($metaDescription) ?>">
     <?php else: ?>

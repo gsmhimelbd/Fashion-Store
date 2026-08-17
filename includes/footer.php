@@ -199,8 +199,40 @@
             }
         }
 
-        // 3. Add to Cart Function
+        // 3. Add to Cart Function with DataLayer & Meta CAPI Deduplicated Event ID
         function addToCart(productId, quantity = 1, isWholesale = false, color = '', size = '', customPrice = null) {
+            const eventId = 'add_to_cart_' + productId + '_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+            
+            // Push Browser-Side DataLayer & Meta Pixel Event
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({
+                event: 'add_to_cart',
+                ecommerce: {
+                    currency: 'BDT',
+                    value: customPrice ? (customPrice * quantity) : 0,
+                    items: [{
+                        item_id: String(productId),
+                        quantity: quantity,
+                        item_variant: (color ? 'Color: ' + color : '') + (size ? ' Size: ' + size : '')
+                    }]
+                },
+                meta_event: 'AddToCart',
+                event_id: eventId,
+                content_ids: [String(productId)],
+                content_type: 'product',
+                value: customPrice ? (customPrice * quantity) : 0,
+                currency: 'BDT'
+            });
+
+            if (typeof fbq === 'function') {
+                fbq('track', 'AddToCart', {
+                    content_ids: [String(productId)],
+                    content_type: 'product',
+                    value: customPrice ? (customPrice * quantity) : 0,
+                    currency: 'BDT'
+                }, { eventID: eventId });
+            }
+
             fetch('cart.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -211,7 +243,8 @@
                     is_wholesale: isWholesale,
                     color: color,
                     size: size,
-                    custom_price: customPrice
+                    custom_price: customPrice,
+                    event_id: eventId
                 })
             })
             .then(r => r.json())

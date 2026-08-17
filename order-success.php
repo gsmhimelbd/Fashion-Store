@@ -27,6 +27,20 @@ if ($orderId > 0 || $orderNum) {
 }
 
 $pageTitle = 'Order Placed Successfully - OnlineBdMart';
+
+$alreadyTracked = false;
+$orderNo = '';
+$purchaseEventId = '';
+if ($order) {
+    $orderNo = $order['order_number'] ?: ('OBM-' . $order['id']);
+    $purchaseEventId = 'purchase_' . $orderNo;
+    if (isset($_SESSION['tracked_purchases'][$orderNo])) {
+        $alreadyTracked = true;
+    } else {
+        $_SESSION['tracked_purchases'][$orderNo] = time();
+    }
+}
+
 require_once 'includes/header.php';
 ?>
 
@@ -104,6 +118,49 @@ require_once 'includes/header.php';
                 <i class="fas fa-truck-fast"></i> Live Track Order
             </a>
         </div>
+
+        <?php if ($order && !$alreadyTracked): ?>
+        <script>
+        // DataLayer & Meta Pixel Purchase Event with Deduplicated event_id
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({
+            event: 'purchase',
+            ecommerce: {
+                transaction_id: '<?= addslashes($orderNo) ?>',
+                value: <?= (float)($order['total_amount'] ?: $order['grand_total']) ?>,
+                currency: 'BDT',
+                shipping: <?= (float)($order['delivery_cost'] ?? ($order['delivery_charge'] ?? 120)) ?>,
+                coupon: '<?= addslashes($order['coupon_code'] ?? '') ?>',
+                items: <?= json_encode(array_values(array_map(fn($it) => [
+                    'item_id' => (string)($it['product_id'] ?? $it['id']),
+                    'item_name' => $it['product_name'],
+                    'price' => (float)$it['price'],
+                    'quantity' => (int)$it['quantity'],
+                    'item_variant' => (!empty($it['color']) ? 'Color: ' . $it['color'] : '') . (!empty($it['size']) ? ' Size: ' . $it['size'] : '')
+                ], $items))) ?>
+            },
+            meta_event: 'Purchase',
+            event_id: '<?= $purchaseEventId ?>',
+            order_id: '<?= addslashes($orderNo) ?>',
+            content_ids: <?= json_encode(array_values(array_map(fn($it) => (string)($it['product_id'] ?? $it['id']), $items))) ?>,
+            content_type: 'product',
+            value: <?= (float)($order['total_amount'] ?: $order['grand_total']) ?>,
+            currency: 'BDT',
+            num_items: <?= count($items) ?>
+        });
+
+        if (typeof fbq === 'function') {
+            fbq('track', 'Purchase', {
+                content_ids: <?= json_encode(array_values(array_map(fn($it) => (string)($it['product_id'] ?? $it['id']), $items))) ?>,
+                content_type: 'product',
+                value: <?= (float)($order['total_amount'] ?: $order['grand_total']) ?>,
+                currency: 'BDT',
+                num_items: <?= count($items) ?>,
+                order_id: '<?= addslashes($orderNo) ?>'
+            }, { eventID: '<?= $purchaseEventId ?>' });
+        }
+        </script>
+        <?php endif; ?>
         <?php endif; ?>
 
         <div class="pt-4">
