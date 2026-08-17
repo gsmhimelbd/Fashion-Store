@@ -14,6 +14,14 @@ try {
             $stmt = $db->prepare("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
             $stmt->execute([$newStatus, $orderId]);
             $msg = "Order #{$orderId} status successfully updated to " . strtoupper($newStatus) . "!";
+
+            // Send automated email on Delivered or Shipped
+            require_once __DIR__ . '/../includes/smtp_mailer.php';
+            if ($newStatus === 'delivered') {
+                @sendOrderDeliveredEmailNotification($orderId);
+            } elseif ($newStatus === 'shipped') {
+                @sendOrderShippedEmailNotification($orderId);
+            }
         }
     }
 

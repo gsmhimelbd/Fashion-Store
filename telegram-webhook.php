@@ -68,6 +68,14 @@ try {
             $upd = $db->prepare("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
             $upd->execute([$newStatus, $orderId]);
 
+            // Trigger customer notification email
+            require_once __DIR__ . '/includes/smtp_mailer.php';
+            if ($newStatus === 'delivered') {
+                @sendOrderDeliveredEmailNotification($orderId);
+            } elseif ($newStatus === 'shipped') {
+                @sendOrderShippedEmailNotification($orderId);
+            }
+
             // Fetch refreshed order
             $orderStmt = $db->prepare("SELECT * FROM orders WHERE id = ? LIMIT 1");
             $orderStmt->execute([$orderId]);

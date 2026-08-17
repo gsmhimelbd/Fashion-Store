@@ -383,3 +383,218 @@ function sendOrderEmailNotifications($orderId) {
         return false;
     }
 }
+
+/**
+ * Send automated Order Delivered Email to customer when status changes to 'delivered'
+ */
+function sendOrderDeliveredEmailNotification($orderId) {
+    try {
+        $db = getDB();
+        $stmt = $db->prepare("SELECT * FROM orders WHERE id = ? LIMIT 1");
+        $stmt->execute([$orderId]);
+        $order = $stmt->fetch();
+        if (!$order || empty($order['customer_email']) || !filter_var($order['customer_email'], FILTER_VALIDATE_EMAIL)) return false;
+
+        $itemsStmt = $db->prepare("SELECT * FROM order_items WHERE order_id = ?");
+        $itemsStmt->execute([$orderId]);
+        $items = $itemsStmt->fetchAll();
+
+        $settings = getAllSettings();
+        $storeName = $settings['store_name'] ?? 'OnlineBdMart';
+        $orderNo = $order['order_number'] ?: ('OBM-' . $order['id']);
+        $phone = $order['customer_phone'] ?: ($order['phone'] ?? '');
+        $name = $order['customer_name'] ?: 'Valued Customer';
+        $grandTotalVal = number_format((float)($order['grand_total'] ?: ($order['total_amount'] ?? 0)), 2);
+
+        $itemsRows = '';
+        foreach ($items as $item) {
+            $itemTotal = number_format($item['price'] * $item['quantity'], 2);
+            $variantTag = '';
+            if (!empty($item['color'])) $variantTag .= "<span style='display:inline-block; font-size:10px; font-weight:bold; color:#4338ca; background:#e0e7ff; padding:2px 6px; border-radius:4px; margin-right:4px;'>Color: " . htmlspecialchars($item['color']) . "</span>";
+            if (!empty($item['size'])) $variantTag .= "<span style='display:inline-block; font-size:10px; font-weight:bold; color:#b45309; background:#fef3c7; padding:2px 6px; border-radius:4px;'>Size: " . htmlspecialchars($item['size']) . "</span>";
+            
+            $itemsRows .= "<tr>
+                <td style='padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #1e293b;'>
+                    <div style='font-weight: bold; color: #0f172a; margin-bottom: 3px;'>{$item['product_name']}</div>
+                    {$variantTag}
+                </td>
+                <td style='padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: center; color: #475569; font-weight: bold;'>{$item['quantity']}</td>
+                <td style='padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; font-weight: bold; color: #059669;'>৳{$itemTotal}</td>
+            </tr>";
+        }
+
+        $emailHtml = "
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='utf-8'>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+            <title>Order Delivered #{$orderNo}</title>
+        </head>
+        <body style='margin: 0; padding: 20px 0; background-color: #f1f5f9; font-family: Helvetica, Arial, sans-serif;'>
+            <table role='presentation' width='100%' border='0' cellspacing='0' cellpadding='0'>
+                <tr>
+                    <td align='center'>
+                        <table role='presentation' width='600' border='0' cellspacing='0' cellpadding='0' style='max-width: 600px; width: 100%; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;'>
+                            
+                            <!-- Header Banner (Delivered Emerald Green) -->
+                            <tr>
+                                <td style='background: linear-gradient(135deg, #064e3b, #059669); padding: 30px 25px; text-align: center; color: #ffffff;'>
+                                    <div style='font-size: 32px; margin-bottom: 8px;'>🎉</div>
+                                    <h1 style='margin: 0; font-size: 22px; font-weight: 900;'>Order Delivered Successfully!</h1>
+                                    <p style='margin: 6px 0 0 0; font-size: 13px; color: #d1fae5;'>আপনার পার্সেলটি সফলভাবে ডেলিভারি সম্পন্ন হয়েছে • #{$orderNo}</p>
+                                </td>
+                            </tr>
+
+                            <!-- Body Text -->
+                            <tr>
+                                <td style='padding: 25px;'>
+                                    <h2 style='font-size: 16px; color: #0f172a; margin: 0 0 8px 0;'>Dear {$name},</h2>
+                                    <p style='font-size: 13px; color: #475569; line-height: 1.6; margin: 0;'>
+                                        We are pleased to inform you that your order <strong>#{$orderNo}</strong> has been successfully delivered by our courier partner. We hope you love your purchase!
+                                    </p>
+                                    <p style='font-size: 12px; color: #64748b; margin-top: 8px;'>
+                                        OnlineBdMart থেকে কেনাকাটা করার জন্য আপনাকে আন্তরিক ধন্যবাদ। আপনার প্রোডাক্টের কোনো সমস্যা থাকলে আমাদের ৭ দিনের রিপ্লেসমেন্ট গ্যারান্টি রয়েছে।
+                                    </p>
+                                </td>
+                            </tr>
+
+                            <!-- Delivered Items Table -->
+                            <tr>
+                                <td style='padding: 0 25px;'>
+                                    <table role='presentation' width='100%' border='0' cellspacing='0' cellpadding='0' style='border-collapse: collapse; margin: 10px 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;'>
+                                        <thead>
+                                            <tr style='background: #e2e8f0;'>
+                                                <th style='padding: 10px 12px; font-size: 11px; text-transform: uppercase; color: #475569; text-align: left;'>Delivered Item</th>
+                                                <th style='padding: 10px 12px; font-size: 11px; text-transform: uppercase; color: #475569; text-align: center;'>Qty</th>
+                                                <th style='padding: 10px 12px; font-size: 11px; text-transform: uppercase; color: #475569; text-align: right;'>Total Paid</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {$itemsRows}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <td colspan='2' style='padding: 10px 12px; text-align: right; font-size: 13px; font-weight: bold; color: #0f172a;'>Total Amount:</td>
+                                                <td style='padding: 10px 12px; text-align: right; font-size: 15px; font-weight: 900; color: #059669;'>৳{$grandTotalVal}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </td>
+                            </tr>
+
+                            <!-- Review & Support Buttons -->
+                            <tr>
+                                <td style='padding: 25px; text-align: center;'>
+                                    <a href='https://onlinebdmart.com/shop.php' style='background: #059669; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 10px; font-size: 13px; font-weight: bold; display: inline-block; box-shadow: 0 4px 10px rgba(5,150,105,0.3);'>Shop More Products &rarr;</a>
+                                    <div style='margin-top: 12px;'>
+                                        <a href='https://wa.me/8801775153740?text=" . urlencode("Assalamu Alaikum, I received my Order #{$orderNo}. Thank you!") . "' style='font-size: 12px; color: #059669; font-weight: bold; text-decoration: none;'>💬 WhatsApp Hotline Support</a>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- Footer -->
+                            <tr>
+                                <td style='background: #f8fafc; padding: 15px 25px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0;'>
+                                    &copy; " . date('Y') . " {$storeName}. 7-Day Easy Replacement Policy.
+                                </td>
+                            </tr>
+
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>";
+
+        $dbg = '';
+        return sendSMTPEmail($order['customer_email'], "🎉 Order Delivered Successfully #{$orderNo} - {$storeName}", $emailHtml, $dbg);
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+/**
+ * Send automated Order Shipped / Dispatched Email to customer when status changes to 'shipped'
+ */
+function sendOrderShippedEmailNotification($orderId) {
+    try {
+        $db = getDB();
+        $stmt = $db->prepare("SELECT * FROM orders WHERE id = ? LIMIT 1");
+        $stmt->execute([$orderId]);
+        $order = $stmt->fetch();
+        if (!$order || empty($order['customer_email']) || !filter_var($order['customer_email'], FILTER_VALIDATE_EMAIL)) return false;
+
+        $settings = getAllSettings();
+        $storeName = $settings['store_name'] ?? 'OnlineBdMart';
+        $orderNo = $order['order_number'] ?: ('OBM-' . $order['id']);
+        $name = $order['customer_name'] ?: 'Valued Customer';
+        $address = $order['delivery_address'] ?: ($order['address'] ?? '');
+        $district = $order['district_name'] ?: ($order['district'] ?: 'Bangladesh');
+        $grandTotalVal = number_format((float)($order['grand_total'] ?: ($order['total_amount'] ?? 0)), 2);
+
+        $emailHtml = "
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='utf-8'>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+            <title>Order Dispatched #{$orderNo}</title>
+        </head>
+        <body style='margin: 0; padding: 20px 0; background-color: #f1f5f9; font-family: Helvetica, Arial, sans-serif;'>
+            <table role='presentation' width='100%' border='0' cellspacing='0' cellpadding='0'>
+                <tr>
+                    <td align='center'>
+                        <table role='presentation' width='600' border='0' cellspacing='0' cellpadding='0' style='max-width: 600px; width: 100%; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;'>
+                            
+                            <!-- Header Banner (Shipped Purple/Indigo) -->
+                            <tr>
+                                <td style='background: linear-gradient(135deg, #1e1b4b, #6366f1); padding: 30px 25px; text-align: center; color: #ffffff;'>
+                                    <div style='font-size: 32px; margin-bottom: 8px;'>🚚</div>
+                                    <h1 style='margin: 0; font-size: 22px; font-weight: 900;'>Your Order is on the Way!</h1>
+                                    <p style='margin: 6px 0 0 0; font-size: 13px; color: #e0e7ff;'>আপনার পার্সেলটি কুরিয়ারে হস্তান্তর করা হয়েছে • #{$orderNo}</p>
+                                </td>
+                            </tr>
+
+                            <!-- Body Text -->
+                            <tr>
+                                <td style='padding: 25px;'>
+                                    <h2 style='font-size: 16px; color: #0f172a; margin: 0 0 8px 0;'>Hello {$name},</h2>
+                                    <p style='font-size: 13px; color: #475569; line-height: 1.6; margin: 0;'>
+                                        Great news! Your package for Order <strong>#{$orderNo}</strong> has been dispatched and is currently on its way to your delivery address in <strong>{$district}</strong>.
+                                    </p>
+                                    <div style='background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin: 16px 0; font-size: 12px; color: #334155;'>
+                                        <div><strong>Destination:</strong> {$address}, {$district}</div>
+                                        <div><strong>Amount to Pay (if COD):</strong> ৳{$grandTotalVal}</div>
+                                        <div style='margin-top: 4px; color: #4338ca; font-weight: bold;'>⚠️ ডেলিভারি রাইডার পৌঁছানোর পূর্বে আপনার ফোনে কল দিবে।</div>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- Live Tracking Button -->
+                            <tr>
+                                <td style='padding: 0 25px 25px 25px; text-align: center;'>
+                                    <a href='https://onlinebdmart.com/track-order.php?order=" . urlencode($orderNo) . "' style='background: #4f46e5; color: #ffffff; padding: 12px 26px; text-decoration: none; border-radius: 10px; font-size: 13px; font-weight: bold; display: inline-block; box-shadow: 0 4px 10px rgba(79,70,229,0.3);'>Live Track Parcel &rarr;</a>
+                                </td>
+                            </tr>
+
+                            <!-- Footer -->
+                            <tr>
+                                <td style='background: #f8fafc; padding: 15px 25px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0;'>
+                                    &copy; " . date('Y') . " {$storeName}. Online Shopping Bangladesh.
+                                </td>
+                            </tr>
+
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>";
+
+        $dbg = '';
+        return sendSMTPEmail($order['customer_email'], "🚚 Order Dispatched / On The Way #{$orderNo} - {$storeName}", $emailHtml, $dbg);
+    } catch (Exception $e) {
+        return false;
+    }
+}
