@@ -174,15 +174,19 @@ class CourierService {
             'recipient_name' => $name,
             'recipient_phone' => $phone,
             'recipient_address' => $address,
-            'cod_amount' => (int)round($codAmount),
+            'cod_amount' => (string)round($codAmount),
             'note' => $note ?: 'OnlineBdMart Order'
         ];
+
+        if (!empty($order['customer_email'])) {
+            $payload['recipient_email'] = trim($order['customer_email']);
+        }
 
         $url = 'https://portal.steadfast.com.bd/api/v1/create_order';
         $headers = [
             'Content-Type: application/json',
-            'Api-Key: ' . $apiKey,
-            'Secret-Key: ' . $secretKey
+            'api-key: ' . $apiKey,
+            'secret-key: ' . $secretKey
         ];
 
         $ch = curl_init($url);
