@@ -101,11 +101,16 @@ $currentPage = basename($_SERVER['PHP_SELF'] ?? 'index.php');
 
     <!-- Google Search Console HTML Meta Verification Tag -->
     <?php 
-    $gVerificationCode = getSetting('seo_google_site_verification', '9lPgPEuCpNIUVBp4ijCE2LOWq3rCuG_puGXUyHKuuC8');
-    if (!empty($gVerificationCode)):
+    $gVerificationCode = trim(getSetting('seo_google_site_verification', '9lPgPEuCpNIUVBp4ijCE2LOWq3rCuG_puGXUyHKuuC8'));
+    if (preg_match('/content=[\'"]([^\'"]+)[\'"]/i', $gVerificationCode, $m)) {
+        $gVerificationCode = $m[1];
+    }
+    $gVerificationCode = preg_replace('/[^a-zA-Z0-9_-]/', '', $gVerificationCode);
+    if (empty($gVerificationCode)) {
+        $gVerificationCode = '9lPgPEuCpNIUVBp4ijCE2LOWq3rCuG_puGXUyHKuuC8';
+    }
     ?>
     <meta name="google-site-verification" content="<?= htmlspecialchars($gVerificationCode) ?>" />
-    <?php endif; ?>
     
     <!-- Dynamic Favicon / Website Tab Icon with Browser Cache Buster -->
     <link rel="icon" type="image/png" href="/<?= ltrim($storeFavicon, '/') ?>?v=<?= $faviconVer ?>">
