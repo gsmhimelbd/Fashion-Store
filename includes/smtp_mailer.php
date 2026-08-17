@@ -393,7 +393,23 @@ function sendOrderDeliveredEmailNotification($orderId) {
         $stmt = $db->prepare("SELECT * FROM orders WHERE id = ? LIMIT 1");
         $stmt->execute([$orderId]);
         $order = $stmt->fetch();
-        if (!$order || empty($order['customer_email']) || !filter_var($order['customer_email'], FILTER_VALIDATE_EMAIL)) return false;
+        if (!$order) return false;
+
+        $customerEmail = !empty($order['customer_email']) ? trim($order['customer_email']) : (!empty($order['email']) ? trim($order['email']) : '');
+        if (empty($customerEmail) || !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+            // Check if user has an account with this phone number
+            $rawPhone = $order['customer_phone'] ?: ($order['phone'] ?? '');
+            if ($rawPhone) {
+                try {
+                    $uStmt = $db->prepare("SELECT email FROM users WHERE phone = ? AND email != '' LIMIT 1");
+                    $uStmt->execute([$rawPhone]);
+                    $uRow = $uStmt->fetch();
+                    if (!empty($uRow['email'])) {
+                        $customerEmail = trim($uRow['email']);
+                    }
+                } catch (Exception $eu) {}
+            }
+        }
 
         $itemsStmt = $db->prepare("SELECT * FROM order_items WHERE order_id = ?");
         $itemsStmt->execute([$orderId]);
@@ -508,7 +524,17 @@ function sendOrderDeliveredEmailNotification($orderId) {
         </html>";
 
         $dbg = '';
-        return sendSMTPEmail($order['customer_email'], "🎉 Order Delivered Successfully #{$orderNo} - {$storeName}", $emailHtml, $dbg);
+        if ($customerEmail && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+            sendSMTPEmail($customerEmail, "🎉 Order Delivered Successfully #{$orderNo} - {$storeName}", $emailHtml, $dbg);
+        }
+
+        // Send copy to admin if configured
+        $adminEmail = $settings['notify_admin_email'] ?? '';
+        if (!empty($adminEmail) && filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+            sendSMTPEmail($adminEmail, "📦 [ORDER DELIVERED] #{$orderNo} ({$name})", $emailHtml, $dbg);
+        }
+
+        return true;
     } catch (Exception $e) {
         return false;
     }
@@ -523,7 +549,23 @@ function sendOrderShippedEmailNotification($orderId) {
         $stmt = $db->prepare("SELECT * FROM orders WHERE id = ? LIMIT 1");
         $stmt->execute([$orderId]);
         $order = $stmt->fetch();
-        if (!$order || empty($order['customer_email']) || !filter_var($order['customer_email'], FILTER_VALIDATE_EMAIL)) return false;
+        if (!$order) return false;
+
+        $customerEmail = !empty($order['customer_email']) ? trim($order['customer_email']) : (!empty($order['email']) ? trim($order['email']) : '');
+        if (empty($customerEmail) || !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+            // Check if user has an account with this phone number
+            $rawPhone = $order['customer_phone'] ?: ($order['phone'] ?? '');
+            if ($rawPhone) {
+                try {
+                    $uStmt = $db->prepare("SELECT email FROM users WHERE phone = ? AND email != '' LIMIT 1");
+                    $uStmt->execute([$rawPhone]);
+                    $uRow = $uStmt->fetch();
+                    if (!empty($uRow['email'])) {
+                        $customerEmail = trim($uRow['email']);
+                    }
+                } catch (Exception $eu) {}
+            }
+        }
 
         $settings = getAllSettings();
         $storeName = $settings['store_name'] ?? 'OnlineBdMart';
@@ -593,7 +635,17 @@ function sendOrderShippedEmailNotification($orderId) {
         </html>";
 
         $dbg = '';
-        return sendSMTPEmail($order['customer_email'], "🚚 Order Dispatched / On The Way #{$orderNo} - {$storeName}", $emailHtml, $dbg);
+        if ($customerEmail && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+            sendSMTPEmail($customerEmail, "🚚 Order Dispatched / On The Way #{$orderNo} - {$storeName}", $emailHtml, $dbg);
+        }
+
+        // Send copy to admin if configured
+        $adminEmail = $settings['notify_admin_email'] ?? '';
+        if (!empty($adminEmail) && filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+            sendSMTPEmail($adminEmail, "🚚 [ORDER SHIPPED] #{$orderNo} ({$name})", $emailHtml, $dbg);
+        }
+
+        return true;
     } catch (Exception $e) {
         return false;
     }
