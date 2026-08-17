@@ -148,7 +148,7 @@ class CourierService {
     }
 
     // =========================================================================
-    // 1. STEADFAST COURIER INTEGRATION (https://steadfast.com.bd)
+    // 1. STEADFAST COURIER INTEGRATION (https://steadfast.com.bd / packzy.com)
     // =========================================================================
     public static function sendToSteadfast($order, $items) {
         $settings = getAllSettings();
@@ -156,16 +156,22 @@ class CourierService {
         $secretKey = trim($settings['steadfast_secret_key'] ?? '');
 
         if (empty($apiKey) || empty($secretKey)) {
-            return ['success' => false, 'message' => 'Steadfast API Key or Secret Key not configured in Admin Settings.'];
+            return [
+                'success' => false,
+                'message' => 'Steadfast API Key or Secret Key not configured. Please go to Admin Panel -> Courier & API Hub and save your credentials.'
+            ];
         }
 
-        $orderNo = $order['order_number'] ?: ('OBM-' . $order['id']);
-        $codAmount = self::calculateCodAmount($order);
+        $orderNo = (string)($order['order_number'] ?: ('OBM-' . $order['id']));
+        $codAmount = (int)round(self::calculateCodAmount($order));
         $phone = self::cleanPhone($order['customer_phone'] ?: $order['phone']);
-        $name = $order['customer_name'] ?: 'Customer';
-        $address = $order['delivery_address'] ?: ($order['address'] ?: 'Dhaka');
-        if (!empty($order['district_name'])) {
+        $name = trim((string)($order['customer_name'] ?: 'Customer'));
+        $address = trim((string)($order['delivery_address'] ?: ($order['address'] ?: 'Dhaka, Bangladesh')));
+        if (!empty($order['district_name']) && stripos($address, $order['district_name']) === false) {
             $address .= ', ' . $order['district_name'];
+        }
+        if (strlen($address) < 10) {
+            $address .= ', Bangladesh';
         }
         $note = self::buildItemNote($items);
 
@@ -174,7 +180,7 @@ class CourierService {
             'recipient_name' => $name,
             'recipient_phone' => $phone,
             'recipient_address' => $address,
-            'cod_amount' => (string)round($codAmount),
+            'cod_amount' => (string)$codAmount,
             'note' => $note ?: 'OnlineBdMart Order'
         ];
 
@@ -182,32 +188,52 @@ class CourierService {
             $payload['recipient_email'] = trim($order['customer_email']);
         }
 
-        $url = 'https://portal.steadfast.com.bd/api/v1/create_order';
         $headers = [
             'Content-Type: application/json',
+            'Accept: application/json',
             'api-key: ' . $apiKey,
-            'secret-key: ' . $secretKey
+            'secret-key: ' . $secretKey,
+            'Api-Key: ' . $apiKey,
+            'Secret-Key: ' . $secretKey
         ];
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 15,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => 0,
-        ]);
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err = curl_error($ch);
-        curl_close($ch);
+        // Endpoints to try (Primary & Cloud cluster)
+        $endpoints = [
+            'https://portal.steadfast.com.bd/api/v1/create_order',
+            'https://portal.packzy.com/api/v1/create_order'
+        ];
+
+        $response = false;
+        $httpCode = 0;
+        $err = '';
+
+        foreach ($endpoints as $url) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($payload),
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 20,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => 0,
+                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) OnlineBdMart Courier Dispatcher',
+            ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err = curl_error($ch);
+            curl_close($ch);
+
+            if ($httpCode === 200 || $httpCode === 201) {
+                break;
+            }
+        }
 
         $res = json_decode($response, true);
 
-        if ($httpCode === 200 && !empty($res['consignment'])) {
-            $consignment = $res['consignment'];
+        // Success condition
+        if (($httpCode === 200 || $httpCode === 201) && (!empty($res['consignment']) || !empty($res['data']))) {
+            $consignment = $res['consignment'] ?? ($res['data'] ?? []);
             $cid = (string)($consignment['consignment_id'] ?? ($consignment['id'] ?? ''));
             $trk = (string)($consignment['tracking_code'] ?? $cid);
             $status = (string)($consignment['status'] ?? 'in_review');
@@ -221,11 +247,70 @@ class CourierService {
                 'tracking_code' => $trk,
                 'status' => $status,
                 'tracking_url' => "https://steadfast.com.bd/t/{$cid}",
-                'message' => "✓ Order successfully sent to Steadfast Courier! Consignment ID: {$cid}"
+                'message' => "✓ Order successfully booked with Steadfast! Consignment ID: {$cid} | Tracking: {$trk}"
             ];
         }
 
-        $errMsg = $res['message'] ?? ($res['errors'] ? json_encode($res['errors']) : ($err ?: 'Failed to create Steadfast consignment.'));
+        // Handle Duplicate Invoice: Retry once with unique invoice suffix
+        if (!empty($res['errors']['invoice']) || (isset($res['message']) && stripos($res['message'], 'INVOICE_ALREADY_EXISTS') !== false)) {
+            $uniqueOrderNo = $orderNo . '-' . substr(time(), -4);
+            $payload['invoice'] = $uniqueOrderNo;
+
+            $ch = curl_init('https://portal.steadfast.com.bd/api/v1/create_order');
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($payload),
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 20,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => 0,
+            ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            $res = json_decode($response, true);
+
+            if (($httpCode === 200 || $httpCode === 201) && !empty($res['consignment'])) {
+                $consignment = $res['consignment'];
+                $cid = (string)($consignment['consignment_id'] ?? ($consignment['id'] ?? ''));
+                $trk = (string)($consignment['tracking_code'] ?? $cid);
+                $status = (string)($consignment['status'] ?? 'in_review');
+
+                self::updateOrderCourierData($order['id'], 'Steadfast', $cid, $trk, $status, $res);
+
+                return [
+                    'success' => true,
+                    'courier' => 'Steadfast',
+                    'consignment_id' => $cid,
+                    'tracking_code' => $trk,
+                    'status' => $status,
+                    'tracking_url' => "https://steadfast.com.bd/t/{$cid}",
+                    'message' => "✓ Order booked with Steadfast! Consignment ID: {$cid} (Invoice: {$uniqueOrderNo})"
+                ];
+            }
+        }
+
+        // Build detailed human readable error message
+        $errMsg = '';
+        if (!empty($res['errors']) && is_array($res['errors'])) {
+            $errParts = [];
+            foreach ($res['errors'] as $field => $messages) {
+                $errParts[] = ucfirst($field) . ': ' . (is_array($messages) ? implode(', ', $messages) : $messages);
+            }
+            $errMsg = implode(' | ', $errParts);
+        } elseif (!empty($res['message'])) {
+            $errMsg = $res['message'];
+        } elseif ($httpCode === 401) {
+            $errMsg = 'Invalid Steadfast API Key or Secret Key (401 Unauthorized). Please check credentials in Admin Panel.';
+        } elseif ($httpCode === 404) {
+            $errMsg = 'Steadfast API Endpoint not found (404).';
+        } elseif (!empty($err)) {
+            $errMsg = 'cURL Connection Error: ' . $err;
+        } else {
+            $errMsg = 'Steadfast Booking Failed (HTTP ' . $httpCode . '). Response: ' . substr((string)$response, 0, 200);
+        }
+
         return ['success' => false, 'error' => $errMsg, 'raw' => $response];
     }
 
