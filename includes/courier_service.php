@@ -372,6 +372,7 @@ class CourierService {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 12,
             CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
         ]);
         $res = curl_exec($ch);
         curl_close($ch);
@@ -380,20 +381,35 @@ class CourierService {
         if (!empty($d['access_token'])) {
             $token = $d['access_token'];
             $expiresIn = (int)($d['expires_in'] ?? 86400 * 5);
-            saveSetting('pathao_cached_token', $token);
-            saveSetting('pathao_token_expiry', (string)(time() + $expiresIn - 3600));
+            try {
+                saveSetting('pathao_cached_token', $token);
+                saveSetting('pathao_token_expiry', (string)(time() + $expiresIn - 3600));
+            } catch (Exception $e) {}
             return $token;
         }
         return null;
     }
 
     public static function sendToPathao($order, $items) {
-        $token = self::getPathaoToken();
-        if (!$token) {
-            return ['success' => false, 'message' => 'Failed to authenticate with Pathao API. Check credentials.'];
+        $settings = getAllSettings();
+        $clientId = trim($settings['pathao_client_id'] ?? '');
+        $clientSecret = trim($settings['pathao_client_secret'] ?? '');
+
+        if (empty($clientId) || empty($clientSecret)) {
+            return [
+                'success' => false,
+                'message' => 'Pathao API credentials not configured. Please enter Client ID, Secret, Username and Password in Courier & API Hub.'
+            ];
         }
 
-        $settings = getAllSettings();
+        $token = self::getPathaoToken();
+        if (!$token) {
+            return [
+                'success' => false,
+                'message' => 'Pathao authentication failed. Please verify your Pathao Client ID, Secret, Email and Password in Courier & API Hub.'
+            ];
+        }
+
         $storeId = (int)($settings['pathao_store_id'] ?? 0);
         $orderNo = $order['order_number'] ?: ('OBM-' . $order['id']);
         $codAmount = self::calculateCodAmount($order);
@@ -408,10 +424,10 @@ class CourierService {
             'recipient_name' => $name,
             'recipient_phone' => $phone,
             'recipient_address' => $address,
-            'recipient_city' => 1, // Default Dhaka City ID or auto
+            'recipient_city' => 1,
             'recipient_zone' => 1,
-            'delivery_type' => 48, // Normal 48hrs
-            'item_type' => 2,      // Parcel
+            'delivery_type' => 48,
+            'item_type' => 2,
             'special_instruction' => $itemNote ?: 'OnlineBdMart Parcel',
             'item_quantity' => count($items) ?: 1,
             'item_weight' => 0.5,
@@ -432,6 +448,7 @@ class CourierService {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 15,
             CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
         ]);
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -455,7 +472,12 @@ class CourierService {
             ];
         }
 
-        return ['success' => false, 'error' => $res['message'] ?? 'Pathao booking failed', 'raw' => $response];
+        $errMsg = $res['message'] ?? 'Pathao booking failed (HTTP ' . $httpCode . ').';
+        if (!empty($res['errors']) && is_array($res['errors'])) {
+            $errMsg .= ' ' . json_encode($res['errors']);
+        }
+
+        return ['success' => false, 'error' => $errMsg, 'raw' => $response];
     }
 
     // =========================================================================
