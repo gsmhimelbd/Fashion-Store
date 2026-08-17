@@ -95,13 +95,13 @@ class CourierService {
      */
     public static function cleanPhone($phone) {
         $digits = preg_replace('/[^0-9]/', '', (string)$phone);
-        if (str_starts_with($digits, '880') && strlen($digits) === 13) {
+        if (substr($digits, 0, 3) === '880' && strlen($digits) === 13) {
             return substr($digits, 2);
         }
-        if (str_starts_with($digits, '01') && strlen($digits) === 11) {
+        if (substr($digits, 0, 2) === '01' && strlen($digits) === 11) {
             return $digits;
         }
-        if (str_starts_with($digits, '1') && strlen($digits) === 10) {
+        if (substr($digits, 0, 1) === '1' && strlen($digits) === 10) {
             return '0' . $digits;
         }
         return $digits;
@@ -521,13 +521,18 @@ class CourierService {
             $settings = getAllSettings();
             $courier = strtolower($preferredCourier ?: ($settings['default_courier'] ?? 'steadfast'));
 
-            return match ($courier) {
-                'steadfast' => self::sendToSteadfast($order, $items),
-                'pathao'    => self::sendToPathao($order, $items),
-                'redx'      => self::sendToRedx($order, $items),
-                'paperfly'  => self::sendToPaperfly($order, $items),
-                default     => self::sendToSteadfast($order, $items)
-            };
+            switch ($courier) {
+                case 'steadfast':
+                    return self::sendToSteadfast($order, $items);
+                case 'pathao':
+                    return self::sendToPathao($order, $items);
+                case 'redx':
+                    return self::sendToRedx($order, $items);
+                case 'paperfly':
+                    return self::sendToPaperfly($order, $items);
+                default:
+                    return self::sendToSteadfast($order, $items);
+            }
         } catch (Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];
         }
@@ -551,14 +556,34 @@ class CourierService {
     public static function mapCourierStatusToStoreStatus($courierStatus) {
         $s = strtolower(trim((string)$courierStatus));
 
-        return match ($s) {
-            'pending', 'in_review', 'hold' => 'pending',
-            'confirmed', 'accepted', 'approved', 'processing' => 'processing',
-            'picked', 'picked_up', 'in_transit', 'out_for_delivery', 'dispatched' => 'shipped',
-            'delivered', 'partial_delivered', 'paid' => 'delivered',
-            'cancelled', 'canceled' => 'cancelled',
-            'returned', 'return_to_merchant', 'rejected' => 'cancelled',
-            default => 'processing'
-        };
+        switch ($s) {
+            case 'pending':
+            case 'in_review':
+            case 'hold':
+                return 'pending';
+            case 'confirmed':
+            case 'accepted':
+            case 'approved':
+            case 'processing':
+                return 'processing';
+            case 'picked':
+            case 'picked_up':
+            case 'in_transit':
+            case 'out_for_delivery':
+            case 'dispatched':
+                return 'shipped';
+            case 'delivered':
+            case 'partial_delivered':
+            case 'paid':
+                return 'delivered';
+            case 'cancelled':
+            case 'canceled':
+            case 'returned':
+            case 'return_to_merchant':
+            case 'rejected':
+                return 'cancelled';
+            default:
+                return 'processing';
+        }
     }
 }

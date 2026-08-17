@@ -15,7 +15,7 @@ CourierService::ensureSchema();
 
 $rawBody = file_get_contents('php://input');
 $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-if (str_contains($ip, ',')) $ip = trim(explode(',', $ip)[0]);
+if (strpos($ip, ',') !== false) $ip = trim(explode(',', $ip)[0]);
 
 $payload = json_decode($rawBody, true);
 if (!$payload && !empty($_POST)) {
