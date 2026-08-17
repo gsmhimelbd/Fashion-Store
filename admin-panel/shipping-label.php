@@ -52,7 +52,7 @@ foreach ($items as $it) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>80mm POS Shipping Sticker #<?= htmlspecialchars($orderNo) ?> - <?= htmlspecialchars($storeName) ?></title>
+    <title>Shipping Sticker #<?= htmlspecialchars($orderNo) ?> - <?= htmlspecialchars($storeName) ?></title>
     
     <!-- Tailwind CSS for UI Controls -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -61,7 +61,7 @@ foreach ($items as $it) {
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 
     <style>
-        /* 80mm POS Thermal Sticker Default Print Style */
+        /* Print Styles */
         @media print {
             body {
                 background: white !important;
@@ -73,37 +73,50 @@ foreach ($items as $it) {
                 display: none !important;
             }
             
-            /* 80mm POS Thermal Page Size */
+            /* Universal Page Sizing */
             @page {
-                size: 80mm auto;
-                margin: 2mm;
+                size: auto;
+                margin: 3mm;
             }
             
-            .sticker-80mm {
+            .print-wrapper-80mm {
                 width: 76mm !important;
                 max-width: 76mm !important;
                 padding: 2mm !important;
                 margin: 0 auto !important;
                 border: 2px solid #000 !important;
-                box-shadow: none !important;
                 page-break-inside: avoid;
             }
 
-            .sticker-4x6 {
+            .print-wrapper-4x6 {
                 width: 4in !important;
                 max-width: 4in !important;
+                margin: 0 auto !important;
                 border: 2px solid #000 !important;
+                page-break-inside: avoid;
+            }
+
+            .print-wrapper-a4 {
+                width: 100mm !important;
+                max-width: 100mm !important;
+                margin: 10mm auto !important;
+                border: 2px dashed #000 !important;
+                page-break-inside: avoid;
             }
         }
 
         /* Screen Preview Styles */
-        .pos-80mm-preview {
+        .preview-80mm {
             width: 80mm;
             max-width: 320px;
         }
-        .pos-4x6-preview {
+        .preview-4x6 {
             width: 100mm;
-            max-width: 440px;
+            max-width: 420px;
+        }
+        .preview-a4 {
+            width: 110mm;
+            max-width: 460px;
         }
         .barcode-svg {
             max-height: 44px;
@@ -114,43 +127,60 @@ foreach ($items as $it) {
 <body class="bg-slate-100 min-h-screen py-6 px-4 font-sans text-slate-900">
 
     <!-- Top Action Toolbar (Hidden during Print) -->
-    <div class="max-w-md mx-auto mb-6 no-print space-y-3">
-        <div class="bg-white p-4 rounded-3xl shadow-lg border border-slate-200 space-y-3">
+    <div class="max-w-lg mx-auto mb-6 no-print space-y-3">
+        <div class="bg-white p-5 rounded-3xl shadow-xl border border-slate-200 space-y-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                    <a href="order-detail.php?id=<?= $order['id'] ?>" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1">
+                    <a href="order-detail.php?id=<?= $order['id'] ?>" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1">
                         <i class="fas fa-arrow-left"></i> Back
                     </a>
                     <span class="text-xs font-black text-slate-800 font-mono">#<?= htmlspecialchars($orderNo) ?></span>
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <button onclick="window.print()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center gap-1.5 active:scale-95">
+                    <button onclick="window.print()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center gap-1.5 active:scale-95">
                         <i class="fas fa-print"></i> <span>Print Sticker</span>
                     </button>
-                    <a href="../invoice.php?id=<?= $order['id'] ?>" target="_blank" class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
+                    <a href="../invoice.php?id=<?= $order['id'] ?>" target="_blank" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition flex items-center gap-1">
                         <i class="fas fa-file-invoice"></i> Invoice
                     </a>
                 </div>
             </div>
 
             <!-- Printer Mode Selector Switch -->
-            <div class="pt-2 border-t flex items-center justify-between text-xs">
-                <span class="text-[11px] font-bold text-slate-500">Sticker Size (স্টিকার সাইজ):</span>
-                <div class="flex items-center gap-1.5">
-                    <button type="button" id="btnMode80" onclick="setLabelMode('80mm')" class="px-3 py-1 bg-amber-500 text-slate-950 font-black rounded-lg text-xs shadow-sm transition">
-                        🏷️ 80mm POS Thermal
+            <div class="pt-3 border-t space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-extrabold text-slate-700">Choose Printer Type (প্রিন্টারের ধরণ বেছে নিন):</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-xs">
+                    <button type="button" id="btnMode80" onclick="setLabelMode('80mm')" class="py-2 px-2 bg-amber-500 text-slate-950 font-black rounded-xl shadow-sm text-center transition">
+                        🏷️ 80mm POS Roll
                     </button>
-                    <button type="button" id="btnMode4x6" onclick="setLabelMode('4x6')" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs transition">
+                    <button type="button" id="btnMode4x6" onclick="setLabelMode('4x6')" class="py-2 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-center transition">
                         📦 4" × 6" Sticker
                     </button>
+                    <button type="button" id="btnModeA4" onclick="setLabelMode('a4')" class="py-2 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-center transition">
+                        📄 A4 Sheet Paper
+                    </button>
                 </div>
+            </div>
+
+            <!-- Step-by-Step Print Instructions Guide -->
+            <div class="p-3 bg-indigo-50/70 rounded-2xl border border-indigo-100 text-[11px] text-slate-700 space-y-1">
+                <p class="font-bold text-indigo-950 flex items-center gap-1.5">
+                    <i class="fas fa-lightbulb text-amber-500"></i> প্রিন্ট ডায়ালগ সেটিংস গাইড:
+                </p>
+                <ul class="list-disc list-inside space-y-0.5 text-slate-600">
+                    <li><strong>80mm POS থার্মাল প্রিন্টারে:</strong> Destination-এ আপনার থার্মাল প্রিন্টার সিলেক্ট করুন।</li>
+                    <li><strong>সাধারণ A4 প্রিন্টারে:</strong> পেপার সাইজ <strong>A4</strong> রেখেই প্রিন্ট করুন, পার্সেল বক্সে লাগাতে স্টিকারটি কেচি দিয়ে কেটে নিন।</li>
+                    <li><strong>Margins:</strong> None বা Minimum সিলেক্ট করলে সবচেয়ে ভালো প্রিন্ট আসবে।</li>
+                </ul>
             </div>
         </div>
     </div>
 
-    <!-- 80mm POS THERMAL STICKER / 4x6 SHIPPING LABEL CONTAINER -->
-    <div id="stickerContainer" class="label-container pos-80mm-preview mx-auto bg-white rounded-2xl border-2 border-black shadow-2xl overflow-hidden text-black text-xs font-sans transition-all duration-200">
+    <!-- PRINTABLE SHIPPING STICKER CARD -->
+    <div id="stickerContainer" class="label-container preview-80mm mx-auto bg-white rounded-2xl border-2 border-black shadow-2xl overflow-hidden text-black text-xs font-sans transition-all duration-200">
         
         <!-- 1. Header: Store Name, Hotline & COD Status -->
         <div class="p-2.5 border-b-2 border-black text-center bg-white space-y-1">
@@ -268,15 +298,21 @@ foreach ($items as $it) {
             const container = document.getElementById('stickerContainer');
             const btn80 = document.getElementById('btnMode80');
             const btn4x6 = document.getElementById('btnMode4x6');
+            const btnA4 = document.getElementById('btnModeA4');
+
+            btn80.className = 'py-2 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-center transition';
+            btn4x6.className = 'py-2 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-center transition';
+            btnA4.className = 'py-2 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-center transition';
 
             if (mode === '4x6') {
-                container.className = 'label-container pos-4x6-preview mx-auto bg-white rounded-2xl border-2 border-black shadow-2xl overflow-hidden text-black text-xs font-sans transition-all duration-200';
-                btn4x6.className = 'px-3 py-1 bg-amber-500 text-slate-950 font-black rounded-lg text-xs shadow-sm transition';
-                btn80.className = 'px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs transition';
+                container.className = 'label-container preview-4x6 print-wrapper-4x6 mx-auto bg-white rounded-2xl border-2 border-black shadow-2xl overflow-hidden text-black text-xs font-sans transition-all duration-200';
+                btn4x6.className = 'py-2 px-2 bg-amber-500 text-slate-950 font-black rounded-xl shadow-sm text-center transition';
+            } else if (mode === 'a4') {
+                container.className = 'label-container preview-a4 print-wrapper-a4 mx-auto bg-white rounded-2xl border-2 border-black shadow-2xl overflow-hidden text-black text-xs font-sans transition-all duration-200';
+                btnA4.className = 'py-2 px-2 bg-amber-500 text-slate-950 font-black rounded-xl shadow-sm text-center transition';
             } else {
-                container.className = 'label-container pos-80mm-preview mx-auto bg-white rounded-2xl border-2 border-black shadow-2xl overflow-hidden text-black text-xs font-sans transition-all duration-200';
-                btn80.className = 'px-3 py-1 bg-amber-500 text-slate-950 font-black rounded-lg text-xs shadow-sm transition';
-                btn4x6.className = 'px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs transition';
+                container.className = 'label-container preview-80mm print-wrapper-80mm mx-auto bg-white rounded-2xl border-2 border-black shadow-2xl overflow-hidden text-black text-xs font-sans transition-all duration-200';
+                btn80.className = 'py-2 px-2 bg-amber-500 text-slate-950 font-black rounded-xl shadow-sm text-center transition';
             }
             renderBarcode();
         }
