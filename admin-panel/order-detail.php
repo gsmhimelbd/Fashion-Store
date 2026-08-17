@@ -1,26 +1,42 @@
 <?php
 $adminTitle = 'Order Details & Management';
 require_once __DIR__ . '/header.php';
+require_once __DIR__ . '/../includes/courier_service.php';
+
+CourierService::ensureSchema();
 
 $orderId = (int)($_GET['id'] ?? 0);
 $msg = '';
+$error = '';
 
 try {
     $db = getDB();
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $newStatus = trim($_POST['status'] ?? '');
-        if ($newStatus) {
-            $stmt = $db->prepare("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-            $stmt->execute([$newStatus, $orderId]);
-            $msg = "Order #{$orderId} status successfully updated to " . strtoupper($newStatus) . "!";
+        $action = $_POST['action'] ?? '';
+        
+        if ($action === 'dispatch_courier') {
+            $courierName = $_POST['courier_name'] ?? 'steadfast';
+            $res = CourierService::dispatchOrderToCourier($orderId, $courierName);
+            if (!empty($res['success'])) {
+                $msg = $res['message'];
+            } else {
+                $error = "Courier Error: " . ($res['error'] ?? ($res['message'] ?? 'Booking failed'));
+            }
+        } else {
+            $newStatus = trim($_POST['status'] ?? '');
+            if ($newStatus) {
+                $stmt = $db->prepare("UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                $stmt->execute([$newStatus, $orderId]);
+                $msg = "Order #{$orderId} status successfully updated to " . strtoupper($newStatus) . "!";
 
-            // Send automated email on Delivered or Shipped
-            require_once __DIR__ . '/../includes/smtp_mailer.php';
-            if ($newStatus === 'delivered') {
-                @sendOrderDeliveredEmailNotification($orderId);
-            } elseif ($newStatus === 'shipped') {
-                @sendOrderShippedEmailNotification($orderId);
+                // Send automated email on Delivered or Shipped
+                require_once __DIR__ . '/../includes/smtp_mailer.php';
+                if ($newStatus === 'delivered') {
+                    @sendOrderDeliveredEmailNotification($orderId);
+                } elseif ($newStatus === 'shipped') {
+                    @sendOrderShippedEmailNotification($orderId);
+                }
             }
         }
     }
@@ -38,6 +54,8 @@ try {
     $itemsStmt = $db->prepare("SELECT oi.*, p.image_path as catalog_image FROM order_items oi LEFT JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?");
     $itemsStmt->execute([$orderId]);
     $items = $itemsStmt->fetchAll();
+
+    $settings = getAllSettings();
 } catch (Exception $e) {
     header('Location: orders.php');
     exit;
@@ -47,6 +65,11 @@ try {
 <?php if ($msg): ?>
 <div class="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold">
     <i class="fas fa-circle-check mr-1.5"></i> <?= htmlspecialchars($msg) ?>
+</div>
+<?php endif; ?>
+<?php if ($error): ?>
+<div class="p-4 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-400 text-xs font-bold">
+    <i class="fas fa-circle-exclamation mr-1.5"></i> <?= htmlspecialchars($error) ?>
 </div>
 <?php endif; ?>
 
@@ -59,6 +82,11 @@ try {
                 <span class="px-3 py-1 rounded-full text-xs font-black uppercase <?= $order['status'] === 'delivered' ? 'bg-emerald-500/20 text-emerald-400' : ($order['status'] === 'pending' ? 'bg-amber-500/20 text-amber-400' : 'bg-indigo-500/20 text-indigo-400') ?>">
                     <?= htmlspecialchars($order['status']) ?>
                 </span>
+                <?php if (!empty($order['courier_consignment_id'])): ?>
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    🚚 <?= htmlspecialchars($order['courier_name'] ?: 'Courier') ?>: #<?= htmlspecialchars($order['courier_consignment_id']) ?>
+                </span>
+                <?php endif; ?>
             </div>
             <h2 class="text-2xl font-black font-mono text-white mt-1">#<?= htmlspecialchars($order['order_number'] ?: $order['id']) ?></h2>
             <p class="text-xs text-slate-400">Placed on <?= date('d M Y, h:i A', strtotime($order['created_at'])) ?></p>
@@ -83,6 +111,36 @@ try {
                 <i class="fas fa-print"></i> <span>Print Tax Invoice</span>
             </a>
         </div>
+    </div>
+
+    <!-- COURIER 1-CLICK DISPATCH BAR -->
+    <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg"><i class="fas fa-truck-ramp-box"></i></div>
+            <div>
+                <span class="font-extrabold text-white text-sm block">Courier Parcel Booking (কুরিয়ারে পার্সেল পাঠান)</span>
+                <span class="text-slate-400 text-[11px]">
+                    <?php if (!empty($order['courier_consignment_id'])): ?>
+                        Booked with <strong><?= htmlspecialchars($order['courier_name']) ?></strong> • Consignment: <strong class="text-amber-300 font-mono"><?= htmlspecialchars($order['courier_consignment_id']) ?></strong> (Status: <?= htmlspecialchars($order['courier_status'] ?: 'in_transit') ?>)
+                    <?php else: ?>
+                        Not yet dispatched to courier. Click to book parcel in 1-Click.
+                    <?php endif; ?>
+                </span>
+            </div>
+        </div>
+
+        <form method="POST" action="order-detail.php?id=<?= $order['id'] ?>" class="flex items-center gap-2">
+            <input type="hidden" name="action" value="dispatch_courier">
+            <select name="courier_name" class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-white font-bold text-xs outline-none">
+                <option value="steadfast">🚚 Steadfast Courier</option>
+                <option value="pathao">🏍️ Pathao Courier</option>
+                <option value="redx">📦 RedX Courier</option>
+                <option value="paperfly">🦅 Paperfly</option>
+            </select>
+            <button type="submit" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs shadow transition flex items-center gap-1.5 whitespace-nowrap">
+                <i class="fas fa-paper-plane"></i> <span>Send to Courier</span>
+            </button>
+        </form>
     </div>
 
     <!-- Customer & Logistics Details -->
