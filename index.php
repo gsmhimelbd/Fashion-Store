@@ -193,8 +193,8 @@ if (empty($featuredProducts)) {
                 <div><h4 class="text-xs font-extrabold text-slate-900">Secure Payment</h4><p class="text-[11px] text-slate-500 mt-0.5">100% safe & COD verified</p></div>
             </div>
             <div class="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
-                <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0"><i class="fas fa-truck-fast"></i></div>
-                <div><h4 class="text-xs font-extrabold text-slate-900">Fast Dispatch</h4><p class="text-[11px] text-slate-500 mt-0.5">Quick doorstep service</p></div>
+                <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0"><i class="fas fa-rotate-left"></i></div>
+                <div><h4 class="text-xs font-extrabold text-slate-900">Easy Replacement</h4><p class="text-[11px] text-slate-500 mt-0.5">3-Day hassle-free policy</p></div>
             </div>
             <div class="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
                 <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0"><i class="fas fa-headset"></i></div>

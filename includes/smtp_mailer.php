@@ -454,7 +454,7 @@ function sendOrderDeliveredEmailNotification($orderId) {
                                         We are pleased to inform you that your order <strong>#{$orderNo}</strong> has been successfully delivered by our courier partner. We hope you love your purchase!
                                     </p>
                                     <p style='font-size: 12px; color: #64748b; margin-top: 8px;'>
-                                        OnlineBdMart থেকে কেনাকাটা করার জন্য আপনাকে আন্তরিক ধন্যবাদ। যেকোনো প্রয়োজনে আমাদের হটলাইন বা হোয়াটসঅ্যাপে যোগাযোগ করুন।
+                                        OnlineBdMart থেকে কেনাকাটা করার জন্য আপনাকে আন্তরিক ধন্যবাদ। আপনার প্রোডাক্টের কোনো সমস্যা থাকলে আমাদের <strong>৩ দিনের সহজ রিপ্লেসমেন্ট গ্যারান্টি</strong> রয়েছে।
                                     </p>
                                 </td>
                             </tr>
@@ -496,7 +496,7 @@ function sendOrderDeliveredEmailNotification($orderId) {
                             <!-- Footer -->
                             <tr>
                                 <td style='background: #f8fafc; padding: 15px 25px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0;'>
-                                    &copy; " . date('Y') . " {$storeName}. All rights reserved.
+                                    &copy; " . date('Y') . " {$storeName}. ৩ দিনের সহজ রিপ্লেসমেন্ট গ্যারান্টি (3-Day Replacement Policy).
                                 </td>
                             </tr>
 

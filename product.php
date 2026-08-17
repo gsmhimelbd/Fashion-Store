@@ -511,7 +511,7 @@ if (!empty($product['gallery_images'])) {
                         <h3 class="text-sm font-extrabold uppercase text-amber-400">Why Buy from OnlineBdMart?</h3>
                     </div>
                     <div class="text-xs text-slate-200 space-y-3 leading-relaxed whitespace-pre-line">
-                        <?= htmlspecialchars($product['why_buy_from_us'] ?: "✓ 100% Original Authentic Quality Guarantee\n✓ 100% Quality Checked Before Dispatch\n✓ Open Parcel Before Payment with Delivery Rider\n✓ Fast Nationwide Delivery Across 64 Districts\n✓ 24/7 Dedicated WhatsApp Hotline Support") ?>
+                        <?= htmlspecialchars($product['why_buy_from_us'] ?: "✓ 100% Original Authentic Quality Guarantee\n✓ ৩ দিনের সহজ রিপ্লেসমেন্ট গ্যারান্টি (3-Day Replacement)\n✓ Open Parcel Before Payment with Delivery Rider\n✓ Fast Nationwide Delivery Across 64 Districts\n✓ 24/7 Dedicated WhatsApp Hotline Support") ?>
                     </div>
                 </div>
             </div>
