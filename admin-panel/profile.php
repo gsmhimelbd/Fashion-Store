@@ -8,17 +8,35 @@ $error = '';
 function uploadAdminAvatar($fileArray) {
     if (!empty($fileArray['name']) && $fileArray['error'] === UPLOAD_ERR_OK) {
         $ext = strtolower(pathinfo($fileArray['name'], PATHINFO_EXTENSION));
-        $allowed = ['jpg', 'jpeg', 'png', 'webp', 'svg'];
+        $allowed = ['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif'];
         if (in_array($ext, $allowed)) {
-            $newName = 'admin_' . time() . '.' . $ext;
+            $newName = 'admin_' . time() . '_' . rand(100, 999) . '.' . $ext;
             $relPath = "uploads/admin/" . $newName;
-            $dest1 = __DIR__ . '/../' . $relPath;
-            $dest2 = __DIR__ . '/../public/' . $relPath;
-            @mkdir(dirname($dest1), 0777, true);
-            @mkdir(dirname($dest2), 0777, true);
-            if (@move_uploaded_file($fileArray['tmp_name'], $dest1)) {
-                @copy($dest1, $dest2);
+            
+            $dirs = [
+                __DIR__ . '/../uploads/admin/',
+                __DIR__ . '/../public/uploads/admin/',
+                __DIR__ . '/uploads/admin/',
+                dirname(__DIR__) . '/uploads/admin/'
+            ];
+
+            foreach ($dirs as $dir) {
+                if (!file_exists($dir)) {
+                    @mkdir($dir, 0777, true);
+                }
+            }
+
+            $primaryDest = __DIR__ . '/../' . $relPath;
+            if (@move_uploaded_file($fileArray['tmp_name'], $primaryDest)) {
+                // Copy to public if exists
+                @copy($primaryDest, __DIR__ . '/../public/' . $relPath);
                 return $relPath;
+            } elseif (is_uploaded_file($fileArray['tmp_name'])) {
+                // Fallback copy
+                if (@copy($fileArray['tmp_name'], $primaryDest)) {
+                    @copy($primaryDest, __DIR__ . '/../public/' . $relPath);
+                    return $relPath;
+                }
             }
         }
     }
@@ -27,11 +45,18 @@ function uploadAdminAvatar($fileArray) {
 
 try {
     $db = getDB();
-    $adminId = $_SESSION['admin_id'] ?? 1;
+    $adminId = (int)($_SESSION['admin_id'] ?? 1);
+    $adminUser = $_SESSION['admin_username'] ?? 'admin';
+
+    // Auto-heal table columns in database
+    try { @$db->exec("ALTER TABLE `admins` ADD COLUMN `profile_photo` varchar(255) DEFAULT 'uploads/admin/avatar.png'"); } catch (Exception $ex) {}
+    try { @$db->exec("ALTER TABLE `admins` ADD `profile_photo` varchar(255) DEFAULT 'uploads/admin/avatar.png'"); } catch (Exception $ex) {}
+    try { @$db->exec("ALTER TABLE `admins` ADD COLUMN `two_factor_enabled` tinyint(1) DEFAULT 0"); } catch (Exception $ex) {}
+    try { @$db->exec("ALTER TABLE `admins` ADD COLUMN `two_factor_pin` varchar(50) DEFAULT '123456'"); } catch (Exception $ex) {}
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = trim($_POST['name'] ?? 'Super Admin');
-        $username = trim($_POST['username'] ?? 'admin');
+        $username = trim($_POST['username'] ?? $adminUser);
         $email = trim($_POST['email'] ?? 'admin@onlinebdmart.com');
         $newPass = trim($_POST['new_password'] ?? '');
         $twoFactorEnabled = isset($_POST['two_factor_enabled']) ? 1 : 0;
@@ -40,33 +65,63 @@ try {
         $photoPath = trim($_POST['existing_photo'] ?? 'uploads/admin/avatar.png');
         if (isset($_FILES['profile_photo']) && $_FILES['profile_photo']['error'] === UPLOAD_ERR_OK) {
             $up = uploadAdminAvatar($_FILES['profile_photo']);
-            if ($up) $photoPath = $up;
+            if ($up) {
+                $photoPath = $up;
+            }
         }
 
         if ($username && $email) {
-            if (!empty($newPass)) {
-                $hashed = password_hash($newPass, PASSWORD_BCRYPT);
-                $stmt = $db->prepare("UPDATE admins SET name = ?, username = ?, email = ?, password = ?, profile_photo = ?, two_factor_enabled = ?, two_factor_pin = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                $stmt->execute([$name, $username, $email, $hashed, $photoPath, $twoFactorEnabled, $twoFactorPin, $adminId]);
+            // Find existing admin record
+            $fStmt = $db->prepare("SELECT id FROM admins WHERE id = ? OR username = ? LIMIT 1");
+            $fStmt->execute([$adminId, $adminUser]);
+            $existingRow = $fStmt->fetch();
+
+            if ($existingRow) {
+                $targetId = $existingRow['id'];
+                if (!empty($newPass)) {
+                    $hashed = password_hash($newPass, PASSWORD_BCRYPT);
+                    $stmt = $db->prepare("UPDATE admins SET name = ?, username = ?, email = ?, password = ?, profile_photo = ?, two_factor_enabled = ?, two_factor_pin = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $stmt->execute([$name, $username, $email, $hashed, $photoPath, $twoFactorEnabled, $twoFactorPin, $targetId]);
+                } else {
+                    $stmt = $db->prepare("UPDATE admins SET name = ?, username = ?, email = ?, profile_photo = ?, two_factor_enabled = ?, two_factor_pin = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $stmt->execute([$name, $username, $email, $photoPath, $twoFactorEnabled, $twoFactorPin, $targetId]);
+                }
             } else {
-                $stmt = $db->prepare("UPDATE admins SET name = ?, username = ?, email = ?, profile_photo = ?, two_factor_enabled = ?, two_factor_pin = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                $stmt->execute([$name, $username, $email, $photoPath, $twoFactorEnabled, $twoFactorPin, $adminId]);
+                $hashed = !empty($newPass) ? password_hash($newPass, PASSWORD_BCRYPT) : password_hash('password', PASSWORD_BCRYPT);
+                $stmt = $db->prepare("INSERT INTO admins (name, username, email, password, profile_photo, two_factor_enabled, two_factor_pin, role, permissions, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'superadmin', 'all', CURRENT_TIMESTAMP)");
+                $stmt->execute([$name, $username, $email, $hashed, $photoPath, $twoFactorEnabled, $twoFactorPin]);
+                $targetId = $db->lastInsertId();
             }
+
+            $_SESSION['admin_id'] = $targetId;
             $_SESSION['admin_username'] = $username;
             $_SESSION['admin_name'] = $name;
-            $msg = 'Admin profile, 2FA Security PIN, avatar photo, and credentials updated successfully!';
+            $_SESSION['admin_photo'] = $photoPath;
+            $msg = '✓ Admin profile picture, details, and security settings saved successfully!';
         }
     }
 
-    $admin = $db->query("SELECT * FROM admins WHERE id = {$adminId}")->fetch();
+    $stmt = $db->prepare("SELECT * FROM admins WHERE id = ? OR username = ? LIMIT 1");
+    $stmt->execute([$adminId, $adminUser]);
+    $admin = $stmt->fetch();
+
     if (!$admin) {
-        $admin = ['name' => 'OnlineBdMart Admin', 'username' => 'admin', 'email' => 'admin@onlinebdmart.com', 'profile_photo' => 'uploads/admin/avatar.png'];
+        $admin = [
+            'name' => $_SESSION['admin_name'] ?? 'Super Admin',
+            'username' => $adminUser,
+            'email' => 'admin@onlinebdmart.com',
+            'profile_photo' => $_SESSION['admin_photo'] ?? 'uploads/admin/avatar.png',
+            'two_factor_enabled' => 0,
+            'two_factor_pin' => '123456'
+        ];
     }
 } catch (Exception $e) {
     $error = $e->getMessage();
+    $admin = ['name' => 'Super Admin', 'username' => 'admin', 'email' => 'admin@onlinebdmart.com', 'profile_photo' => 'uploads/admin/avatar.png'];
 }
 
-$avatar = !empty($admin['profile_photo']) ? $admin['profile_photo'] : 'images/products/watch-1.jpg';
+$avatar = !empty($admin['profile_photo']) ? $admin['profile_photo'] : (!empty($_SESSION['admin_photo']) ? $_SESSION['admin_photo'] : 'uploads/admin/avatar.png');
+$avatarVer = file_exists(__DIR__ . '/../' . ltrim($avatar, '/')) ? @filemtime(__DIR__ . '/../' . ltrim($avatar, '/')) : time();
 ?>
 
 <?php if ($msg): ?>
@@ -92,10 +147,11 @@ $avatar = !empty($admin['profile_photo']) ? $admin['profile_photo'] : 'images/pr
 
         <!-- Profile Photo -->
         <div class="flex items-center gap-5 p-4 rounded-2xl bg-slate-950 border border-slate-800">
-            <img src="/<?= ltrim($avatar, '/') ?>" class="w-16 h-16 rounded-2xl object-cover border border-slate-800 bg-slate-900 shrink-0">
+            <img src="/<?= ltrim($avatar, '/') ?>?v=<?= $avatarVer ?>" onerror="this.src='/images/products/watch-1.jpg'" class="w-16 h-16 rounded-2xl object-cover border-2 border-indigo-500/40 bg-slate-900 shrink-0 shadow-md">
             <div class="flex-1">
                 <label class="block text-white font-bold mb-1"><i class="fas fa-camera text-indigo-400 mr-1"></i> Upload Profile Picture (from Local Computer)</label>
-                <input type="file" name="profile_photo" accept="image/*" class="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white">
+                <input type="file" name="profile_photo" accept="image/*" class="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-600 file:text-white cursor-pointer">
+                <p class="text-[10px] text-slate-400 mt-1">Supports JPG, PNG, WEBP, SVG or GIF format.</p>
             </div>
         </div>
 

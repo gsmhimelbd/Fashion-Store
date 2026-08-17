@@ -10,21 +10,28 @@ try {
     $unreadMessagesCount = (int)$db->query("SELECT COUNT(*) FROM messages WHERE is_read = 0")->fetchColumn();
     
     $adminId = (int)($_SESSION['admin_id'] ?? 1);
-    $stmt = $db->prepare("SELECT * FROM admins WHERE id = ? LIMIT 1");
-    $stmt->execute([$adminId]);
+    $adminUser = $_SESSION['admin_username'] ?? 'admin';
+    
+    // Auto-heal table columns in database
+    try { @$db->exec("ALTER TABLE `admins` ADD COLUMN `profile_photo` varchar(255) DEFAULT 'uploads/admin/avatar.png'"); } catch (Exception $ex) {}
+    try { @$db->exec("ALTER TABLE `admins` ADD `profile_photo` varchar(255) DEFAULT 'uploads/admin/avatar.png'"); } catch (Exception $ex) {}
+
+    $stmt = $db->prepare("SELECT * FROM admins WHERE id = ? OR username = ? LIMIT 1");
+    $stmt->execute([$adminId, $adminUser]);
     $currAdmin = $stmt->fetch();
 
     if (!is_array($currAdmin)) {
         $currAdmin = [
             'id' => $adminId,
             'name' => $_SESSION['admin_name'] ?? 'Super Admin',
-            'username' => $_SESSION['admin_username'] ?? 'admin',
+            'username' => $adminUser,
             'role' => $_SESSION['admin_role'] ?? 'superadmin',
-            'profile_photo' => 'images/products/watch-1.jpg'
+            'profile_photo' => $_SESSION['admin_photo'] ?? 'uploads/admin/avatar.png'
         ];
     }
     
-    $adminAvatar = !empty($currAdmin['profile_photo']) ? $currAdmin['profile_photo'] : 'images/products/watch-1.jpg';
+    $adminAvatar = !empty($currAdmin['profile_photo']) ? $currAdmin['profile_photo'] : (!empty($_SESSION['admin_photo']) ? $_SESSION['admin_photo'] : 'uploads/admin/avatar.png');
+    $adminAvatarVer = file_exists(__DIR__ . '/../' . ltrim($adminAvatar, '/')) ? @filemtime(__DIR__ . '/../' . ltrim($adminAvatar, '/')) : time();
     $adminRole = $currAdmin['role'] ?? ($_SESSION['admin_role'] ?? 'superadmin');
     $storeLogo = getSetting('store_logo', 'images/logo.png');
     $storeFavicon = getSetting('store_favicon', $storeLogo);
@@ -32,7 +39,8 @@ try {
 } catch (Exception $e) {
     $pendingOrdersCount = 0;
     $unreadMessagesCount = 0;
-    $adminAvatar = 'images/products/watch-1.jpg';
+    $adminAvatar = $_SESSION['admin_photo'] ?? 'uploads/admin/avatar.png';
+    $adminAvatarVer = time();
     $adminRole = 'superadmin';
     $storeLogo = 'images/logo.png';
     $storeFavicon = 'images/logo.png';
@@ -182,11 +190,13 @@ try {
                     <i class="fas fa-globe"></i> <span class="hidden sm:inline">Storefront</span>
                 </a>
                 <div class="flex items-center gap-2.5 pl-2 border-l border-slate-800">
-                    <img src="/<?= ltrim($adminAvatar, '/') ?>" class="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0">
-                    <div class="hidden sm:block text-left">
-                        <span class="font-bold text-slate-200 block leading-tight"><?= htmlspecialchars($_SESSION['admin_name'] ?? $_SESSION['admin_username'] ?? 'Admin') ?></span>
-                        <span class="text-[9px] text-amber-400 font-black uppercase"><?= $adminRole === 'superadmin' ? 'Super Admin' : ucfirst($adminRole) ?></span>
-                    </div>
+                    <a href="profile.php" class="flex items-center gap-2.5 group">
+                        <img src="/<?= ltrim($adminAvatar, '/') ?>?v=<?= $adminAvatarVer ?>" onerror="this.src='/images/products/watch-1.jpg'" class="w-8 h-8 rounded-full object-cover border border-indigo-500/40 bg-slate-800 shrink-0 group-hover:ring-2 group-hover:ring-indigo-500 transition">
+                        <div class="hidden sm:block text-left">
+                            <span class="font-bold text-slate-200 block leading-tight group-hover:text-indigo-400 transition"><?= htmlspecialchars($_SESSION['admin_name'] ?? $_SESSION['admin_username'] ?? 'Admin') ?></span>
+                            <span class="text-[9px] text-amber-400 font-black uppercase"><?= $adminRole === 'superadmin' ? 'Super Admin' : ucfirst($adminRole) ?></span>
+                        </div>
+                    </a>
                 </div>
             </div>
         </header>
