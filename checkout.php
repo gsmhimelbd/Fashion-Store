@@ -363,11 +363,12 @@ $pageTitle = 'Express Checkout - OnlineBdMart';
 require_once 'includes/header.php';
 
 // Payment gateway numbers
-$bkashNum = $settings['bkash_number'] ?? '01700000000';
-$nagadNum = $settings['nagad_number'] ?? '01700000000';
-$rocketNum = $settings['rocket_number'] ?? '01700000000';
-$bankName = $settings['bank_name'] ?? 'City Bank Ltd';
-$bankAcc = $settings['bank_account_number'] ?? '1102938481001';
+$bkashNum = $settings['payment_bkash_number'] ?? ($settings['bkash_number'] ?? '01775153740');
+$nagadNum = $settings['payment_nagad_number'] ?? ($settings['nagad_number'] ?? '01775153740');
+$rocketNum = $settings['payment_rocket_number'] ?? ($settings['rocket_number'] ?? '01775153740');
+$bankName = $settings['payment_bank_name'] ?? ($settings['bank_name'] ?? 'City Bank Ltd');
+$bankAcc = $settings['payment_bank_acc_no'] ?? ($settings['bank_account_number'] ?? '1102938481001');
+$advanceCodEnabled = ($settings['payment_cod_advance_delivery_charge'] ?? '1') === '1';
 ?>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -479,30 +480,47 @@ $bankAcc = $settings['bank_account_number'] ?? '1102938481001';
 
                 <div class="space-y-3 text-xs">
                     <!-- COD -->
-                    <label class="flex items-center gap-3 p-4 rounded-2xl border-2 border-indigo-600 bg-indigo-50/50 cursor-pointer">
-                        <input type="radio" name="payment_method" value="cod" checked onchange="togglePaymentInputs('cod')" class="text-indigo-600 focus:ring-indigo-500">
-                        <div class="flex-1">
-                            <span class="font-extrabold text-slate-900 block text-sm">Cash on Delivery (ক্যাশ অন ডেলিভারি)</span>
-                            <span class="text-slate-500 text-[11px]">Pay with cash when the delivery rider arrives at your doorstep. Open parcel inspection available.</span>
+                    <label class="flex items-start gap-3 p-4 rounded-2xl border-2 border-indigo-600 bg-indigo-50/50 cursor-pointer">
+                        <input type="radio" name="payment_method" value="cod" checked onchange="togglePaymentInputs('cod')" class="text-indigo-600 focus:ring-indigo-500 mt-1">
+                        <div class="flex-1 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="font-extrabold text-slate-900 block text-sm">Cash on Delivery (ক্যাশ অন ডেলিভারি)</span>
+                                <i class="fas fa-hand-holding-dollar text-lg text-indigo-600"></i>
+                            </div>
+
+                            <?php if ($advanceCodEnabled): ?>
+                            <!-- Advance Delivery Charge Alert Box -->
+                            <div class="p-3 bg-amber-500/15 border border-amber-500/30 rounded-xl space-y-2 text-xs">
+                                <p class="font-extrabold text-amber-950 leading-snug">
+                                    ⚠️ ক্যাশ অন ডেলিভারিতে অর্ডার কনফার্ম করতে ডেলিভারি চার্জ <strong class="text-indigo-700 font-mono text-sm" id="codAdvanceFeeDisplay">৳120</strong> অগ্রিম বিকাশ/নগদ করুন। পণ্যের মূল্য ডেলিভারির সময় রাইডারকে ক্যাশ পরিশোধ করবেন।
+                                </p>
+                                <div class="flex flex-wrap items-center gap-3 font-mono font-black text-xs bg-white p-2.5 rounded-lg border border-amber-200">
+                                    <span>bKash (Send Money): <strong class="text-pink-600"><?= htmlspecialchars($bkashNum) ?></strong></span>
+                                    <span>•</span>
+                                    <span>Nagad: <strong class="text-orange-600"><?= htmlspecialchars($nagadNum) ?></strong></span>
+                                </div>
+                            </div>
+                            <?php else: ?>
+                            <p class="text-slate-500 text-[11px]">Pay with cash when the delivery rider arrives at your doorstep. Open parcel inspection available.</p>
+                            <?php endif; ?>
                         </div>
-                        <i class="fas fa-hand-holding-dollar text-xl text-indigo-600"></i>
                     </label>
 
-                    <!-- bKash -->
+                    <!-- bKash Full Payment -->
                     <label class="flex items-center gap-3 p-4 rounded-2xl border border-slate-200 hover:border-pink-500 cursor-pointer">
                         <input type="radio" name="payment_method" value="bkash" onchange="togglePaymentInputs('bkash')" class="text-pink-600 focus:ring-pink-500">
                         <div class="flex-1">
-                            <span class="font-extrabold text-pink-600 block">bKash (Merchant / Personal)</span>
+                            <span class="font-extrabold text-pink-600 block">bKash (সম্পূর্ণ মূল্য অগ্রিম পরিশোধ)</span>
                             <span class="text-slate-500 text-[11px]">Send money to <strong><?= htmlspecialchars($bkashNum) ?></strong> and enter TrxID below.</span>
                         </div>
                         <span class="font-black text-pink-600 text-base">bKash</span>
                     </label>
 
-                    <!-- Nagad -->
+                    <!-- Nagad Full Payment -->
                     <label class="flex items-center gap-3 p-4 rounded-2xl border border-slate-200 hover:border-orange-500 cursor-pointer">
                         <input type="radio" name="payment_method" value="nagad" onchange="togglePaymentInputs('nagad')" class="text-orange-600 focus:ring-orange-500">
                         <div class="flex-1">
-                            <span class="font-extrabold text-orange-600 block">Nagad Personal</span>
+                            <span class="font-extrabold text-orange-600 block">Nagad (সম্পূর্ণ মূল্য অগ্রিম পরিশোধ)</span>
                             <span class="text-slate-500 text-[11px]">Send money to <strong><?= htmlspecialchars($nagadNum) ?></strong> and enter TrxID below.</span>
                         </div>
                         <span class="font-black text-orange-600 text-base">Nagad</span>
@@ -529,15 +547,18 @@ $bankAcc = $settings['bank_account_number'] ?? '1102938481001';
                     </label>
 
                     <!-- TrxID input box -->
-                    <div id="trxIdContainer" class="hidden p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div id="trxIdContainer" class="<?= $advanceCodEnabled ? '' : 'hidden' ?> p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                        <p class="text-xs font-bold text-slate-800" id="trxHelpText">
+                            <?= $advanceCodEnabled ? 'অগ্রিম ডেলিভারি চার্জ পরিশোধের তথ্য দিন:' : 'পেমেন্ট ট্রানজেকশনের তথ্য দিন:' ?>
+                        </p>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 mb-1">Sender Mobile Number (যে নাম্বার থেকে টাকা পাঠিয়েছেন) *</label>
                             <input type="tel" name="payment_number" placeholder="017xxxxxxxx" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold outline-none bg-white">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Enter Transaction ID (TrxID) / Deposit Slip Reference *</label>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Enter Transaction ID (TrxID) / Reference *</label>
                             <input type="text" name="transaction_id" placeholder="e.g. 9J8A7D6F5E" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold outline-none uppercase bg-white">
-                            <p class="text-[10px] text-slate-500 mt-1">We will verify the transaction reference before dispatching your parcel.</p>
+                            <p class="text-[10px] text-slate-500 mt-1">আমরা ট্রানজেকশন ভেরিফাই করে পার্সেল কুরিয়ারে বুকিং করব।</p>
                         </div>
                     </div>
                 </div>
@@ -620,9 +641,22 @@ $bankAcc = $settings['bank_account_number'] ?? '1102938481001';
                         <span id="checkoutEstDays" class="font-bold text-emerald-600">1-2 days</span>
                     </div>
 
-                    <div class="pt-3 border-t flex justify-between text-base font-black text-slate-900">
-                        <span>Total Payable</span>
-                        <span class="text-indigo-600 font-black text-lg" id="checkoutTotalPayable">৳<?= number_format(max(0, $subtotal - $discountAmount) + 120.0, 2) ?></span>
+                    <div class="pt-3 border-t space-y-2">
+                        <?php if ($advanceCodEnabled): ?>
+                        <div class="flex justify-between text-xs font-bold text-amber-950 bg-amber-50 p-2.5 rounded-xl border border-amber-200" id="advancePayableRow">
+                            <span>অগ্রিম প্রদেয় ডেলিভারি চার্জ:</span>
+                            <span id="advancePayableDisplay" class="font-black font-mono text-indigo-700">৳120.00</span>
+                        </div>
+                        <div class="flex justify-between text-xs font-bold text-slate-800 bg-slate-100 p-2.5 rounded-xl border border-slate-200" id="dueOnDeliveryRow">
+                            <span>ডেলিভারির সময় প্রদেয় ক্যাশ (COD):</span>
+                            <span id="dueOnDeliveryDisplay" class="font-black font-mono text-slate-950">৳<?= number_format(max(0, $subtotal - $discountAmount), 2) ?></span>
+                        </div>
+                        <?php endif; ?>
+
+                        <div class="flex justify-between text-base font-black text-slate-900 pt-1">
+                            <span>Total Order Value</span>
+                            <span class="text-indigo-600 font-black text-lg font-mono" id="checkoutTotalPayable">৳<?= number_format(max(0, $subtotal - $discountAmount) + 120.0, 2) ?></span>
+                        </div>
                     </div>
                 </div>
 
@@ -640,6 +674,7 @@ $bankAcc = $settings['bank_account_number'] ?? '1102938481001';
 let currentSubtotal = <?= (float)$subtotal ?>;
 let currentDiscount = <?= (float)$discountAmount ?>;
 let currentDeliveryFee = 120.0;
+const advanceCodEnabled = <?= $advanceCodEnabled ? 'true' : 'false' ?>;
 
 function updateDeliveryCharge(districtName) {
     const sel = document.getElementById('inpCustDistrict');
@@ -656,12 +691,47 @@ function updateDeliveryCharge(districtName) {
 
     currentDeliveryFee = fee;
     document.getElementById('checkoutEstDays').textContent = days;
+    
+    const codAdvEl = document.getElementById('codAdvanceFeeDisplay');
+    if (codAdvEl) codAdvEl.textContent = '৳' + fee.toFixed(0);
+
+    const advPayEl = document.getElementById('advancePayableDisplay');
+    if (advPayEl) advPayEl.textContent = '৳' + fee.toFixed(2);
+
     recalculateTotal();
 }
 
 function recalculateTotal() {
-    const payable = Math.max(0, currentSubtotal - currentDiscount) + currentDeliveryFee;
-    document.getElementById('checkoutTotalPayable').textContent = '৳' + payable.toFixed(2);
+    const itemsPayable = Math.max(0, currentSubtotal - currentDiscount);
+    const totalOrderVal = itemsPayable + currentDeliveryFee;
+    
+    document.getElementById('checkoutTotalPayable').textContent = '৳' + totalOrderVal.toFixed(2);
+    
+    const dueEl = document.getElementById('dueOnDeliveryDisplay');
+    if (dueEl) dueEl.textContent = '৳' + itemsPayable.toFixed(2);
+}
+
+function togglePaymentInputs(method) {
+    const trxBox = document.getElementById('trxIdContainer');
+    const trxHelp = document.getElementById('trxHelpText');
+    const advRow = document.getElementById('advancePayableRow');
+    const dueRow = document.getElementById('dueOnDeliveryRow');
+
+    if (method === 'cod') {
+        if (advanceCodEnabled) {
+            trxBox.classList.remove('hidden');
+            if (trxHelp) trxHelp.textContent = 'অগ্রিম ডেলিভারি চার্জ পাঠানোর পর আপনার বিকাশ/নগদ নম্বর এবং TrxID দিন:';
+            if (advRow) advRow.classList.remove('hidden');
+            if (dueRow) dueRow.classList.remove('hidden');
+        } else {
+            trxBox.classList.add('hidden');
+        }
+    } else {
+        trxBox.classList.remove('hidden');
+        if (trxHelp) trxHelp.textContent = 'সম্পূর্ণ মূল্য পরিশোধের বিকাশ/নগদ নম্বর ও TrxID দিন:';
+        if (advRow) advRow.classList.add('hidden');
+        if (dueRow) dueRow.classList.add('hidden');
+    }
 }
 
 function applyCouponAjax() {

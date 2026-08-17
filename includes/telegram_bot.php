@@ -167,7 +167,13 @@ function formatTelegramOrderMessage($order, $items, $statusTitle = '🛍️ NEW 
         $payInfo .= "• <b>TrxID / Reference:</b> <code>{$trxId}</code>\n";
     }
     if ($payMethod === 'COD') {
-        $payInfo .= "• <b>Type:</b> <i>Cash on Delivery (Pay upon doorstep delivery)</i>\n";
+        if ($trxId) {
+            $dueAmount = number_format(max(0, (float)($order['subtotal'] ?? 0) - (float)($order['discount_amount'] ?? 0)), 2);
+            $payInfo .= "• <b>Advance Paid:</b> ৳{$deliveryCost} (Delivery Charge via TrxID: {$trxId})\n";
+            $payInfo .= "• <b>Due on Delivery:</b> <b>৳{$dueAmount}</b> (Cash on Delivery)\n";
+        } else {
+            $payInfo .= "• <b>Type:</b> <i>Cash on Delivery (Pay full upon doorstep delivery)</i>\n";
+        }
     }
 
     $msg = "<b>{$statusTitle}</b>\n";

@@ -9,6 +9,7 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $keys = [
             'payment_cod_enabled' => isset($_POST['payment_cod_enabled']) ? '1' : '0',
+            'payment_cod_advance_delivery_charge' => isset($_POST['payment_cod_advance_delivery_charge']) ? '1' : '0',
             
             // bKash
             'payment_bkash_enabled' => isset($_POST['payment_bkash_enabled']) ? '1' : '0',
@@ -70,7 +71,7 @@ try {
     <form method="POST" action="payments.php" class="space-y-6 text-xs">
         
         <!-- 1. Cash On Delivery -->
-        <div class="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+        <div class="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center text-lg"><i class="fas fa-hand-holding-dollar"></i></div>
@@ -82,6 +83,17 @@ try {
                 <label class="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" name="payment_cod_enabled" <?= ($settings['payment_cod_enabled'] ?? '1') === '1' ? 'checked' : '' ?> class="rounded text-emerald-500">
                     <span class="text-emerald-400 font-bold">Active</span>
+                </label>
+            </div>
+
+            <!-- Advance Delivery Charge for COD Toggle -->
+            <div class="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                <label class="flex items-center gap-2.5 cursor-pointer">
+                    <input type="checkbox" name="payment_cod_advance_delivery_charge" <?= ($settings['payment_cod_advance_delivery_charge'] ?? '1') === '1' ? 'checked' : '' ?> class="w-4 h-4 rounded text-amber-500">
+                    <div>
+                        <span class="font-extrabold text-amber-300 text-xs block">Require Advance Delivery Charge for COD (ক্যাশ অন ডেলিভারিতে অগ্রিম ডেলিভারি চার্জ বাধ্যতামূলক করুন)</span>
+                        <span class="text-[10px] text-amber-400/80 block">চেক করা থাকলে কাস্টমারকে অর্ডার কনফার্ম করতে ডেলিভারি চার্জ বিকাশ/নগদ করতে হবে এবং পণ্যের মূল্য ডেলিভারির সময় ক্যাশ পরিশোধ করবে।</span>
+                    </div>
                 </label>
             </div>
         </div>
