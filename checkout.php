@@ -15,6 +15,28 @@ foreach ($cart as $item) {
     $subtotal += (float)$item['price'] * (int)$item['quantity'];
 }
 
+// Calculate Total Cart Weight (KG)
+$totalCartWeight = 0.0;
+try {
+    $db = getDB();
+    $prodIds = array_filter(array_map(fn($it) => (int)($it['id'] ?? 0), $cart));
+    $weights = [];
+    if (!empty($prodIds)) {
+        $inClause = implode(',', $prodIds);
+        $wRows = $db->query("SELECT id, COALESCE(weight, 1.00) as weight FROM products WHERE id IN ({$inClause})")->fetchAll(PDO::FETCH_KEY_PAIR);
+        $weights = $wRows ?: [];
+    }
+    foreach ($cart as $item) {
+        $w = (float)($weights[$item['id']] ?? ($item['weight'] ?? 1.0));
+        $totalCartWeight += ($w * (int)$item['quantity']);
+    }
+} catch (Exception $exW) {
+    foreach ($cart as $item) {
+        $totalCartWeight += (1.0 * (int)$item['quantity']);
+    }
+}
+$totalCartWeight = max(0.5, round($totalCartWeight, 2));
+
 // Handle AJAX Coupon Actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['coupon_action'])) {
     header('Content-Type: application/json');
@@ -156,6 +178,7 @@ try {
     try {
         @$db->exec("ALTER TABLE `orders` ADD COLUMN `coupon_code` varchar(50) DEFAULT NULL");
         @$db->exec("ALTER TABLE `orders` ADD COLUMN `discount_amount` decimal(10,2) DEFAULT 0.00");
+        @$db->exec("ALTER TABLE `orders` ADD COLUMN `total_weight` decimal(8,2) DEFAULT 1.00");
     } catch (Exception $ex) {}
 
     $districts = $db->query("SELECT * FROM districts ORDER BY division_name ASC, name ASC")->fetchAll();
@@ -261,6 +284,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['coupon_action'])) {
                 $deliveryCost = (float)$distRow['delivery_fee'];
             }
 
+            // Weight-based extra charge calculation
+            $weightCalcEnabled = ($settings['delivery_weight_calc_enabled'] ?? '1') === '1';
+            $baseWeight = (float)($settings['delivery_base_weight_kg'] ?? 1.0);
+            $isDhaka = (stripos($districtName, 'dhaka') !== false);
+            $extraKgRate = $isDhaka ? (float)($settings['delivery_extra_kg_charge_inside'] ?? 20) : (float)($settings['delivery_extra_kg_charge_outside'] ?? 35);
+
+            if ($weightCalcEnabled && $totalCartWeight > $baseWeight) {
+                $extraWeight = ceil($totalCartWeight - $baseWeight);
+                $deliveryCost += ($extraWeight * $extraKgRate);
+            }
+
             if ($subtotal >= 2000) {
                 $deliveryCost = 0.0;
             }
@@ -272,12 +306,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['coupon_action'])) {
                 order_number, customer_name, customer_email, customer_phone, phone, whatsapp, 
                 delivery_address, address, district_name, district, upazila, post_office, country,
                 subtotal, delivery_cost, delivery_charge, discount_amount, coupon_code, total_amount, grand_total, 
-                payment_method, payment_number, transaction_id, status, notes, created_at, updated_at
+                payment_method, payment_number, transaction_id, status, notes, total_weight, created_at, updated_at
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, 
                 ?, ?, ?, ?, ?, ?, 'Bangladesh',
                 ?, ?, ?, ?, ?, ?, ?, 
-                ?, ?, ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                ?, ?, ?, 'pending', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
             )");
             
             $orderStmt->execute([
@@ -303,7 +337,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['coupon_action'])) {
                 $paymentMethod,
                 $payNumber,
                 $trxId,
-                $notes
+                $notes,
+                $totalCartWeight
             ]);
 
             $orderId = $db->lastInsertId();
@@ -801,28 +836,45 @@ let currentSubtotal = <?= (float)$subtotal ?>;
 let currentDiscount = <?= (float)$discountAmount ?>;
 let currentDeliveryFee = 120.0;
 const advanceCodEnabled = <?= $advanceCodEnabled ? 'true' : 'false' ?>;
+const totalCartWeight = <?= (float)$totalCartWeight ?>;
+const weightCalcEnabled = <?= ($settings['delivery_weight_calc_enabled'] ?? '1') === '1' ? 'true' : 'false' ?>;
+const baseWeightKg = <?= (float)($settings['delivery_base_weight_kg'] ?? 1.0) ?>;
+const extraRateInside = <?= (float)($settings['delivery_extra_kg_charge_inside'] ?? 20) ?>;
+const extraRateOutside = <?= (float)($settings['delivery_extra_kg_charge_outside'] ?? 35) ?>;
 
 function updateDeliveryCharge(districtName) {
     const sel = document.getElementById('inpCustDistrict');
     const opt = sel.options[sel.selectedIndex];
-    let fee = parseFloat(opt.getAttribute('data-fee') || 120);
+    let baseFee = parseFloat(opt.getAttribute('data-fee') || 120);
     const days = opt.getAttribute('data-days') || '1-2 days';
 
-    if (currentSubtotal >= 2000) {
-        fee = 0.0;
-        document.getElementById('checkoutDeliveryFee').textContent = 'FREE (৳0.00)';
-    } else {
-        document.getElementById('checkoutDeliveryFee').textContent = '৳' + fee.toFixed(2);
+    let totalDelivery = baseFee;
+    const isDhaka = (districtName || '').toLowerCase().includes('dhaka');
+    const extraRate = isDhaka ? extraRateInside : extraRateOutside;
+
+    if (weightCalcEnabled && totalCartWeight > baseWeightKg) {
+        const extraWeight = Math.ceil(totalCartWeight - baseWeightKg);
+        totalDelivery += (extraWeight * extraRate);
     }
 
-    currentDeliveryFee = fee;
+    if (currentSubtotal >= 2000) {
+        totalDelivery = 0.0;
+        document.getElementById('checkoutDeliveryFee').textContent = 'FREE (৳0.00)';
+    } else {
+        document.getElementById('checkoutDeliveryFee').textContent = '৳' + totalDelivery.toFixed(2);
+    }
+
+    currentDeliveryFee = totalDelivery;
     document.getElementById('checkoutEstDays').textContent = days;
     
     const codAdvEl = document.getElementById('codAdvanceFeeDisplay');
-    if (codAdvEl) codAdvEl.textContent = '৳' + fee.toFixed(0);
+    if (codAdvEl) codAdvEl.textContent = '৳' + totalDelivery.toFixed(0);
 
     const advPayEl = document.getElementById('advancePayableDisplay');
-    if (advPayEl) advPayEl.textContent = '৳' + fee.toFixed(2);
+    if (advPayEl) advPayEl.textContent = '৳' + totalDelivery.toFixed(2);
+
+    recalculateTotal();
+}
 
     recalculateTotal();
 }

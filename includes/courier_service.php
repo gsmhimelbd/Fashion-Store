@@ -417,6 +417,7 @@ class CourierService {
         $name = $order['customer_name'] ?: 'Customer';
         $address = $order['delivery_address'] ?: ($order['address'] ?: 'Dhaka');
         $itemNote = self::buildItemNote($items);
+        $orderWeight = max(0.5, (float)($order['total_weight'] ?? 1.0));
 
         $payload = [
             'store_id' => $storeId,
@@ -430,7 +431,7 @@ class CourierService {
             'item_type' => 2,
             'special_instruction' => $itemNote ?: 'OnlineBdMart Parcel',
             'item_quantity' => count($items) ?: 1,
-            'item_weight' => 0.5,
+            'item_weight' => $orderWeight,
             'amount_to_collect' => (int)round($codAmount),
             'item_description' => $itemNote ?: 'E-commerce goods'
         ];

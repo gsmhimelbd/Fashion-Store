@@ -38,15 +38,28 @@ try {
             $stmt = $db->prepare("INSERT INTO districts (name, division_name, delivery_fee, estimated_days, is_active) VALUES (?, ?, ?, ?, 1)");
             $stmt->execute([$name, $division, $fee, $days]);
             $msg = "New district {$name} added successfully!";
+        } elseif ($action === 'save_weight_settings') {
+            $baseWeight = (float)($_POST['delivery_base_weight_kg'] ?? 1.0);
+            $extraInside = (float)($_POST['delivery_extra_kg_charge_inside'] ?? 20);
+            $extraOutside = (float)($_POST['delivery_extra_kg_charge_outside'] ?? 35);
+            $weightCalcEnabled = isset($_POST['delivery_weight_calc_enabled']) ? '1' : '0';
+
+            saveSetting('delivery_base_weight_kg', (string)$baseWeight);
+            saveSetting('delivery_extra_kg_charge_inside', (string)$extraInside);
+            saveSetting('delivery_extra_kg_charge_outside', (string)$extraOutside);
+            saveSetting('delivery_weight_calc_enabled', $weightCalcEnabled);
+            $msg = '✓ Weight-based delivery charge rules updated successfully!';
         }
     }
 
     $districts = $db->query("SELECT * FROM districts ORDER BY division_name ASC, name ASC")->fetchAll();
     $divisions = $db->query("SELECT DISTINCT division_name FROM districts ORDER BY division_name ASC")->fetchAll(PDO::FETCH_COLUMN);
+    $settings = getAllSettings();
 } catch (Exception $e) {
     $error = $e->getMessage();
     $districts = [];
     $divisions = [];
+    $settings = [];
 }
 ?>
 
@@ -60,6 +73,68 @@ try {
     <i class="fas fa-circle-exclamation mr-1"></i> <?= htmlspecialchars($error) ?>
 </div>
 <?php endif; ?>
+
+<!-- Weight-Based Courier Shipping Rules Banner -->
+<div class="bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-indigo-500/30 rounded-3xl p-6 sm:p-8 shadow-xl">
+    <form method="POST" action="delivery.php" class="space-y-6">
+        <input type="hidden" name="action" value="save_weight_settings">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+            <div>
+                <h3 class="text-base font-extrabold text-white flex items-center gap-2.5">
+                    <span class="p-2 bg-amber-500/20 text-amber-400 rounded-xl"><i class="fas fa-weight-hanging"></i></span>
+                    Weight-Based Courier Shipping Rules (ওজন অনুযায়ী কুরিয়ার চার্জ)
+                </h3>
+                <p class="text-xs text-slate-400 mt-1">অর্ডার করা পণ্যের মোট ওজন ১ কেজির বেশি হলে প্রতি অতিরিক্ত কেজির জন্য স্বয়ংক্রিয়ভাবে ডেলিভারি চার্জ বৃদ্ধি পাবে।</p>
+            </div>
+            <label class="flex items-center gap-2.5 cursor-pointer bg-slate-950 px-4 py-2 rounded-2xl border border-slate-800">
+                <input type="checkbox" name="delivery_weight_calc_enabled" value="1" <?= ($settings['delivery_weight_calc_enabled'] ?? '1') === '1' ? 'checked' : '' ?> class="rounded text-indigo-600 focus:ring-0">
+                <span class="text-xs font-bold text-white">Enable Weight Charges (সক্রিয়)</span>
+            </label>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs">
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 space-y-2">
+                <label class="block text-slate-300 font-bold">
+                    <i class="fas fa-scale-balanced text-indigo-400 mr-1"></i> Base Weight in KG (মূল ওজন)
+                </label>
+                <div class="flex items-center gap-2">
+                    <input type="number" step="0.1" name="delivery_base_weight_kg" value="<?= htmlspecialchars($settings['delivery_base_weight_kg'] ?? '1.0') ?>" required class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-bold font-mono outline-none">
+                    <span class="text-slate-400 font-bold">KG</span>
+                </div>
+                <p class="text-[11px] text-slate-500">১ম কত কেজি পর্যন্ত সাধারণ ডেলিভারি চার্জ প্রযোজ্য হবে (যেমন: ১ কেজি)।</p>
+            </div>
+
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 space-y-2">
+                <label class="block text-slate-300 font-bold">
+                    <i class="fas fa-city text-emerald-400 mr-1"></i> Extra Fee / KG (ঢাকার ভেতরে)
+                </label>
+                <div class="flex items-center gap-2">
+                    <span class="text-emerald-400 font-bold font-mono">৳</span>
+                    <input type="number" step="1" name="delivery_extra_kg_charge_inside" value="<?= htmlspecialchars($settings['delivery_extra_kg_charge_inside'] ?? '20') ?>" required class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-bold font-mono outline-none">
+                </div>
+                <p class="text-[11px] text-slate-500">ঢাকার ভেতরে ১ কেজির পর প্রতি অতিরিক্ত কেজিতে কত টাকা যোগ হবে।</p>
+            </div>
+
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 space-y-2">
+                <label class="block text-slate-300 font-bold">
+                    <i class="fas fa-truck text-amber-400 mr-1"></i> Extra Fee / KG (ঢাকার বাইরে)
+                </label>
+                <div class="flex items-center gap-2">
+                    <span class="text-amber-400 font-bold font-mono">৳</span>
+                    <input type="number" step="1" name="delivery_extra_kg_charge_outside" value="<?= htmlspecialchars($settings['delivery_extra_kg_charge_outside'] ?? '35') ?>" required class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-bold font-mono outline-none">
+                </div>
+                <p class="text-[11px] text-slate-500">ঢাকার বাইরে ১ কেজির পর প্রতি অতিরিক্ত কেজিতে কত টাকা যোগ হবে।</p>
+            </div>
+        </div>
+
+        <div class="flex justify-end pt-2">
+            <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center gap-2">
+                <i class="fas fa-floppy-disk"></i> Save Weight Rules
+            </button>
+        </div>
+    </form>
+</div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <!-- Division-wide Bulk Update Box -->

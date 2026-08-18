@@ -67,6 +67,7 @@ try {
         "ALTER TABLE `products` ADD COLUMN `wholesale_min_qty` int(11) DEFAULT 5",
         "ALTER TABLE `products` ADD COLUMN `stock` int(11) DEFAULT 50",
         "ALTER TABLE `products` ADD COLUMN `stock_quantity` int(11) DEFAULT 50",
+        "ALTER TABLE `products` ADD COLUMN `weight` decimal(8,2) DEFAULT 1.00",
         "ALTER TABLE `products` ADD COLUMN `is_featured` tinyint(1) DEFAULT 1",
         "ALTER TABLE `products` ADD COLUMN `is_active` tinyint(1) DEFAULT 1",
         "ALTER TABLE `products` ADD COLUMN `short_description` text DEFAULT NULL",
@@ -115,6 +116,7 @@ try {
             $wholesalePrice = !empty($_POST['wholesale_price']) ? (float)$_POST['wholesale_price'] : ($price * 0.75);
             $wholesaleMoq = !empty($_POST['wholesale_moq']) ? (int)$_POST['wholesale_moq'] : 5;
             $stock = !empty($_POST['stock_quantity']) ? (int)$_POST['stock_quantity'] : 50;
+            $weight = !empty($_POST['weight']) ? (float)$_POST['weight'] : 1.00;
             $isFeatured = isset($_POST['is_featured']) ? 1 : 0;
             $isActive = isset($_POST['is_active']) ? 1 : 0;
             $shortDesc = trim($_POST['short_description'] ?? '');
@@ -194,6 +196,7 @@ try {
                 'wholesale_min_qty' => $wholesaleMoq,
                 'stock' => $stock,
                 'stock_quantity' => $stock,
+                'weight' => $weight,
                 'is_featured' => $isFeatured,
                 'is_active' => $isActive,
                 'image_path' => $imagePath,
@@ -481,6 +484,10 @@ try {
                         <div>
                             <label class="block text-slate-300 font-bold mb-1">Stock Quantity</label>
                             <input type="number" name="stock_quantity" id="pStock" value="50" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 font-bold mb-1">Product Weight (কেজি/ওজন) <span class="text-amber-400 font-mono">KG</span></label>
+                            <input type="number" step="0.01" name="weight" id="pWeight" value="1.00" placeholder="e.g. 1.5" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-amber-300 font-bold font-mono outline-none">
                         </div>
                     </div>
                 </div>
@@ -926,6 +933,7 @@ function openEditProductModal(p) {
     document.getElementById('pWholesalePrice').value = p.wholesale_price || '';
     document.getElementById('pWholesaleMoq').value = p.wholesale_moq || p.wholesale_min_qty || '5';
     document.getElementById('pStock').value = p.stock_quantity || p.stock || '50';
+    document.getElementById('pWeight').value = p.weight || '1.00';
     document.getElementById('pShortDesc').value = p.short_description || '';
     document.getElementById('pDesc').value = p.description || '';
     document.getElementById('pSpecs').value = p.specifications || '';
