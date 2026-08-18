@@ -186,7 +186,7 @@ if (empty($featuredProducts)) {
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
             <div class="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
                 <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0"><i class="fas fa-truck-fast"></i></div>
-                <div><h4 class="text-xs font-extrabold text-slate-900">Free Shipping</h4><p class="text-[11px] text-slate-500 mt-0.5">On orders over ৳2000</p></div>
+                <div><h4 class="text-xs font-extrabold text-slate-900">Free Shipping</h4><p class="text-[11px] text-slate-500 mt-0.5"><?= $freeShippingActive ? 'On orders over ৳' . number_format($freeThreshold, 0) : 'Fast nationwide delivery' ?></p></div>
             </div>
             <div class="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
                 <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0"><i class="fas fa-shield-halved"></i></div>

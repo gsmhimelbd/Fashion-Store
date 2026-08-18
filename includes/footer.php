@@ -143,10 +143,18 @@
             if (footer) footer.style.display = data.items.length === 0 ? 'none' : 'block';
 
             if (shipText && shipBar && shipPct) {
-                const pct = Math.min(100, Math.round((data.subtotal / 2000) * 100));
-                shipPct.textContent = pct + '%';
-                shipBar.style.width = pct + '%';
-                shipText.textContent = data.subtotal >= 2000 ? '🎉 You qualify for FREE Delivery!' : 'Add ৳' + (2000 - data.subtotal).toFixed(2) + ' more for FREE Delivery';
+                const freeLimit = window.FREE_SHIPPING_THRESHOLD || 5000;
+                const freeActive = (window.FREE_SHIPPING_ENABLED !== false);
+                if (freeActive) {
+                    const pct = Math.min(100, Math.round((data.subtotal / freeLimit) * 100));
+                    shipPct.textContent = pct + '%';
+                    shipBar.style.width = pct + '%';
+                    shipText.textContent = data.subtotal >= freeLimit ? '🎉 You qualify for FREE Delivery!' : 'Add ৳' + (freeLimit - data.subtotal).toFixed(2) + ' more for FREE Delivery';
+                } else {
+                    shipPct.textContent = '';
+                    shipBar.style.width = '100%';
+                    shipText.textContent = 'Nationwide 64 Districts Delivery Available';
+                }
             }
 
             if (itemsList) {

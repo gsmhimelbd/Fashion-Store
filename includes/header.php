@@ -11,7 +11,9 @@ $whatsapp = $s['whatsapp_number'] ?? '01775153740';
 $phone = $s['contact_phone'] ?? '01775153740';
 $tangailFee = $s['delivery_charge_tangail'] ?? '50';
 $otherFee = $s['delivery_charge_other'] ?? '150';
-$announcement = $s['announcement_bar'] ?? ('Free Delivery Tangail ৳' . $tangailFee . ' | Others ৳' . $otherFee . ' • Free Shipping above ৳2000');
+$freeThreshold = (float)($s['free_shipping_min_amount'] ?? ($s['free_delivery_threshold'] ?? 5000));
+$freeShippingActive = ($s['free_shipping_enabled'] ?? '1') === '1';
+$announcement = $s['announcement_bar'] ?? ('Free Delivery Tangail ৳' . $tangailFee . ' | Others ৳' . $otherFee . ($freeShippingActive ? ' • Free Shipping above ৳' . number_format($freeThreshold, 0) : ''));
 
 $isCustomerLoggedIn = !empty($_SESSION['user_logged_in']) || !empty($_SESSION['user_id']) || !empty($_SESSION['customer_id']);
 $customerName = $_SESSION['user_name'] ?? ($_SESSION['customer_name'] ?? 'Account');
@@ -169,6 +171,10 @@ $isPixelActive = (getSetting('facebook_pixel_enabled', '1') === '1') && !empty($
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
     </style>
+    <script>
+        window.FREE_SHIPPING_THRESHOLD = <?= (float)$freeThreshold ?>;
+        window.FREE_SHIPPING_ENABLED = <?= $freeShippingActive ? 'true' : 'false' ?>;
+    </script>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-600 selection:text-white overflow-x-hidden w-full max-w-full">
 
@@ -372,12 +378,14 @@ $isPixelActive = (getSetting('facebook_pixel_enabled', '1') === '1') && !empty($
 
                 <div class="px-5 py-3 bg-indigo-50 border-b border-indigo-100 text-xs">
                     <div class="flex justify-between items-center mb-1 font-bold">
-                        <span id="freeShippingText"><?= $subtotal >= 2000 ? '🎉 You qualify for FREE Delivery!' : 'Add ৳' . number_format(2000 - $subtotal, 2) . ' more for FREE Delivery' ?></span>
-                        <span id="freeShippingPct" class="text-indigo-600"><?= min(100, round(($subtotal / 2000) * 100)) ?>%</span>
+                        <span id="freeShippingText"><?= $freeShippingActive ? ($subtotal >= $freeThreshold ? '🎉 You qualify for FREE Delivery!' : 'Add ৳' . number_format(max(0, $freeThreshold - $subtotal), 2) . ' more for FREE Delivery') : 'Nationwide 64 Districts Courier Delivery' ?></span>
+                        <span id="freeShippingPct" class="text-indigo-600"><?= $freeShippingActive ? min(100, round(($subtotal / max(1, $freeThreshold)) * 100)) . '%' : '' ?></span>
                     </div>
+                    <?php if ($freeShippingActive): ?>
                     <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                        <div id="freeShippingBar" class="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-300" style="width: <?= min(100, ($subtotal / 2000) * 100) ?>%;"></div>
+                        <div id="freeShippingBar" class="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full rounded-full transition-all duration-300" style="width: <?= min(100, ($subtotal / max(1, $freeThreshold)) * 100) ?>%;"></div>
                     </div>
+                    <?php endif; ?>
                 </div>
 
                 <div id="cartDrawerItemsList" class="flex-1 overflow-y-auto p-5 space-y-4">
