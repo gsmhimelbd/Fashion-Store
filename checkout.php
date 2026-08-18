@@ -295,7 +295,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['coupon_action'])) {
                 $deliveryCost += ($extraWeight * $extraKgRate);
             }
 
-            if ($subtotal >= 2000) {
+            // Free Shipping Threshold Check
+            $freeShippingEnabled = ($settings['free_shipping_enabled'] ?? '1') === '1';
+            $freeShippingMin = (float)($settings['free_shipping_min_amount'] ?? ($settings['free_shipping_threshold'] ?? 5000));
+            if ($freeShippingEnabled && $subtotal >= $freeShippingMin) {
                 $deliveryCost = 0.0;
             }
 
@@ -841,9 +844,12 @@ const weightCalcEnabled = <?= ($settings['delivery_weight_calc_enabled'] ?? '1')
 const baseWeightKg = <?= (float)($settings['delivery_base_weight_kg'] ?? 1.0) ?>;
 const extraRateInside = <?= (float)($settings['delivery_extra_kg_charge_inside'] ?? 20) ?>;
 const extraRateOutside = <?= (float)($settings['delivery_extra_kg_charge_outside'] ?? 35) ?>;
+const freeShippingEnabled = <?= ($settings['free_shipping_enabled'] ?? '1') === '1' ? 'true' : 'false' ?>;
+const freeShippingMin = <?= (float)($settings['free_shipping_min_amount'] ?? ($settings['free_shipping_threshold'] ?? 5000)) ?>;
 
 function updateDeliveryCharge(districtName) {
     const sel = document.getElementById('inpCustDistrict');
+    if (!sel || !sel.options || sel.selectedIndex < 0) return;
     const opt = sel.options[sel.selectedIndex];
     let baseFee = parseFloat(opt.getAttribute('data-fee') || 120);
     const days = opt.getAttribute('data-days') || '1-2 days';
@@ -857,7 +863,7 @@ function updateDeliveryCharge(districtName) {
         totalDelivery += (extraWeight * extraRate);
     }
 
-    if (currentSubtotal >= 2000) {
+    if (freeShippingEnabled && currentSubtotal >= freeShippingMin) {
         totalDelivery = 0.0;
         document.getElementById('checkoutDeliveryFee').textContent = 'FREE (৳0.00)';
     } else {
@@ -872,9 +878,6 @@ function updateDeliveryCharge(districtName) {
 
     const advPayEl = document.getElementById('advancePayableDisplay');
     if (advPayEl) advPayEl.textContent = '৳' + totalDelivery.toFixed(2);
-
-    recalculateTotal();
-}
 
     recalculateTotal();
 }

@@ -142,6 +142,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Render regular Cart Page
 $pageTitle = 'Your Shopping Cart - OnlineBdMart';
 require_once 'includes/header.php';
+
+$settings = getAllSettings();
+$freeShippingEnabled = ($settings['free_shipping_enabled'] ?? '1') === '1';
+$freeShippingMin = (float)($settings['free_shipping_min_amount'] ?? ($settings['free_shipping_threshold'] ?? 5000));
+$isFreeShipping = ($freeShippingEnabled && $subtotal >= $freeShippingMin);
 ?>
 
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -216,7 +221,7 @@ require_once 'includes/header.php';
                     </div>
                     <div class="flex justify-between text-slate-600">
                         <span>Estimated Shipping</span>
-                        <span class="font-bold text-emerald-600"><?= $subtotal >= 2000 ? 'FREE' : 'Calculated at checkout' ?></span>
+                        <span class="font-bold text-emerald-600"><?= $isFreeShipping ? 'FREE (৳0.00)' : 'Calculated at checkout' ?></span>
                     </div>
                     <div class="pt-3 border-t border-slate-200 flex justify-between text-sm font-extrabold text-slate-900">
                         <span>Estimated Total</span>

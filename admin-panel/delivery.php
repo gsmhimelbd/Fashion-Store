@@ -43,12 +43,16 @@ try {
             $extraInside = (float)($_POST['delivery_extra_kg_charge_inside'] ?? 20);
             $extraOutside = (float)($_POST['delivery_extra_kg_charge_outside'] ?? 35);
             $weightCalcEnabled = isset($_POST['delivery_weight_calc_enabled']) ? '1' : '0';
+            $freeShippingMin = (float)($_POST['free_shipping_min_amount'] ?? 5000);
+            $freeShippingEnabled = isset($_POST['free_shipping_enabled']) ? '1' : '0';
 
             saveSetting('delivery_base_weight_kg', (string)$baseWeight);
             saveSetting('delivery_extra_kg_charge_inside', (string)$extraInside);
             saveSetting('delivery_extra_kg_charge_outside', (string)$extraOutside);
             saveSetting('delivery_weight_calc_enabled', $weightCalcEnabled);
-            $msg = '✓ Weight-based delivery charge rules updated successfully!';
+            saveSetting('free_shipping_min_amount', (string)$freeShippingMin);
+            saveSetting('free_shipping_enabled', $freeShippingEnabled);
+            $msg = '✓ Weight-based delivery rules & Free Shipping threshold updated successfully!';
         }
     }
 
@@ -93,10 +97,10 @@ try {
             </label>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-6 text-xs">
             <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 space-y-2">
                 <label class="block text-slate-300 font-bold">
-                    <i class="fas fa-scale-balanced text-indigo-400 mr-1"></i> Base Weight in KG (মূল ওজন)
+                    <i class="fas fa-scale-balanced text-indigo-400 mr-1"></i> Base Weight in KG
                 </label>
                 <div class="flex items-center gap-2">
                     <input type="number" step="0.1" name="delivery_base_weight_kg" value="<?= htmlspecialchars($settings['delivery_base_weight_kg'] ?? '1.0') ?>" required class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-bold font-mono outline-none">
@@ -125,6 +129,23 @@ try {
                     <input type="number" step="1" name="delivery_extra_kg_charge_outside" value="<?= htmlspecialchars($settings['delivery_extra_kg_charge_outside'] ?? '35') ?>" required class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-bold font-mono outline-none">
                 </div>
                 <p class="text-[11px] text-slate-500">ঢাকার বাইরে ১ কেজির পর প্রতি অতিরিক্ত কেজিতে কত টাকা যোগ হবে।</p>
+            </div>
+
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 space-y-2">
+                <div class="flex items-center justify-between">
+                    <label class="block text-slate-300 font-bold">
+                        <i class="fas fa-gift text-pink-400 mr-1"></i> Free Delivery Over
+                    </label>
+                    <label class="text-[10px] text-pink-400 font-bold flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" name="free_shipping_enabled" value="1" <?= ($settings['free_shipping_enabled'] ?? '1') === '1' ? 'checked' : '' ?> class="rounded text-pink-600 focus:ring-0">
+                        <span>Active</span>
+                    </label>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-pink-400 font-bold font-mono">৳</span>
+                    <input type="number" step="1" name="free_shipping_min_amount" value="<?= htmlspecialchars($settings['free_shipping_min_amount'] ?? '5000') ?>" required class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-pink-300 font-bold font-mono outline-none">
+                </div>
+                <p class="text-[11px] text-slate-500">কত টাকার অর্ডারে ডেলিভারি চার্জ সম্পূর্ণ ফ্রি হবে (যেমন: ৳৫০০০)।</p>
             </div>
         </div>
 
