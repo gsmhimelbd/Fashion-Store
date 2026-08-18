@@ -30,21 +30,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['coupon_action'])) {
         try {
             $db = getDB();
 
-            // Auto-heal coupons table if not exists or missing columns
+            // Auto-heal coupons table
             try { $db->exec("CREATE TABLE IF NOT EXISTS `coupons` (`id` int(11) NOT NULL AUTO_INCREMENT, `code` varchar(50) NOT NULL, `discount_type` varchar(20) NOT NULL DEFAULT 'fixed', `discount_value` decimal(10,2) NOT NULL DEFAULT 0.00, `min_spend` decimal(10,2) NOT NULL DEFAULT 0.00, `product_id` int(11) DEFAULT NULL, `show_in_header` tinyint(1) DEFAULT 1, `header_banner_text` varchar(255) DEFAULT NULL, `first_order_only` tinyint(1) DEFAULT 0, `expiry_date` date DEFAULT NULL, `used_count` int(11) DEFAULT 0, `is_active` tinyint(1) DEFAULT 1, `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`id`), UNIQUE KEY `code` (`code`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (Exception $e) {}
 
-            $stmt = $db->prepare("SELECT * FROM coupons WHERE UPPER(TRIM(code)) = ? AND (is_active = 1 OR is_active IS NULL) AND (expiry_date IS NULL OR expiry_date = '' OR expiry_date = '0000-00-00' OR expiry_date >= CURDATE()) LIMIT 1");
+            // Fetch coupon by code directly
+            $stmt = $db->prepare("SELECT * FROM coupons WHERE UPPER(TRIM(code)) = ? LIMIT 1");
             $stmt->execute([$code]);
             $coupon = $stmt->fetch();
 
             if (!$coupon) {
-                echo json_encode(['success' => false, 'message' => 'দুঃখিত! কুপন কোডটি সঠিক নয় অথবা মেয়াদ শেষ হয়ে গেছে।']);
+                echo json_encode(['success' => false, 'message' => "দুঃখিত! \"{$code}\" কুপন কোডটি পাওয়া যায়নি। সঠিক কোড লিখুন।"]);
                 exit;
             }
 
+            // Check Active Status
+            if (isset($coupon['is_active']) && (string)$coupon['is_active'] === '0') {
+                echo json_encode(['success' => false, 'message' => "দুঃখিত! \"{$code}\" কুপনটি বর্তমানে নিষ্ক্রিয় রয়েছে।"]);
+                exit;
+            }
+
+            // Check Expiry Date in PHP safely (avoids MySQL 0000-00-00 / NULL issues)
+            if (!empty($coupon['expiry_date']) && $coupon['expiry_date'] !== '0000-00-00') {
+                $expTimestamp = strtotime($coupon['expiry_date']);
+                $todayTimestamp = strtotime(date('Y-m-d'));
+                if ($expTimestamp && $expTimestamp < $todayTimestamp) {
+                    echo json_encode(['success' => false, 'message' => "দুঃখিত! এই কুপনটির মেয়াদ " . date('d M Y', $expTimestamp) . " তারিখে শেষ হয়ে গেছে।"]);
+                    exit;
+                }
+            }
+
             // Check Minimum Spend
-            if ($subtotal < (float)($coupon['min_spend'] ?? 0)) {
-                echo json_encode(['success' => false, 'message' => "এই কুপনটি ব্যবহার করতে সর্বনিম্ন ৳" . number_format((float)$coupon['min_spend'], 0) . " টাকার অর্ডার করতে হবে।"]);
+            $minSpend = (float)($coupon['min_spend'] ?? 0);
+            if ($minSpend > 0 && $subtotal < $minSpend) {
+                echo json_encode(['success' => false, 'message' => "এই কুপনটি ব্যবহার করতে সর্বনিম্ন ৳" . number_format($minSpend, 0) . " টাকার অর্ডার করতে হবে।"]);
                 exit;
             }
 
@@ -105,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['coupon_action'])) {
                 'discount' => $discount,
                 'type' => $discType,
                 'value' => $discVal,
-                'min_spend' => (float)($coupon['min_spend'] ?? 0)
+                'min_spend' => $minSpend
             ];
 
             echo json_encode([
