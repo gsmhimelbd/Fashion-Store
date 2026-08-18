@@ -103,9 +103,31 @@ require_once 'includes/header.php';
                             </div>
                             <?php endif; ?>
                         </div>
-                        <span class="font-bold text-indigo-600">৳<?= number_format($item['total_price'] ?: ($item['price'] * $item['quantity']), 2) ?></span>
+                        <span class="font-bold text-slate-900">৳<?= number_format($item['total_price'] ?: ($item['price'] * $item['quantity']), 2) ?></span>
                     </div>
                     <?php endforeach; ?>
+                </div>
+
+                <!-- Financial Calculation Breakdown -->
+                <div class="mt-4 pt-3 border-t border-slate-200 space-y-1.5 text-[11px]">
+                    <div class="flex justify-between text-slate-600">
+                        <span>Subtotal:</span>
+                        <span class="font-bold text-slate-900">৳<?= number_format((float)($order['subtotal'] ?? 0), 2) ?></span>
+                    </div>
+                    <?php if (!empty($order['discount_amount']) && (float)$order['discount_amount'] > 0): ?>
+                    <div class="flex justify-between text-emerald-600 font-bold">
+                        <span>Coupon Discount <?= !empty($order['coupon_code']) ? '(' . htmlspecialchars($order['coupon_code']) . ')' : '' ?>:</span>
+                        <span>-৳<?= number_format((float)$order['discount_amount'], 2) ?></span>
+                    </div>
+                    <?php endif; ?>
+                    <div class="flex justify-between text-slate-600">
+                        <span>Delivery Charge:</span>
+                        <span class="font-bold text-slate-900">৳<?= number_format((float)($order['delivery_cost'] ?? ($order['delivery_charge'] ?? 120)), 2) ?></span>
+                    </div>
+                    <div class="flex justify-between text-xs font-black text-slate-900 pt-1.5 border-t border-slate-200">
+                        <span>Total Paid / Payable:</span>
+                        <span class="text-indigo-600 font-mono">৳<?= number_format((float)($order['total_amount'] ?: $order['grand_total']), 2) ?></span>
+                    </div>
                 </div>
             </div>
         </div>

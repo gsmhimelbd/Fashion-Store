@@ -120,18 +120,24 @@ $storeAddress = $settings['store_address'] ?? 'Tangail, Dhaka Division, Banglade
 
         <!-- Totals -->
         <div class="pt-4 border-t border-slate-200 flex justify-end">
-            <div class="w-64 space-y-2 text-xs">
+            <div class="w-72 space-y-2 text-xs">
                 <div class="flex justify-between text-slate-600">
-                    <span>Subtotal:</span>
+                    <span>Items Subtotal:</span>
                     <span class="font-bold text-slate-900">৳<?= number_format($order['subtotal'], 2) ?></span>
                 </div>
+                <?php if (!empty($order['discount_amount']) && (float)$order['discount_amount'] > 0): ?>
+                <div class="flex justify-between text-emerald-600 font-bold bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
+                    <span>Coupon Discount <?= !empty($order['coupon_code']) ? '(' . htmlspecialchars($order['coupon_code']) . ')' : '' ?>:</span>
+                    <span>-৳<?= number_format((float)$order['discount_amount'], 2) ?></span>
+                </div>
+                <?php endif; ?>
                 <div class="flex justify-between text-slate-600">
                     <span>Delivery Fee:</span>
                     <span class="font-bold text-slate-900">৳<?= number_format($order['delivery_cost'], 2) ?></span>
                 </div>
                 <div class="pt-2 border-t flex justify-between text-sm font-black text-slate-900">
                     <span>Grand Total:</span>
-                    <span class="text-indigo-600">৳<?= number_format($order['total_amount'], 2) ?></span>
+                    <span class="text-indigo-600 font-mono">৳<?= number_format($order['total_amount'], 2) ?></span>
                 </div>
             </div>
         </div>

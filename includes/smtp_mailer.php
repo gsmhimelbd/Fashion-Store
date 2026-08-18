@@ -318,21 +318,22 @@ function sendOrderEmailNotifications($orderId) {
                                         <tr>
                                             <td style='font-size: 13px; color: #64748b; padding: 4px 0;'>Items Subtotal:</td>
                                             <td style='font-size: 13px; color: #1e293b; font-weight: bold; text-align: right; padding: 4px 0;'>৳{$subtotalVal}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style='font-size: 13px; color: #64748b; padding: 4px 0;'>Delivery Charge:</td>
-                                            <td style='font-size: 13px; color: #1e293b; font-weight: bold; text-align: right; padding: 4px 0;'>৳{$deliveryCostVal}</td>
                                         </tr>";
 
         if ((float)($order['discount_amount'] ?? 0) > 0) {
+            $cpCodeStr = !empty($order['coupon_code']) ? " (" . htmlspecialchars($order['coupon_code']) . ")" : "";
             $emailHtml .= "
                                         <tr>
-                                            <td style='font-size: 13px; color: #059669; padding: 4px 0;'>Coupon Discount:</td>
+                                            <td style='font-size: 13px; color: #059669; font-weight: bold; padding: 4px 0;'>🎁 Coupon Discount{$cpCodeStr}:</td>
                                             <td style='font-size: 13px; color: #059669; font-weight: bold; text-align: right; padding: 4px 0;'>-৳{$discountVal}</td>
                                         </tr>";
         }
 
         $emailHtml .= "
+                                        <tr>
+                                            <td style='font-size: 13px; color: #64748b; padding: 4px 0;'>Delivery Charge:</td>
+                                            <td style='font-size: 13px; color: #1e293b; font-weight: bold; text-align: right; padding: 4px 0;'>৳{$deliveryCostVal}</td>
+                                        </tr>
                                         <tr>
                                             <td style='font-size: 15px; font-weight: 900; color: #0f172a; padding: 10px 0 4px 0; border-top: 1px solid #e2e8f0;'>Grand Total:</td>
                                             <td style='font-size: 17px; font-weight: 900; color: #4338ca; text-align: right; padding: 10px 0 4px 0; border-top: 1px solid #e2e8f0;'>৳{$grandTotalVal}</td>

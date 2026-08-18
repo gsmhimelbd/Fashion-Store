@@ -168,10 +168,16 @@ try {
             
             <div class="pt-2 border-t border-slate-900 space-y-1">
                 <div class="flex justify-between text-slate-400"><span>Items Subtotal:</span><span class="font-bold text-white">৳<?= number_format($order['subtotal'], 2) ?></span></div>
+                <?php if (!empty($order['discount_amount']) && (float)$order['discount_amount'] > 0): ?>
+                <div class="flex justify-between text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    <span>Coupon Discount <?= !empty($order['coupon_code']) ? '(' . htmlspecialchars($order['coupon_code']) . ')' : '' ?>:</span>
+                    <span>-৳<?= number_format((float)$order['discount_amount'], 2) ?></span>
+                </div>
+                <?php endif; ?>
                 <div class="flex justify-between text-slate-400"><span>Delivery Fee:</span><span class="font-bold text-white">৳<?= number_format($order['delivery_cost'] ?: $order['delivery_charge'] ?: 0, 2) ?></span></div>
                 <div class="flex justify-between text-sm font-black pt-2 border-t border-slate-900">
                     <span class="text-white">Grand Total:</span>
-                    <span class="text-indigo-400 text-base">৳<?= number_format($order['total_amount'] ?: $order['grand_total'], 2) ?></span>
+                    <span class="text-indigo-400 text-base font-mono">৳<?= number_format($order['total_amount'] ?: $order['grand_total'], 2) ?></span>
                 </div>
             </div>
         </div>
