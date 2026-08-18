@@ -29,7 +29,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['coupon_action'])) {
 
         try {
             $db = getDB();
-            $stmt = $db->prepare("SELECT * FROM coupons WHERE code = ? AND is_active = 1 AND (expiry_date IS NULL OR expiry_date >= CURDATE()) LIMIT 1");
+
+            // Auto-heal coupons table if not exists or missing columns
+            try { $db->exec("CREATE TABLE IF NOT EXISTS `coupons` (`id` int(11) NOT NULL AUTO_INCREMENT, `code` varchar(50) NOT NULL, `discount_type` varchar(20) NOT NULL DEFAULT 'fixed', `discount_value` decimal(10,2) NOT NULL DEFAULT 0.00, `min_spend` decimal(10,2) NOT NULL DEFAULT 0.00, `product_id` int(11) DEFAULT NULL, `show_in_header` tinyint(1) DEFAULT 1, `header_banner_text` varchar(255) DEFAULT NULL, `first_order_only` tinyint(1) DEFAULT 0, `expiry_date` date DEFAULT NULL, `used_count` int(11) DEFAULT 0, `is_active` tinyint(1) DEFAULT 1, `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`id`), UNIQUE KEY `code` (`code`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (Exception $e) {}
+
+            $stmt = $db->prepare("SELECT * FROM coupons WHERE UPPER(TRIM(code)) = ? AND (is_active = 1 OR is_active IS NULL) AND (expiry_date IS NULL OR expiry_date = '' OR expiry_date = '0000-00-00' OR expiry_date >= CURDATE()) LIMIT 1");
             $stmt->execute([$code]);
             $coupon = $stmt->fetch();
 
@@ -39,8 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['coupon_action'])) {
             }
 
             // Check Minimum Spend
-            if ($subtotal < (float)$coupon['min_spend']) {
-                echo json_encode(['success' => false, 'message' => "এই কুপনটি ব্যবহার করতে সর্বনিম্ন ৳" . number_format($coupon['min_spend'], 0) . " টাকার অর্ডার করতে হবে।"]);
+            if ($subtotal < (float)($coupon['min_spend'] ?? 0)) {
+                echo json_encode(['success' => false, 'message' => "এই কুপনটি ব্যবহার করতে সর্বনিম্ন ৳" . number_format((float)$coupon['min_spend'], 0) . " টাকার অর্ডার করতে হবে।"]);
                 exit;
             }
 
@@ -50,9 +54,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['coupon_action'])) {
                 $custEmail = trim($_POST['customer_email'] ?? ($_SESSION['user_email'] ?? ''));
                 
                 if ($custPhone || $custEmail) {
-                    $prevStmt = $db->prepare("SELECT COUNT(*) FROM orders WHERE (customer_phone = ? OR phone = ?) OR (customer_email != '' AND (customer_email = ? OR email = ?))");
-                    $prevStmt->execute([$custPhone, $custPhone, $custEmail, $custEmail]);
-                    $prevOrderCount = (int)$prevStmt->fetchColumn();
+                    $prevOrderCount = 0;
+                    try {
+                        $prevStmt = $db->prepare("SELECT COUNT(*) FROM orders WHERE (customer_phone = ? OR phone = ?) OR (customer_email != '' AND customer_email = ?)");
+                        $prevStmt->execute([$custPhone, $custPhone, $custEmail]);
+                        $prevOrderCount = (int)$prevStmt->fetchColumn();
+                    } catch (Exception $e) {
+                        try {
+                            $prevStmt = $db->prepare("SELECT COUNT(*) FROM orders WHERE customer_phone = ? OR phone = ?");
+                            $prevStmt->execute([$custPhone, $custPhone]);
+                            $prevOrderCount = (int)$prevStmt->fetchColumn();
+                        } catch (Exception $ex2) {}
+                    }
 
                     if ($prevOrderCount > 0) {
                         echo json_encode(['success' => false, 'message' => 'দুঃখিত! এই কুপন কোডটি শুধুমাত্র নতুন গ্রাহকদের ১ম অর্ডারের জন্য প্রযোজ্য (First Order Only)।']);
@@ -78,18 +91,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['coupon_action'])) {
 
             // Calculate Discount Amount
             $discount = 0.0;
-            if ($coupon['discount_type'] === 'percent') {
-                $discount = round(($subtotal * (float)$coupon['discount_value']) / 100, 2);
+            $discType = $coupon['discount_type'] ?? 'fixed';
+            $discVal = (float)($coupon['discount_value'] ?? 0);
+
+            if ($discType === 'percent') {
+                $discount = round(($subtotal * $discVal) / 100, 2);
             } else {
-                $discount = min($subtotal, (float)$coupon['discount_value']);
+                $discount = min($subtotal, $discVal);
             }
 
             $_SESSION['applied_coupon'] = [
                 'code' => $coupon['code'],
                 'discount' => $discount,
-                'type' => $coupon['discount_type'],
-                'value' => $coupon['discount_value'],
-                'min_spend' => $coupon['min_spend']
+                'type' => $discType,
+                'value' => $discVal,
+                'min_spend' => (float)($coupon['min_spend'] ?? 0)
             ];
 
             echo json_encode([
